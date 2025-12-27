@@ -1,0 +1,146 @@
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Register a new user
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Test User",
+  "email": "test@example.com",
+  "phone": "+1234567890",
+  "password": "securePassword123",
+  "role": "customer"
+}
+
+### Login with email
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test@example.com",
+  "password": "securePassword123"
+}
+
+### Login with phone
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+1234567890",
+  "password": "securePassword123"
+}
+
+### Get user profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{access_token}}
+
+### Refresh token
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{access_token}}
+
+### Get all users (Admin only)
+GET {{baseUrl}}/users
+Authorization: Bearer {{access_token}}
+
+### Get user by phone
+GET {{baseUrl}}/users/+1234567890
+Authorization: Bearer {{access_token}}
+
+### Update user role (Admin only)
+PATCH {{baseUrl}}/users/+1234567890/role
+Authorization: Bearer {{access_token}}
+Content-Type: {{contentType}}
+
+{
+  "role": "admin"
+}
+
+### Create a new service (Admin only)
+POST {{baseUrl}}/services
+Authorization: Bearer {{admin_token}}
+Content-Type: {{contentType}}
+
+{
+  "service_type": "yoga",
+  "service_name": "Hatha Yoga",
+  "description": "Traditional Hatha Yoga session",
+  "price": 25.99,
+  "duration": 60
+}
+
+### Get all services
+GET {{baseUrl}}/services
+
+### Get popular services
+GET {{baseUrl}}/services/popular
+
+### Get service by ID
+GET {{baseUrl}}/services/{{service_id}}
+
+### Update service (Admin only)
+PATCH {{baseUrl}}/services/{{service_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: {{contentType}}
+
+{
+  "price": 29.99
+}
+
+### Delete service (Admin only)
+DELETE {{baseUrl}}/services/{{service_id}}
+Authorization: Bearer {{admin_token}}
+
+### Get services by type
+GET {{baseUrl}}/services/type/yoga
+
+### Create a new booking
+POST {{baseUrl}}/bookings
+Authorization: Bearer {{access_token}}
+Content-Type: {{contentType}}
+
+{
+  "service_id": "{{service_id}}",
+  "booking_date": "2025-01-15",
+  "booking_time": "10:00",
+  "special_requests": "Near window if possible"
+}
+
+### Get user's bookings
+GET {{baseUrl}}/bookings
+Authorization: Bearer {{access_token}}
+
+### Get booking by ID
+GET {{baseUrl}}/bookings/{{booking_id}}
+Authorization: Bearer {{access_token}}
+
+### Update booking
+PATCH {{baseUrl}}/bookings/{{booking_id}}
+Authorization: Bearer {{access_token}}
+Content-Type: {{contentType}}
+
+{
+  "status": "confirmed"
+}
+
+### Delete booking
+DELETE {{baseUrl}}/bookings/{{booking_id}}
+Authorization: Bearer {{access_token}}
+
+### Check available slots
+GET {{baseUrl}}/bookings/available/{{service_id}}/2025-01-15
+
+### Get all bookings (Admin only)
+GET {{baseUrl}}/bookings/admin/all
+Authorization: Bearer {{admin_token}}
