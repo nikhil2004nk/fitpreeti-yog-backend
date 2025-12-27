@@ -169,7 +169,8 @@ export class AuthService {
          FROM fitpreeti.refresh_tokens 
          WHERE token = '${token.replace(/'/g, "''")}'
            AND expires_at > now64()
-         LIMIT 1`
+         LIMIT 1
+         FORMAT JSONEachRow`
       ) as unknown as Array<{ phone: string }>;
       
       return result && result.length ? result[0].phone : null;
@@ -245,4 +246,6 @@ export class AuthService {
   }
 
   private async revokeUserTokens(phone: string): Promise<void> {
-    await this.ch.query(`ALTER TABLE fi
+    await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE phone = '${phone.replace(/'/g, "''")}'`);
+  }
+}

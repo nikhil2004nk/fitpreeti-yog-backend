@@ -130,7 +130,8 @@ let AuthService = AuthService_1 = class AuthService {
             const result = await this.ch.query(`SELECT id, name, email, phone, role, created_at 
          FROM fitpreeti.users 
          WHERE phone = '${phone.replace(/'/g, "''")}'
-         LIMIT 1`);
+         LIMIT 1
+         FORMAT JSONEachRow`);
             return result && result.length ? result[0] : null;
         }
         catch (error) {
@@ -144,7 +145,8 @@ let AuthService = AuthService_1 = class AuthService {
          FROM fitpreeti.refresh_tokens 
          WHERE token = '${token.replace(/'/g, "''")}'
            AND expires_at > now64()
-         LIMIT 1`);
+         LIMIT 1
+         FORMAT JSONEachRow`);
             return result && result.length ? result[0].phone : null;
         }
         catch (error) {
@@ -157,7 +159,8 @@ let AuthService = AuthService_1 = class AuthService {
             const result = await this.ch.query(`SELECT id, name, email, phone, role, created_at, pin 
          FROM fitpreeti.users 
          WHERE phone = '${phone.replace(/'/g, "''")}'
-         LIMIT 1`);
+         LIMIT 1
+         FORMAT JSONEachRow`);
             return result && result.length ? result[0] : null;
         }
         catch (error) {
@@ -170,7 +173,8 @@ let AuthService = AuthService_1 = class AuthService {
             const result = await this.ch.query(`SELECT id, name, email, phone, role, created_at
          FROM fitpreeti.users 
          WHERE email = '${email.replace(/'/g, "''")}'
-         LIMIT 1`);
+         LIMIT 1
+         FORMAT JSONEachRow`);
             return result && result.length ? result[0] : null;
         }
         catch (error) {
