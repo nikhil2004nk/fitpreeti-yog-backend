@@ -85,13 +85,12 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
                 });
                 return { success: true };
             }
-            let finalQuery = formattedQuery;
-            if (!upperQuery.includes('FORMAT')) {
-                finalQuery = `${formattedQuery.replace(/;*$/, '')} FORMAT JSONEachRow`;
-            }
+            let finalQuery = formattedQuery.replace(/;*$/, '').trim();
+            finalQuery = finalQuery.replace(/\s+FORMAT\s+\w+/i, '').trim();
             this.logger.debug(`Executing: ${finalQuery.substring(0, 100)}${finalQuery.length > 100 ? '...' : ''}`);
             const result = await this.client.query({
                 query: finalQuery,
+                format: 'JSONEachRow',
                 clickhouse_settings: {
                     wait_end_of_query: 1,
                     output_format_json_quote_64bit_integers: 0,

@@ -9,6 +9,5 @@ export declare class SchemaService implements OnModuleInit {
     constructor(ch: ClickhouseService, configService: ConfigService);
     onModuleInit(): Promise<void>;
     private initDatabase;
-    private dropExistingTables;
     private initTables;
 }

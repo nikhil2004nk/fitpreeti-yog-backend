@@ -1,9 +1,10 @@
 import { BookingStatus } from '../dto/create-booking.dto';
 
 export interface Booking {
-  id: number;
+  id: string; // UUID
+  user_id: string; // UUID
   user_phone: string;
-  service_id: number;
+  service_id: string; // UUID
   booking_date: string;
   booking_time: string;
   special_requests: string | null;

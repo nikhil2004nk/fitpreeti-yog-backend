@@ -1,5 +1,5 @@
 export interface Service {
-  id: number;
+  id: string; // UUID
   service_type: string;
   service_name: string;
   description: string;

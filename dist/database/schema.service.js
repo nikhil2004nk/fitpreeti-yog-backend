@@ -27,7 +27,6 @@ let SchemaService = SchemaService_1 = class SchemaService {
     async onModuleInit() {
         try {
             await this.initDatabase();
-            await this.dropExistingTables();
             await this.initTables();
             this.logger.log('✅ Database schema initialized successfully');
         }
@@ -40,34 +39,22 @@ let SchemaService = SchemaService_1 = class SchemaService {
         await this.ch.query(`CREATE DATABASE IF NOT EXISTS ${this.database}`);
         this.logger.log(`🗄️ Using database: ${this.database}`);
     }
-    async dropExistingTables() {
-        const tables = ['users', 'services', 'bookings', 'refresh_tokens'];
-        for (const table of tables) {
-            try {
-                await this.ch.query(`DROP TABLE IF EXISTS ${this.database}.${table}`);
-                this.logger.log(`🗑️ Dropped existing table: ${table}`);
-            }
-            catch (error) {
-                this.logger.warn(`⚠️ Skip drop table ${table}: ${error.message}`);
-            }
-        }
-    }
     async initTables() {
         const tables = [
-            `CREATE TABLE ${this.database}.users (
-        id UInt64 MATERIALIZED rand64(),
+            `CREATE TABLE IF NOT EXISTS ${this.database}.users (
+        id UUID DEFAULT generateUUIDv4(),
         name String,
         email String,
         phone String,
-        pin_hash String,
+        pin String,
         role LowCardinality(String) DEFAULT 'customer',
         created_at DateTime64(3) DEFAULT now64()
       ) ENGINE = MergeTree()
       PARTITION BY toYYYYMM(created_at)
       ORDER BY (phone, created_at)
       SETTINGS index_granularity = 8192`,
-            `CREATE TABLE ${this.database}.services (
-        id UInt64 MATERIALIZED rand64(),
+            `CREATE TABLE IF NOT EXISTS ${this.database}.services (
+        id UUID DEFAULT generateUUIDv4(),
         service_type LowCardinality(String),
         service_name LowCardinality(String),
         description String,
@@ -78,10 +65,11 @@ let SchemaService = SchemaService_1 = class SchemaService {
       PARTITION BY toYYYYMM(created_at)
       ORDER BY (service_type, created_at)
       SETTINGS index_granularity = 8192`,
-            `CREATE TABLE ${this.database}.bookings (
-        id UInt64 MATERIALIZED rand64(),
+            `CREATE TABLE IF NOT EXISTS ${this.database}.bookings (
+        id UUID DEFAULT generateUUIDv4(),
+        user_id UUID,
         user_phone String,
-        service_id UInt64,
+        service_id UUID,
         booking_date Date,
         booking_time String,
         special_requests String,
@@ -92,9 +80,9 @@ let SchemaService = SchemaService_1 = class SchemaService {
         created_at DateTime64(3) DEFAULT now64()
       ) ENGINE = MergeTree()
       PARTITION BY toYYYYMM(booking_date)
-      ORDER BY (user_phone, booking_date, booking_time)
+      ORDER BY (user_id, booking_date, booking_time)
       SETTINGS index_granularity = 8192`,
-            `CREATE TABLE ${this.database}.refresh_tokens (
+            `CREATE TABLE IF NOT EXISTS ${this.database}.refresh_tokens (
         id UInt64 MATERIALIZED rand64(),
         phone String,
         token String,
@@ -110,7 +98,7 @@ let SchemaService = SchemaService_1 = class SchemaService {
             try {
                 await this.ch.query(query);
                 const tableName = query.match(/\.(\w+)/)?.[1] || `table-${index}`;
-                this.logger.log(`✅ Table created: ${this.database}.${tableName}`);
+                this.logger.log(`✅ Table checked/created: ${this.database}.${tableName} (IF NOT EXISTS)`);
             }
             catch (error) {
                 this.logger.error(`❌ Failed to create table ${index + 1}: ${error.message}`);

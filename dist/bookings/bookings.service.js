@@ -12,110 +12,126 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingsService = void 0;
 const common_1 = require("@nestjs/common");
 const clickhouse_service_1 = require("../database/clickhouse.service");
+const uuid_1 = require("uuid");
 let BookingsService = class BookingsService {
     ch;
     constructor(ch) {
         this.ch = ch;
     }
+    normalizePhone(phone) {
+        if (!phone)
+            return '';
+        const cleaned = phone.trim();
+        if (cleaned.startsWith('+')) {
+            return '+' + cleaned.slice(1).replace(/\D/g, '');
+        }
+        return cleaned.replace(/\D/g, '');
+    }
     async create(createBookingDto, userPhone) {
-        const service = await this.ch.query(`SELECT id FROM fitpreeti.services WHERE id = ${createBookingDto.service_id}`);
-        const serviceData = await service.json();
-        if (!serviceData.length) {
+        const normalizedPhone = this.normalizePhone(userPhone);
+        const escapedPhone = this.escapeSqlString(normalizedPhone);
+        const userQuery = `SELECT id FROM fitpreeti.users WHERE phone = '${escapedPhone}' LIMIT 1`;
+        const userResult = await this.ch.query(userQuery);
+        if (!Array.isArray(userResult) || userResult.length === 0) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const userId = userResult[0].id;
+        const escapedServiceId = this.escapeSqlString(String(createBookingDto.service_id));
+        const service = await this.ch.query(`SELECT id FROM fitpreeti.services WHERE id = '${escapedServiceId}'`);
+        if (!Array.isArray(service) || service.length === 0) {
             throw new common_1.NotFoundException('Service not found');
         }
-        const conflict = await this.ch.query(`
-      SELECT COUNT(*) as count 
-      FROM fitpreeti.bookings 
-      WHERE service_id = ${createBookingDto.service_id} 
-      AND booking_date = '${createBookingDto.booking_date}'
-      AND booking_time = '${createBookingDto.booking_time}'
-      AND status != 'cancelled'
-    `);
-        const conflictData = await conflict.json();
-        if ((conflictData[0]?.count || 0) > 0) {
+        const escapedDate = this.escapeSqlString(createBookingDto.booking_date);
+        const escapedTime = this.escapeSqlString(createBookingDto.booking_time);
+        const conflict = await this.ch.query(`SELECT COUNT(*) as count FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND booking_time = '${escapedTime}' AND status != 'cancelled'`);
+        if (Array.isArray(conflict) && conflict.length > 0 && (conflict[0]?.count || 0) > 0) {
             throw new common_1.BadRequestException('Time slot already booked');
         }
+        const bookingId = (0, uuid_1.v4)();
         const bookingData = {
+            id: bookingId,
+            user_id: userId,
             ...createBookingDto,
-            user_phone: userPhone,
+            user_phone: normalizedPhone,
             status: 'pending',
         };
         await this.ch.insert('bookings', bookingData);
-        return this.findOneByUser((await this.ch.query(`
-      SELECT id FROM fitpreeti.bookings 
-      WHERE user_phone = '${userPhone}' 
-      AND booking_date = '${createBookingDto.booking_date}'
-      AND booking_time = '${createBookingDto.booking_time}'
-      ORDER BY created_at DESC LIMIT 1
-    `)).json()[0]?.id || 0, userPhone);
+        return this.findOneByUser(bookingId, normalizedPhone);
+    }
+    escapeSqlString(value) {
+        return value.replace(/'/g, "''");
     }
     async findAll(userPhone) {
-        const whereClause = userPhone ? `WHERE user_phone = '${userPhone}'` : '';
+        const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
+        const whereClause = normalizedPhone ? `WHERE user_phone = '${normalizedPhone.replace(/'/g, "''")}'` : '';
         const result = await this.ch.query(`
       SELECT * FROM fitpreeti.bookings 
       ${whereClause} 
       ORDER BY booking_date DESC, booking_time ASC
     `);
-        return await result.json();
+        return Array.isArray(result) ? result : [];
     }
     async findOne(id, userPhone) {
-        const whereClause = userPhone ? `AND user_phone = '${userPhone}'` : '';
+        const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
+        const escapedId = this.escapeSqlString(id);
+        const whereClause = normalizedPhone ? `AND user_phone = '${this.escapeSqlString(normalizedPhone)}'` : '';
         const result = await this.ch.query(`
       SELECT * FROM fitpreeti.bookings 
-      WHERE id = ${id} ${whereClause}
+      WHERE id = '${escapedId}' ${whereClause}
     `);
-        const data = await result.json();
-        if (!data.length) {
+        if (!Array.isArray(result) || result.length === 0) {
             throw new common_1.NotFoundException('Booking not found');
         }
-        return data[0];
+        return result[0];
     }
     async update(id, updateBookingDto, userPhone) {
         const existing = await this.findOne(id, userPhone);
         const updates = [];
         Object.entries(updateBookingDto).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
-                updates.push(`${key} = '${value}'`);
+                updates.push(`${key} = '${this.escapeSqlString(String(value))}'`);
             }
         });
         if (updates.length === 0) {
             return existing;
         }
+        const escapedId = this.escapeSqlString(id);
         await this.ch.query(`
       ALTER TABLE fitpreeti.bookings 
       UPDATE ${updates.join(', ')} 
-      WHERE id = ${id}
+      WHERE id = '${escapedId}'
     `);
         return this.findOne(id, userPhone);
     }
     async remove(id, userPhone) {
         await this.findOne(id, userPhone);
-        await this.ch.query(`ALTER TABLE fitpreeti.bookings DELETE WHERE id = ${id}`);
+        const escapedId = this.escapeSqlString(id);
+        await this.ch.query(`ALTER TABLE fitpreeti.bookings DELETE WHERE id = '${escapedId}'`);
     }
     async getUserBookings(userPhone) {
         return this.findAll(userPhone);
     }
     async getAvailableSlots(serviceId, date) {
-        const result = await this.ch.query(`
-      SELECT booking_time 
-      FROM fitpreeti.bookings 
-      WHERE service_id = ${serviceId} 
-      AND booking_date = '${date}'
-      AND status != 'cancelled'
-    `);
-        const bookedSlots = await result.json();
-        return bookedSlots.map((slot) => slot.booking_time);
+        const escapedServiceId = this.escapeSqlString(serviceId);
+        const escapedDate = this.escapeSqlString(date);
+        const result = await this.ch.query(`SELECT booking_time FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND status != 'cancelled'`);
+        if (!Array.isArray(result)) {
+            return [];
+        }
+        return result.map((slot) => slot.booking_time);
     }
     async findOneByUser(id, userPhone) {
+        const normalizedPhone = this.normalizePhone(userPhone);
+        const escapedId = this.escapeSqlString(id);
+        const escapedPhone = this.escapeSqlString(normalizedPhone);
         const result = await this.ch.query(`
       SELECT * FROM fitpreeti.bookings 
-      WHERE id = ${id} AND user_phone = '${userPhone}'
+      WHERE id = '${escapedId}' AND user_phone = '${escapedPhone}'
     `);
-        const data = await result.json();
-        if (!data.length) {
+        if (!Array.isArray(result) || result.length === 0) {
             throw new common_1.NotFoundException('Booking not found');
         }
-        return data[0];
+        return result[0];
     }
 };
 exports.BookingsService = BookingsService;

@@ -12,76 +12,106 @@ Content-Type: {{contentType}}
   "name": "Test User",
   "email": "test@example.com",
   "phone": "+1234567890",
-  "password": "securePassword123",
-  "role": "customer"
+  "pin": "1234",
+  "role": "admin"
 }
 
-### Login with email
-POST {{baseUrl}}/auth/login
+### Register another user (to test duplicate prevention)
+POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
-  "email": "test@example.com",
-  "password": "securePassword123"
+  "name": "Another User",
+  "email": "another@example.com",
+  "phone": "+1987654321",
+  "pin": "5678"
 }
 
-### Login with phone
-POST {{baseUrl}}/auth/login
+### Try to register duplicate phone (should fail)
+POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
+  "name": "Duplicate User",
+  "email": "duplicate@example.com",
   "phone": "+1234567890",
-  "password": "securePassword123"
+  "pin": "9999"
 }
 
-### Get user profile
-GET {{baseUrl}}/auth/profile
-Authorization: Bearer {{access_token}}
+### Login with phone and PIN
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
 
-### Refresh token
+{
+  "phone": "+1987654321",
+  "pin": "5678"
+}
+
+### Get user profile (requires authentication via cookies)
+GET {{baseUrl}}/auth/profile
+
+### Refresh token (uses refresh_token cookie)
 POST {{baseUrl}}/auth/refresh
 Content-Type: {{contentType}}
 
+### Logout (requires authentication via cookies)
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+
+### Create admin user (requires admin authentication via cookies)
+POST {{baseUrl}}/auth/admin/create
+Content-Type: {{contentType}}
+
 {
-  "refresh_token": "{{refresh_token}}"
+  "name": "Admin User",
+  "email": "admin@example.com",
+  "phone": "+1999999999",
+  "pin": "admin"
 }
 
-### Logout
-POST {{baseUrl}}/auth/logout
-Authorization: Bearer {{access_token}}
-
-### Get all users (Admin only)
+### Get all users (Admin only - requires authentication via cookies)
 GET {{baseUrl}}/users
-Authorization: Bearer {{access_token}}
 
-### Get user by phone
+### Get user by phone (Admin only - requires authentication via cookies)
 GET {{baseUrl}}/users/+1234567890
-Authorization: Bearer {{access_token}}
 
-### Update user role (Admin only)
+### Update user role (Admin only - requires authentication via cookies)
 PATCH {{baseUrl}}/users/+1234567890/role
-Authorization: Bearer {{access_token}}
 Content-Type: {{contentType}}
 
 {
   "role": "admin"
 }
 
-### Create a new service (Admin only)
+### Create a new service (Admin only - requires authentication via cookies)
 POST {{baseUrl}}/services
-Authorization: Bearer {{admin_token}}
 Content-Type: {{contentType}}
 
 {
   "service_type": "yoga",
-  "service_name": "Hatha Yoga",
-  "description": "Traditional Hatha Yoga session",
-  "price": 25.99,
+  "service_name": "Hatha 2 Class",
+  "description": "Traditional Hatha Yoga session for all levels",
+  "price": 500,
   "duration": 60
+}
+
+### Create another service
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+{
+  "service_type": "meditation",
+  "service_name": "Guided Meditation",
+  "description": "30-minute guided meditation session",
+  "price": 300,
+  "duration": 30
 }
 
 ### Get all services
 GET {{baseUrl}}/services
+
+### Get services by type
+GET {{baseUrl}}/services/type/yoga
 
 ### Get popular services
 GET {{baseUrl}}/services/popular
@@ -89,58 +119,51 @@ GET {{baseUrl}}/services/popular
 ### Get service by ID
 GET {{baseUrl}}/services/{{service_id}}
 
-### Update service (Admin only)
-PATCH {{baseUrl}}/services/{{service_id}}
-Authorization: Bearer {{admin_token}}
+### Update service (Admin only - requires authentication via cookies)
+PATCH {{baseUrl}}/services/d695f24f-fb62-4f71-8615-94618e452191
 Content-Type: {{contentType}}
 
 {
-  "price": 29.99
+  "service_name": "Updated Hatha Yoga",
+  "price": 600
 }
 
-### Delete service (Admin only)
-DELETE {{baseUrl}}/services/{{service_id}}
-Authorization: Bearer {{admin_token}}
+### Delete service (Admin only - requires authentication via cookies)
+DELETE {{baseUrl}}/services/cc77a8cd-042d-4077-9d81-cb2badfab1e2
 
-### Get services by type
-GET {{baseUrl}}/services/type/yoga
-
-### Create a new booking
+### Create a new booking (requires authentication via cookies)
 POST {{baseUrl}}/bookings
-Authorization: Bearer {{access_token}}
 Content-Type: {{contentType}}
 
 {
-  "service_id": "{{service_id}}",
+  "service_id": "d695f24f-fb62-4f71-8615-94618e452191",
   "booking_date": "2025-01-15",
   "booking_time": "10:00",
+  "full_name": "Test User",
+  "email": "test@example.com",
+  "phone": "+1234567891",
   "special_requests": "Near window if possible"
 }
 
-### Get user's bookings
+### Get user's bookings (requires authentication via cookies)
 GET {{baseUrl}}/bookings
-Authorization: Bearer {{access_token}}
 
-### Get booking by ID
+### Get booking by ID (requires authentication via cookies)
 GET {{baseUrl}}/bookings/{{booking_id}}
-Authorization: Bearer {{access_token}}
 
-### Update booking
+### Check available slots for a service (requires authentication via cookies)
+GET {{baseUrl}}/bookings/available/1/2025-01-15
+
+### Update booking (Admin only - requires authentication via cookies)
 PATCH {{baseUrl}}/bookings/{{booking_id}}
-Authorization: Bearer {{access_token}}
 Content-Type: {{contentType}}
 
 {
   "status": "confirmed"
 }
 
-### Delete booking
+### Delete booking (requires authentication via cookies)
 DELETE {{baseUrl}}/bookings/{{booking_id}}
-Authorization: Bearer {{access_token}}
 
-### Check available slots
-GET {{baseUrl}}/bookings/available/{{service_id}}/2025-01-15
-
-### Get all bookings (Admin only)
+### Get all bookings (Admin only - requires authentication via cookies)
 GET {{baseUrl}}/bookings/admin/all
-Authorization: Bearer {{admin_token}}

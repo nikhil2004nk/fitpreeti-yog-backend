@@ -7,9 +7,9 @@ export declare class ServicesService {
     constructor(ch: ClickhouseService);
     create(createServiceDto: CreateServiceDto): Promise<Service>;
     findAll(type?: string): Promise<Service[]>;
-    findOne(id: number): Promise<Service>;
-    update(id: number, updateServiceDto: UpdateServiceDto): Promise<Service>;
-    remove(id: number): Promise<void>;
+    findOne(id: string): Promise<Service>;
+    update(id: string, updateServiceDto: UpdateServiceDto): Promise<Service>;
+    remove(id: string): Promise<void>;
     getServicesByType(type: string): Promise<Service[]>;
     getPopularServices(): Promise<Service[]>;
 }

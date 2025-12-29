@@ -35,13 +35,13 @@ let ServicesController = class ServicesController {
         return this.servicesService.getPopularServices();
     }
     findOne(id) {
-        return this.servicesService.findOne(+id);
+        return this.servicesService.findOne(id);
     }
     update(id, updateServiceDto) {
-        return this.servicesService.update(+id, updateServiceDto);
+        return this.servicesService.update(id, updateServiceDto);
     }
     remove(id) {
-        return this.servicesService.remove(+id);
+        return this.servicesService.remove(id);
     }
     getServicesByType(type) {
         return this.servicesService.getServicesByType(type);

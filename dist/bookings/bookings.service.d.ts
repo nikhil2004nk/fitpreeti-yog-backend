@@ -5,12 +5,14 @@ import type { Booking } from './interfaces/booking.interface';
 export declare class BookingsService {
     private ch;
     constructor(ch: ClickhouseService);
+    private normalizePhone;
     create(createBookingDto: CreateBookingDto, userPhone: string): Promise<Booking>;
+    private escapeSqlString;
     findAll(userPhone?: string): Promise<Booking[]>;
-    findOne(id: number, userPhone?: string): Promise<Booking>;
-    update(id: number, updateBookingDto: UpdateBookingDto, userPhone?: string): Promise<Booking>;
-    remove(id: number, userPhone?: string): Promise<void>;
+    findOne(id: string, userPhone?: string): Promise<Booking>;
+    update(id: string, updateBookingDto: UpdateBookingDto, userPhone?: string): Promise<Booking>;
+    remove(id: string, userPhone?: string): Promise<void>;
     getUserBookings(userPhone: string): Promise<Booking[]>;
-    getAvailableSlots(serviceId: number, date: string): Promise<string[]>;
+    getAvailableSlots(serviceId: string, date: string): Promise<string[]>;
     private findOneByUser;
 }

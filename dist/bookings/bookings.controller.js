@@ -33,16 +33,16 @@ let BookingsController = class BookingsController {
         return this.bookingsService.getUserBookings(userPhone);
     }
     findOne(id, req) {
-        return this.bookingsService.findOne(+id, req.user.phone);
+        return this.bookingsService.findOne(id, req.user.phone);
     }
     update(id, updateBookingDto) {
-        return this.bookingsService.update(+id, updateBookingDto);
+        return this.bookingsService.update(id, updateBookingDto);
     }
     remove(id, req) {
-        return this.bookingsService.remove(+id, req.user.phone);
+        return this.bookingsService.remove(id, req.user.phone);
     }
     async getAvailableSlots(serviceId, date) {
-        return this.bookingsService.getAvailableSlots(+serviceId, date);
+        return this.bookingsService.getAvailableSlots(serviceId, date);
     }
     findAllAdmin() {
         return this.bookingsService.findAll();

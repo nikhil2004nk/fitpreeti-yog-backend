@@ -1,12 +1,13 @@
 {
   "info": {
     "name": "Fitpreeti Yoga API",
+    "description": "Complete API collection for Fitpreeti Yoga Backend",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "a1b2c3d4-e5f6-7890-1234-56789abcdef0"
   },
   "item": [
     {
-      "name": "Auth",
+      "name": "Authentication",
       "item": [
         {
           "name": "Register User",
@@ -20,14 +21,21 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"+1234567890\",\n  \"email\": \"john@example.com\",\n  \"password\": \"securePassword123\"\n}"
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"+1234567890\",\n  \"email\": \"john@example.com\",\n  \"pin\": \"1234\",\n  \"role\": \"customer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/register",
               "host": ["{{base_url}}"],
               "path": ["auth", "register"]
-            }
-          }
+            },
+            "description": "Register a new user. Email is optional. Phone numbers are automatically normalized."
+          },
+          "response": []
         },
         {
           "name": "Login",
@@ -41,14 +49,21 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"password\": \"securePassword123\"\n}"
+              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"pin\": \"1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/auth/login",
               "host": ["{{base_url}}"],
               "path": ["auth", "login"]
-            }
-          }
+            },
+            "description": "Login with phone and PIN. Sets httpOnly cookies (access_token and refresh_token). Phone numbers are automatically normalized."
+          },
+          "response": []
         },
         {
           "name": "Refresh Token",
@@ -64,10 +79,74 @@
               "raw": "{{base_url}}/auth/refresh",
               "host": ["{{base_url}}"],
               "path": ["auth", "refresh"]
-            }
-          }
+            },
+            "description": "Refresh access token using refresh_token cookie. Returns new tokens in cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "Get authenticated user profile. Requires authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout user and clear authentication cookies. Requires authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Admin (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"phone\": \"+1987654321\",\n  \"email\": \"admin@example.com\",\n  \"pin\": \"5678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/admin/create",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "admin", "create"]
+            },
+            "description": "Create an admin user. Requires admin authentication via cookies."
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Authentication endpoints. Uses cookie-based authentication (httpOnly cookies)."
     },
     {
       "name": "Services",
@@ -81,8 +160,10 @@
               "raw": "{{base_url}}/services",
               "host": ["{{base_url}}"],
               "path": ["services"]
-            }
-          }
+            },
+            "description": "Get all services. Optional query parameter: ?type=yoga"
+          },
+          "response": []
         },
         {
           "name": "Get Service by ID",
@@ -90,11 +171,19 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/services/1",
+              "raw": "{{base_url}}/services/:id",
               "host": ["{{base_url}}"],
-              "path": ["services", "1"]
-            }
-          }
+              "path": ["services", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Get a specific service by ID"
+          },
+          "response": []
         },
         {
           "name": "Get Popular Services",
@@ -105,8 +194,30 @@
               "raw": "{{base_url}}/services/popular",
               "host": ["{{base_url}}"],
               "path": ["services", "popular"]
-            }
-          }
+            },
+            "description": "Get top 5 most popular services by booking count"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Services by Type",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services/type/:type",
+              "host": ["{{base_url}}"],
+              "path": ["services", "type", ":type"],
+              "variable": [
+                {
+                  "key": "type",
+                  "value": "yoga"
+                }
+              ]
+            },
+            "description": "Get services filtered by type"
+          },
+          "response": []
         },
         {
           "name": "Create Service (Admin)",
@@ -116,24 +227,82 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Yoga Class\",\n  \"description\": \"1 hour yoga session\",\n  \"price\": 500,\n  \"duration\": 60,\n  \"type\": \"class\"\n}"
+              "raw": "{\n  \"service_type\": \"yoga\",\n  \"service_name\": \"Hatha Yoga Class\",\n  \"description\": \"1 hour Hatha yoga session for all levels\",\n  \"price\": 500,\n  \"duration\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/services",
               "host": ["{{base_url}}"],
               "path": ["services"]
-            }
-          }
+            },
+            "description": "Create a new service. Requires admin authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Service (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"service_name\": \"Updated Yoga Class\",\n  \"price\": 600\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/services/:id",
+              "host": ["{{base_url}}"],
+              "path": ["services", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Update a service. Requires admin authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Service (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/services/:id",
+              "host": ["{{base_url}}"],
+              "path": ["services", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Delete a service. Cannot delete if service has active bookings. Requires admin authentication via cookies."
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Service management endpoints"
     },
     {
       "name": "Bookings",
@@ -146,58 +315,154 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{user_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"serviceId\": 1,\n  \"date\": \"2025-01-01\",\n  \"time\": \"10:00\",\n  \"notes\": \"First time booking\"\n}"
+              "raw": "{\n  \"service_id\": 1,\n  \"booking_date\": \"2025-01-15\",\n  \"booking_time\": \"10:00\",\n  \"full_name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"special_requests\": \"First time booking, need beginner-friendly session\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/bookings",
               "host": ["{{base_url}}"],
               "path": ["bookings"]
-            }
-          }
+            },
+            "description": "Create a new booking. Requires user authentication via cookies. User phone is automatically taken from authenticated user."
+          },
+          "response": []
         },
         {
-          "name": "Get User Bookings",
+          "name": "Get My Bookings",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{user_token}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{base_url}}/bookings",
               "host": ["{{base_url}}"],
               "path": ["bookings"]
-            }
-          }
+            },
+            "description": "Get all bookings for the authenticated user. Requires authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Get a specific booking by ID. Users can only see their own bookings. Requires authentication via cookies."
+          },
+          "response": []
         },
         {
           "name": "Get Available Slots",
           "request": {
             "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/available/:serviceId/:date",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", "available", ":serviceId", ":date"],
+              "variable": [
+                {
+                  "key": "serviceId",
+                  "value": "1"
+                },
+                {
+                  "key": "date",
+                  "value": "2025-01-15"
+                }
+              ]
+            },
+            "description": "Get available time slots for a service on a specific date. Requires authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Booking (Admin)",
+          "request": {
+            "method": "PATCH",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{user_token}}"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": {
-              "raw": "{{base_url}}/bookings/available/1/2025-01-01",
+              "raw": "{{base_url}}/bookings/:id",
               "host": ["{{base_url}}"],
-              "path": ["bookings", "available", "1", "2025-01-01"]
-            }
-          }
+              "path": ["bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Update a booking (admin only). Requires admin authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Booking",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/:id",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Delete/cancel a booking. Users can only delete their own bookings. Requires authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Bookings (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/bookings/admin/all",
+              "host": ["{{base_url}}"],
+              "path": ["bookings", "admin", "all"]
+            },
+            "description": "Get all bookings (admin only). Requires admin authentication via cookies."
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Booking management endpoints"
     },
     {
       "name": "Users (Admin)",
@@ -206,37 +471,72 @@
           "name": "Get All Users",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{base_url}}/users",
               "host": ["{{base_url}}"],
               "path": ["users"]
-            }
-          }
+            },
+            "description": "Get all users. Requires admin authentication via cookies."
+          },
+          "response": []
         },
         {
           "name": "Get User by Phone",
           "request": {
             "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/:phone",
+              "host": ["{{base_url}}"],
+              "path": ["users", ":phone"],
+              "variable": [
+                {
+                  "key": "phone",
+                  "value": "+1234567890"
+                }
+              ]
+            },
+            "description": "Get a specific user by phone number. Phone numbers are automatically normalized. Requires admin authentication via cookies."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PATCH",
             "header": [
               {
-                "key": "Authorization",
-                "value": "Bearer {{admin_token}}"
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
             "url": {
-              "raw": "{{base_url}}/users/+1234567890",
+              "raw": "{{base_url}}/users/:phone/role",
               "host": ["{{base_url}}"],
-              "path": ["users", "+1234567890"]
-            }
-          }
+              "path": ["users", ":phone", "role"],
+              "variable": [
+                {
+                  "key": "phone",
+                  "value": "+1234567890"
+                }
+              ]
+            },
+            "description": "Update user role (admin only). Phone numbers are automatically normalized. Requires admin authentication via cookies."
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "User management endpoints (Admin only)"
     },
     {
       "name": "Health Check",
@@ -250,29 +550,23 @@
               "raw": "{{base_url}}/health",
               "host": ["{{base_url}}"],
               "path": ["health"]
-            }
-          }
+            },
+            "description": "Health check endpoint"
+          },
+          "response": []
         }
       ]
     }
   ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{auth_token}}",
-        "type": "string"
-      }
-    ]
-  },
   "event": [
     {
       "listen": "prerequest",
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// You can add pre-request scripts here"
+          "// Pre-request script",
+          "// Note: This API uses cookie-based authentication",
+          "// Cookies are automatically managed by Postman"
         ]
       }
     },
@@ -281,7 +575,12 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// You can add test scripts here"
+          "// Test script",
+          "if (pm.response.code === 200 || pm.response.code === 201) {",
+          "    pm.test(\"Status code is success\", function () {",
+          "        pm.response.to.have.status(200);",
+          "    });",
+          "}"
         ]
       }
     }
@@ -290,16 +589,6 @@
     {
       "key": "base_url",
       "value": "http://localhost:3000",
-      "type": "string"
-    },
-    {
-      "key": "user_token",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "admin_token",
-      "value": "",
       "type": "string"
     }
   ]

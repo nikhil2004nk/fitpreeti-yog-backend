@@ -11,6 +11,10 @@ export declare class AuthService {
     private readonly logger;
     private readonly saltRounds;
     constructor(ch: ClickhouseService, jwtService: JwtService, configService: ConfigService);
+    private normalizePhone;
+    private escapeSqlString;
+    private checkPhoneExists;
+    private checkEmailExists;
     register(dto: RegisterDto): Promise<{
         success: boolean;
         message: string;
@@ -30,9 +34,9 @@ export declare class AuthService {
         message: string;
     }>;
     findUserByPhonePublic(phone: string): Promise<UserLite | null>;
+    findUserById(id: string): Promise<UserLite | null>;
     validateRefreshToken(token: string): Promise<string | null>;
     private findUserByPhone;
-    private findUserByEmail;
     private validateUserCredentials;
     private createRefreshToken;
     private revokeUserTokens;

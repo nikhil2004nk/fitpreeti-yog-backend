@@ -87,16 +87,16 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
         return { success: true } as unknown as T;
       }
       
-      // For SELECT queries, add FORMAT if not present
-      let finalQuery = formattedQuery;
-      if (!upperQuery.includes('FORMAT')) {
-        finalQuery = `${formattedQuery.replace(/;*$/, '')} FORMAT JSONEachRow`;
-      }
+      // For SELECT queries, remove any FORMAT clause and use format parameter instead
+      let finalQuery = formattedQuery.replace(/;*$/, '').trim();
+      // Remove FORMAT clause if present (we'll use format option instead)
+      finalQuery = finalQuery.replace(/\s+FORMAT\s+\w+/i, '').trim();
       
       this.logger.debug(`Executing: ${finalQuery.substring(0, 100)}${finalQuery.length > 100 ? '...' : ''}`);
       
       const result = await this.client.query({
         query: finalQuery,
+        format: 'JSONEachRow',
         clickhouse_settings: {
           wait_end_of_query: 1,
           output_format_json_quote_64bit_integers: 0,

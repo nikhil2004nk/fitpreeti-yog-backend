@@ -28,8 +28,8 @@ class CreateBookingDto {
 }
 exports.CreateBookingDto = CreateBookingDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateBookingDto.prototype, "service_id", void 0);
 __decorate([
     (0, class_validator_1.IsDateString)(),

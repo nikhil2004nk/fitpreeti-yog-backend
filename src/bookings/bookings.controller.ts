@@ -28,26 +28,26 @@ export class BookingsController {
   @Get(':id')
   @UseGuards(CookieJwtGuard)
   findOne(@Param('id') id: string, @Req() req: Request) {
-    return this.bookingsService.findOne(+id, (req.user as any).phone);
+    return this.bookingsService.findOne(id, (req.user as any).phone);
   }
 
   @Patch(':id')
   @UseGuards(CookieJwtGuard, RolesGuard)
   @Roles('admin')
   update(@Param('id') id: string, @Body() updateBookingDto: UpdateBookingDto) {
-    return this.bookingsService.update(+id, updateBookingDto);
+    return this.bookingsService.update(id, updateBookingDto);
   }
 
   @Delete(':id')
   @UseGuards(CookieJwtGuard)
   remove(@Param('id') id: string, @Req() req: Request) {
-    return this.bookingsService.remove(+id, (req.user as any).phone);
+    return this.bookingsService.remove(id, (req.user as any).phone);
   }
 
   @Get('available/:serviceId/:date')
   @UseGuards(CookieJwtGuard)
   async getAvailableSlots(@Param('serviceId') serviceId: string, @Param('date') date: string) {
-    return this.bookingsService.getAvailableSlots(+serviceId, date);
+    return this.bookingsService.getAvailableSlots(serviceId, date);
   }
 
   // Admin: All bookings

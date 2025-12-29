@@ -4,7 +4,7 @@ export declare enum BookingStatus {
     CANCELLED = "cancelled"
 }
 export declare class CreateBookingDto {
-    service_id: number;
+    service_id: string;
     booking_date: string;
     booking_time: string;
     full_name: string;

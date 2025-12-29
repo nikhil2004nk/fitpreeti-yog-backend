@@ -5,20 +5,44 @@ import { ClickhouseService } from '../database/clickhouse.service';
 export class UsersService {
   constructor(private ch: ClickhouseService) {}
 
+  /**
+   * Normalize phone number by removing spaces, dashes, and other non-digit characters
+   * Keeps only digits and leading + for country codes
+   */
+  private normalizePhone(phone: string): string {
+    if (!phone) return '';
+    // Remove all non-digit characters except leading +
+    const cleaned = phone.trim();
+    if (cleaned.startsWith('+')) {
+      return '+' + cleaned.slice(1).replace(/\D/g, '');
+    }
+    return cleaned.replace(/\D/g, '');
+  }
+
   async findAll() {
-    const result = await this.ch.query('SELECT id, phone, role, created_at FROM fitpreeti.users ORDER BY created_at DESC');
-    return await result.json();
+    // Don't add FORMAT - ClickHouse service handles it automatically
+    const result = await this.ch.query<Array<{ id: string; phone: string; role: string; created_at: string }>>(
+      'SELECT id, phone, role, created_at FROM fitpreeti.users ORDER BY created_at DESC'
+    );
+    return Array.isArray(result) ? result : [];
   }
 
   async findOne(phone: string) {
-    const result = await this.ch.query(`SELECT id, phone, role, created_at FROM fitpreeti.users WHERE phone = '${phone}'`);
-    const data = await result.json();
-    if (!data.length) throw new NotFoundException('User not found');
-    return data[0];
+    const normalizedPhone = this.normalizePhone(phone);
+    const escapedPhone = normalizedPhone.replace(/'/g, "''");
+    // Don't add FORMAT - ClickHouse service handles it automatically
+    const result = await this.ch.query<Array<{ id: string; phone: string; role: string; created_at: string }>>(
+      `SELECT id, phone, role, created_at FROM fitpreeti.users WHERE phone = '${escapedPhone}'`
+    );
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new NotFoundException('User not found');
+    }
+    return result[0];
   }
 
   async updateRole(phone: string, role: string) {
-    await this.ch.query(`ALTER TABLE fitpreeti.users UPDATE role = '${role}' WHERE phone = '${phone}'`);
-    return this.findOne(phone);
+    const normalizedPhone = this.normalizePhone(phone);
+    await this.ch.query(`ALTER TABLE fitpreeti.users UPDATE role = '${role.replace(/'/g, "''")}' WHERE phone = '${normalizedPhone.replace(/'/g, "''")}'`);
+    return this.findOne(normalizedPhone);
   }
 }
