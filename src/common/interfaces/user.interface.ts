@@ -7,7 +7,11 @@ export interface User {
   phone: string;
   pin: string;
   role: UserRole;
+  profile_image?: string | null;
+  is_active: boolean;
+  last_login?: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface UserLite {

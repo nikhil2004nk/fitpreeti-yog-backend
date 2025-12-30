@@ -11,29 +11,40 @@ const common_1 = require("@nestjs/common");
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const clickhouse_module_1 = require("../database/clickhouse.module");
-const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
+const auth_controller_1 = require("./auth.controller");
+const jwt_strategy_1 = require("./strategies/jwt.strategy");
 const cookie_jwt_guard_1 = require("./guards/cookie-jwt.guard");
-const roles_guard_1 = require("./guards/roles.guard");
+const session_service_1 = require("./session.service");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
 exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            clickhouse_module_1.ClickhouseModule,
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],
                 useFactory: async (configService) => ({
                     secret: configService.get('JWT_SECRET'),
-                    signOptions: { expiresIn: configService.get('ACCESS_TOKEN_EXPIRES_IN') },
+                    signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN', '1h') },
                 }),
                 inject: [config_1.ConfigService],
             }),
-            clickhouse_module_1.ClickhouseModule,
+        ],
+        providers: [
+            auth_service_1.AuthService,
+            jwt_strategy_1.JwtStrategy,
+            cookie_jwt_guard_1.CookieJwtGuard,
+            session_service_1.SessionService,
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, cookie_jwt_guard_1.CookieJwtGuard, roles_guard_1.RolesGuard],
-        exports: [auth_service_1.AuthService, jwt_1.JwtModule, cookie_jwt_guard_1.CookieJwtGuard],
+        exports: [
+            jwt_1.JwtModule,
+            auth_service_1.AuthService,
+            cookie_jwt_guard_1.CookieJwtGuard,
+            session_service_1.SessionService
+        ],
     })
 ], AuthModule);
 //# sourceMappingURL=auth.module.js.map

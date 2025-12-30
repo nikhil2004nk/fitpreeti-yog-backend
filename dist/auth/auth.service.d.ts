@@ -1,16 +1,21 @@
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ClickhouseService } from '../database/clickhouse.service';
+import type { Request } from 'express';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { User, UserLite } from '../common/interfaces/user.interface';
+import { SessionService } from './session.service';
 export declare class AuthService {
     private readonly ch;
     private readonly jwtService;
     private readonly configService;
+    private readonly sessionService;
+    private readonly request;
     private readonly logger;
     private readonly saltRounds;
-    constructor(ch: ClickhouseService, jwtService: JwtService, configService: ConfigService);
+    private readonly database;
+    constructor(ch: ClickhouseService, jwtService: JwtService, configService: ConfigService, sessionService: SessionService, request: Request);
     private normalizePhone;
     private escapeSqlString;
     private checkPhoneExists;
@@ -23,21 +28,20 @@ export declare class AuthService {
     login(dto: LoginDto): Promise<{
         access_token: string;
         refresh_token: string;
-        user: Partial<User>;
+        user: UserLite;
     }>;
     refresh(refreshToken: string): Promise<{
         access_token: string;
         refresh_token: string;
     }>;
-    logout(phone: string): Promise<{
+    logout(refreshToken: string, accessToken?: string): Promise<{
         success: boolean;
-        message: string;
     }>;
-    findUserByPhonePublic(phone: string): Promise<UserLite | null>;
     findUserById(id: string): Promise<UserLite | null>;
-    validateRefreshToken(token: string): Promise<string | null>;
     private findUserByPhone;
+    findUserByPhonePublic(phone: string): Promise<UserLite | null>;
     private validateUserCredentials;
+    validateRefreshToken(token: string): Promise<string | null>;
     private createRefreshToken;
     private revokeUserTokens;
 }

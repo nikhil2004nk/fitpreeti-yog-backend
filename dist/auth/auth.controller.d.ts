@@ -12,7 +12,7 @@ export declare class AuthController {
     }>;
     login(loginDto: LoginDto, res: Response): Promise<{
         message: string;
-        user: Partial<import("../common/interfaces/user.interface").User>;
+        user: import("../common/interfaces/user.interface").UserLite;
     }>;
     refresh(req: Request, res: Response): Promise<{
         message: string;

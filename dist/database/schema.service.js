@@ -48,50 +48,172 @@ let SchemaService = SchemaService_1 = class SchemaService {
         phone String,
         pin String,
         role LowCardinality(String) DEFAULT 'customer',
+        profile_image Nullable(String),
+        is_active Boolean DEFAULT true,
+        last_login Nullable(DateTime64(3)),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (email, created_at)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.user_sessions (
+        id UUID DEFAULT generateUUIDv4(),
+        user_id UUID,
+        token String,
+        user_agent String,
+        ip_address String,
+        expires_at DateTime64(3),
         created_at DateTime64(3) DEFAULT now64()
       ) ENGINE = MergeTree()
       PARTITION BY toYYYYMM(created_at)
-      ORDER BY (phone, created_at)
+      ORDER BY (user_id, token)
+      TTL expires_at
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.trainers (
+        id UUID DEFAULT generateUUIDv4(),
+        name String,
+        bio Nullable(String),
+        specializations Array(String),
+        profile_image Nullable(String),
+        rating Float64 DEFAULT 0.0,
+        total_reviews UInt32 DEFAULT 0,
+        availability Nullable(String),
+        certifications Array(String),
+        experience_years UInt8,
+        is_active Boolean DEFAULT true,
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (id, created_at)
       SETTINGS index_granularity = 8192`,
             `CREATE TABLE IF NOT EXISTS ${this.database}.services (
         id UUID DEFAULT generateUUIDv4(),
-        service_type LowCardinality(String),
-        service_name LowCardinality(String),
+        name String,
         description String,
         price Float64,
-        duration UInt32,
-        created_at DateTime64(3) DEFAULT now64()
-      ) ENGINE = MergeTree()
+        type LowCardinality(String),
+        duration_minutes UInt32,
+        trainer_id UUID,
+        category LowCardinality(String),
+        image_url Nullable(String),
+        is_active Boolean DEFAULT true,
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
       PARTITION BY toYYYYMM(created_at)
-      ORDER BY (service_type, created_at)
+      ORDER BY (type, created_at)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.class_schedules (
+        id UUID DEFAULT generateUUIDv4(),
+        title String,
+        description Nullable(String),
+        start_time DateTime64(3),
+        end_time DateTime64(3),
+        status LowCardinality(String) DEFAULT 'scheduled',
+        max_participants UInt32,
+        current_participants UInt32 DEFAULT 0,
+        trainer_id UUID,
+        service_id UUID,
+        is_recurring Boolean DEFAULT false,
+        recurrence_pattern Nullable(String),
+        recurrence_end_date Nullable(DateTime64(3)),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (start_time, status)
       SETTINGS index_granularity = 8192`,
             `CREATE TABLE IF NOT EXISTS ${this.database}.bookings (
         id UUID DEFAULT generateUUIDv4(),
         user_id UUID,
-        user_phone String,
         service_id UUID,
-        booking_date Date,
-        booking_time String,
-        special_requests String,
-        full_name String,
-        email String,
-        phone String,
+        start_time DateTime,
+        end_time DateTime,
         status LowCardinality(String) DEFAULT 'pending',
-        created_at DateTime64(3) DEFAULT now64()
-      ) ENGINE = MergeTree()
-      PARTITION BY toYYYYMM(booking_date)
-      ORDER BY (user_id, booking_date, booking_time)
+        notes Nullable(String),
+        amount Float64,
+        payment_status LowCardinality(String) DEFAULT 'pending',
+        payment_id Nullable(String),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(start_time)
+      ORDER BY (user_id, service_id, start_time)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.payments (
+        id UUID DEFAULT generateUUIDv4(),
+        user_id UUID,
+        booking_id UUID,
+        amount Float64,
+        currency String DEFAULT 'INR',
+        status LowCardinality(String) DEFAULT 'pending',
+        payment_method LowCardinality(String),
+        transaction_id Nullable(String),
+        receipt_url Nullable(String),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (user_id, booking_id, created_at)
       SETTINGS index_granularity = 8192`,
             `CREATE TABLE IF NOT EXISTS ${this.database}.refresh_tokens (
         id UInt64 MATERIALIZED rand64(),
-        phone String,
+        user_id UUID,
         token String,
+        user_agent String,
+        ip_address String,
         expires_at DateTime64(3),
+        created_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree()
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (user_id, token)
+      TTL expires_at
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.reviews (
+        id UUID DEFAULT generateUUIDv4(),
+        user_id UUID,
+        booking_id UUID,
+        rating UInt8,
+        comment String,
+        is_approved Boolean DEFAULT false,
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (user_id, booking_id, created_at)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.trainer_specializations (
+        trainer_id UUID,
+        specialization String,
         created_at DateTime64(3) DEFAULT now64()
       ) ENGINE = ReplacingMergeTree(created_at)
       PARTITION BY toYYYYMM(created_at)
-      ORDER BY (phone, token)
-      TTL expires_at
+      ORDER BY (trainer_id, specialization)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.class_schedules (
+        id UUID DEFAULT generateUUIDv4(),
+        title String,
+        description Nullable(String),
+        start_time DateTime,
+        end_time DateTime,
+        location String,
+        status LowCardinality(String) DEFAULT 'scheduled',
+        max_participants UInt32,
+        current_participants UInt32 DEFAULT 0,
+        price Float64,
+        category LowCardinality(String),
+        trainer_id UUID,
+        service_id UUID,
+        is_recurring UInt8 DEFAULT 0,
+        recurrence_pattern Nullable(String),
+        recurrence_end_date Nullable(DateTime),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(start_time)
+      ORDER BY (trainer_id, service_id, start_time, end_time)
       SETTINGS index_granularity = 8192`
         ];
         for (const [index, query] of tables.entries()) {

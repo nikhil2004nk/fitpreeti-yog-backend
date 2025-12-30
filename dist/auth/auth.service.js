@@ -41,6 +41,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
@@ -50,16 +53,24 @@ const config_1 = require("@nestjs/config");
 const clickhouse_service_1 = require("../database/clickhouse.service");
 const uuid_1 = require("uuid");
 const bcrypt = __importStar(require("bcrypt"));
+const core_1 = require("@nestjs/core");
+const session_service_1 = require("./session.service");
 let AuthService = AuthService_1 = class AuthService {
     ch;
     jwtService;
     configService;
+    sessionService;
+    request;
     logger = new common_1.Logger(AuthService_1.name);
     saltRounds = 12;
-    constructor(ch, jwtService, configService) {
+    database;
+    constructor(ch, jwtService, configService, sessionService, request) {
         this.ch = ch;
         this.jwtService = jwtService;
         this.configService = configService;
+        this.sessionService = sessionService;
+        this.request = request;
+        this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     }
     normalizePhone(phone) {
         if (!phone)
@@ -136,7 +147,11 @@ let AuthService = AuthService_1 = class AuthService {
                 phone: normalizedPhone,
                 pin: hashedPin,
                 role,
+                profile_image: null,
+                is_active: false,
+                last_login: null,
                 created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
             };
             await this.ch.insert('users', userData);
             this.logger.log(`✅ User registered: ${normalizedPhone} (${role}) with ID: ${userId}`);
@@ -164,24 +179,27 @@ let AuthService = AuthService_1 = class AuthService {
             throw new common_1.UnauthorizedException('Invalid phone number or PIN');
         }
         const payload = {
-            sub: user.id?.toString(),
+            sub: user.id?.toString() || '',
             phone: user.phone,
-            email: user.email,
+            email: user.email || '',
             name: user.name,
             role: user.role,
         };
         const accessToken = this.jwtService.sign(payload, {
-            expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '15m'),
+            expiresIn: this.configService.get('JWT_EXPIRES_IN', '1h'),
         });
         const refreshToken = (0, uuid_1.v4)();
         await this.createRefreshToken(user.phone, refreshToken);
+        const expiresAt = new Date();
+        expiresAt.setSeconds(expiresAt.getSeconds() + parseInt(this.configService.get('JWT_EXPIRES_IN', '3600')));
+        await this.sessionService.createSession(user.id || '', accessToken, this.request.headers['user-agent'] || 'unknown', this.request.headers['x-forwarded-for'] || this.request.socket.remoteAddress || 'unknown', expiresAt);
         return {
             access_token: accessToken,
             refresh_token: refreshToken,
             user: {
-                id: user.id,
+                id: user.id || '',
                 name: user.name,
-                email: user.email,
+                email: user.email || '',
                 phone: user.phone,
                 role: user.role,
             },
@@ -213,64 +231,75 @@ let AuthService = AuthService_1 = class AuthService {
         await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE token = '${escapedToken}'`);
         return { access_token: newAccessToken, refresh_token: newRefreshToken };
     }
-    async logout(phone) {
-        await this.revokeUserTokens(phone);
-        return { success: true, message: 'Logged out successfully' };
-    }
-    async findUserByPhonePublic(phone) {
+    async logout(refreshToken, accessToken) {
         try {
-            const normalizedPhone = this.normalizePhone(phone);
-            if (!normalizedPhone) {
-                return null;
+            await this.ch.query(`ALTER TABLE ${this.database}.refresh_tokens DELETE WHERE token = '${this.escapeSqlString(refreshToken)}'`);
+            if (accessToken) {
+                await this.sessionService.invalidateSession(accessToken);
             }
-            const escapedPhone = this.escapeSqlString(normalizedPhone);
-            const query = `SELECT id, name, email, phone, role, created_at FROM fitpreeti.users WHERE phone = '${escapedPhone}' LIMIT 1`;
-            const result = await this.ch.query(query);
-            return result && Array.isArray(result) && result.length > 0 ? result[0] : null;
+            return { success: true };
         }
         catch (error) {
-            this.logger.warn(`Public phone lookup failed: ${phone}`, error);
-            return null;
+            this.logger.error('Logout failed', error.stack);
+            return { success: false };
         }
     }
     async findUserById(id) {
         try {
             const escapedId = this.escapeSqlString(id);
-            const query = `SELECT id, name, email, phone, role, created_at FROM fitpreeti.users WHERE id = '${escapedId}' LIMIT 1`;
+            const query = `
+        SELECT id, name, email, phone_number as phone, role, created_at
+        FROM ${this.database}.users 
+        WHERE id = '${escapedId}'
+        LIMIT 1
+      `;
             const result = await this.ch.query(query);
-            return result && Array.isArray(result) && result.length > 0 ? result[0] : null;
+            return result?.[0] || null;
         }
         catch (error) {
-            this.logger.warn(`User lookup by ID failed: ${id}`, error);
-            return null;
-        }
-    }
-    async validateRefreshToken(token) {
-        try {
-            const escapedToken = this.escapeSqlString(token);
-            const query = `SELECT phone FROM fitpreeti.refresh_tokens WHERE token = '${escapedToken}' AND expires_at > now64() LIMIT 1`;
-            const result = await this.ch.query(query);
-            return result && Array.isArray(result) && result.length > 0 ? result[0].phone : null;
-        }
-        catch (error) {
-            this.logger.warn('Failed to validate refresh token', error);
+            this.logger.error(`Error finding user by ID: ${id}`, error);
             return null;
         }
     }
     async findUserByPhone(phone) {
         try {
-            const normalizedPhone = this.normalizePhone(phone);
-            if (!normalizedPhone) {
-                return null;
-            }
-            const escapedPhone = this.escapeSqlString(normalizedPhone);
-            const query = `SELECT id, name, email, phone, role, created_at, pin FROM fitpreeti.users WHERE phone = '${escapedPhone}' LIMIT 1`;
+            const escapedPhone = this.escapeSqlString(phone);
+            const query = `
+        SELECT 
+          id,
+          name,
+          email,
+          phone,
+          pin,
+          role,
+          created_at
+        FROM ${this.database}.users 
+        WHERE phone = '${escapedPhone}'
+        LIMIT 1
+      `;
             const result = await this.ch.query(query);
-            return result && Array.isArray(result) && result.length > 0 ? result[0] : null;
+            return result?.[0] || null;
         }
         catch (error) {
-            this.logger.error(`Phone lookup failed for ${phone}:`, error);
-            throw error;
+            this.logger.error(`Error finding user by phone: ${phone}`, error);
+            return null;
+        }
+    }
+    async findUserByPhonePublic(phone) {
+        try {
+            const escapedPhone = this.escapeSqlString(phone);
+            const query = `
+        SELECT id, name, email, phone, role, created_at 
+        FROM ${this.database}.users 
+        WHERE phone = '${escapedPhone}'
+        LIMIT 1
+      `;
+            const result = await this.ch.query(query);
+            return result?.[0] || null;
+        }
+        catch (error) {
+            this.logger.error(`Error finding user by phone (public): ${phone}`, error);
+            return null;
         }
     }
     async validateUserCredentials(phone, pin) {
@@ -289,21 +318,59 @@ let AuthService = AuthService_1 = class AuthService {
                 this.logger.warn(`Invalid PIN for user: ${phone}`);
                 return null;
             }
-            return user;
+            const now = new Date();
+            const formattedDate = now.toISOString().replace('T', ' ').replace('Z', '');
+            const escapedPhone = this.escapeSqlString(phone);
+            await this.ch.query(`
+      ALTER TABLE ${this.database}.users 
+      UPDATE 
+        is_active = true, 
+        last_login = parseDateTime64BestEffort('${formattedDate}')
+      WHERE phone = '${escapedPhone}'
+    `);
+            return {
+                ...user,
+                is_active: true,
+                last_login: now.toISOString()
+            };
         }
         catch (error) {
-            this.logger.error(`Error validating credentials for ${phone}:`, error);
+            this.logger.error(`Error validating user credentials for phone: ${phone}`, error);
+            return null;
+        }
+    }
+    async validateRefreshToken(token) {
+        try {
+            const escapedToken = this.escapeSqlString(token);
+            const query = `
+        SELECT phone 
+        FROM ${this.database}.refresh_tokens 
+        WHERE token = '${escapedToken}'
+        AND expires_at > now()
+        LIMIT 1
+      `;
+            const result = await this.ch.query(query);
+            return result?.[0]?.phone || null;
+        }
+        catch (error) {
+            this.logger.error('Error validating refresh token', error);
             return null;
         }
     }
     async createRefreshToken(phone, refreshToken) {
-        const normalizedPhone = this.normalizePhone(phone);
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        await this.ch.insert('refresh_tokens', {
-            phone: normalizedPhone,
-            token: refreshToken,
-            expires_at: expiresAt,
-        });
+        try {
+            const normalizedPhone = this.normalizePhone(phone);
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30);
+            await this.ch.insert('refresh_tokens', {
+                phone_number: normalizedPhone,
+                token: refreshToken,
+                expires_at: expiresAt.toISOString(),
+            });
+        }
+        catch (error) {
+            this.logger.error(`Error creating refresh token for phone: ${phone}`, error);
+        }
     }
     async revokeUserTokens(phone) {
         const normalizedPhone = this.normalizePhone(phone);
@@ -314,8 +381,10 @@ let AuthService = AuthService_1 = class AuthService {
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
+    __param(4, (0, common_1.Inject)(core_1.REQUEST)),
     __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService,
         jwt_1.JwtService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        session_service_1.SessionService, Object])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

@@ -1,3 +1,4 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -7,6 +8,7 @@ import { ServicesModule } from './services/services.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
+import { TrainersModule } from './trainers/trainers.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 
 @Module({
@@ -21,6 +23,7 @@ import { ClickhouseModule } from './database/clickhouse.module';
     BookingsModule,
     UsersModule,
     HealthModule,
+    TrainersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

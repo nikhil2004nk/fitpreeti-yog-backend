@@ -1,26 +1,37 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClickhouseModule } from '../database/clickhouse.module';
-import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { JwtStrategy } from './strategies/jwt.strategy';
 import { CookieJwtGuard } from './guards/cookie-jwt.guard';
-import { RolesGuard } from './guards/roles.guard';
+import { SessionService } from './session.service';
 
 @Module({
   imports: [
+    ClickhouseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
-        signOptions: { expiresIn: configService.get('ACCESS_TOKEN_EXPIRES_IN') },
+        signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN', '1h') },
       }),
       inject: [ConfigService],
     }),
-    ClickhouseModule,
+  ],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    CookieJwtGuard,
+    SessionService,
   ],
   controllers: [AuthController],
-  providers: [AuthService, CookieJwtGuard, RolesGuard],
-  exports: [AuthService, JwtModule, CookieJwtGuard],
+  exports: [
+    JwtModule,  // Export JwtModule to make JwtService available
+    AuthService, 
+    CookieJwtGuard, 
+    SessionService
+  ],
 })
 export class AuthModule {}

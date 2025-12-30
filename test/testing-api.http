@@ -1,169 +1,190 @@
 @baseUrl = http://localhost:3000
 @contentType = application/json
 
-### Health Check
+### 1. Health Check
 GET {{baseUrl}}/health
 
+### 2. User Registration & Authentication
 ### Register a new user
+# @name register
 POST {{baseUrl}}/auth/register
 Content-Type: {{contentType}}
 
 {
   "name": "Test User",
   "email": "test@example.com",
-  "phone": "+1234567890",
+  "phone": "+911234567890",
   "pin": "1234",
-  "role": "admin"
-}
-
-### Register another user (to test duplicate prevention)
-POST {{baseUrl}}/auth/register
-Content-Type: {{contentType}}
-
-{
-  "name": "Another User",
-  "email": "another@example.com",
-  "phone": "+1987654321",
-  "pin": "5678"
-}
-
-### Try to register duplicate phone (should fail)
-POST {{baseUrl}}/auth/register
-Content-Type: {{contentType}}
-
-{
-  "name": "Duplicate User",
-  "email": "duplicate@example.com",
-  "phone": "+1234567890",
-  "pin": "9999"
+  "role": "user"
 }
 
 ### Login with phone and PIN
+# @name login
 POST {{baseUrl}}/auth/login
 Content-Type: {{contentType}}
 
 {
-  "phone": "+1987654321",
-  "pin": "5678"
+  "phone": "+911234567890",
+  "pin": "1234"
 }
 
-### Get user profile (requires authentication via cookies)
-GET {{baseUrl}}/auth/profile
+### Get access token from login response and set as variable
+@accessToken = {{login.response.body.access_token}}
+@refreshToken = {{login.response.body.refresh_token}}
 
-### Refresh token (uses refresh_token cookie)
+### 3. User Profile Management
+### Get current user profile
+GET {{baseUrl}}/auth/profile
+Authorization: Bearer {{accessToken}}
+
+### Update user profile
+PATCH {{baseUrl}}/auth/profile
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Updated Test User",
+  "phone_number": "+911234567891"
+}
+
+### 4. Refresh Token
 POST {{baseUrl}}/auth/refresh
 Content-Type: {{contentType}}
 
-### Logout (requires authentication via cookies)
-POST {{baseUrl}}/auth/logout
-Content-Type: {{contentType}}
-
-### Create admin user (requires admin authentication via cookies)
-POST {{baseUrl}}/auth/admin/create
-Content-Type: {{contentType}}
-
 {
-  "name": "Admin User",
-  "email": "admin@example.com",
-  "phone": "+1999999999",
-  "pin": "admin"
+  "refresh_token": "{{refreshToken}}"
 }
 
-### Get all users (Admin only - requires authentication via cookies)
-GET {{baseUrl}}/users
+### 5. Service Categories (Admin Only)
+### Get all service categories
+GET {{baseUrl}}/api/v1/service-categories
 
-### Get user by phone (Admin only - requires authentication via cookies)
-GET {{baseUrl}}/users/+1234567890
-
-### Update user role (Admin only - requires authentication via cookies)
-PATCH {{baseUrl}}/users/+1234567890/role
+### Create new service category (Admin)
+POST {{baseUrl}}/api/v1/service-categories
 Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "role": "admin"
+  "name": "Yoga",
+  "description": "Various yoga classes and sessions"
 }
 
-### Create a new service (Admin only - requires authentication via cookies)
-POST {{baseUrl}}/services
-Content-Type: {{contentType}}
+### 6. Trainers
+### Get all trainers
+GET {{baseUrl}}/api/v1/trainers
 
-{
-  "service_type": "yoga",
-  "service_name": "Hatha 2 Class",
-  "description": "Traditional Hatha Yoga session for all levels",
-  "price": 500,
-  "duration": 60
-}
+### Get trainer by ID
+GET {{baseUrl}}/api/v1/trainers/{{trainer_id}}
 
-### Create another service
-POST {{baseUrl}}/services
-Content-Type: {{contentType}}
-
-{
-  "service_type": "meditation",
-  "service_name": "Guided Meditation",
-  "description": "30-minute guided meditation session",
-  "price": 300,
-  "duration": 30
-}
-
+### 7. Services
 ### Get all services
-GET {{baseUrl}}/services
-
-### Get services by type
-GET {{baseUrl}}/services/type/yoga
-
-### Get popular services
-GET {{baseUrl}}/services/popular
+GET {{baseUrl}}/api/v1/services
 
 ### Get service by ID
-GET {{baseUrl}}/services/{{service_id}}
+GET {{baseUrl}}/api/v1/services/{{service_id}}
 
-### Update service (Admin only - requires authentication via cookies)
-PATCH {{baseUrl}}/services/d695f24f-fb62-4f71-8615-94618e452191
+### 8. Class Schedules
+### Get available class schedules
+GET {{baseUrl}}/api/v1/class-schedules?startDate=2025-01-01&endDate=2025-12-31
+
+### Book a class
+# @name bookClass
+POST {{baseUrl}}/api/v1/bookings
 Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "service_name": "Updated Hatha Yoga",
-  "price": 600
+  "class_schedule_id": "{{class_schedule_id}}",
+  "notes": "Beginner level, please provide mat"
 }
 
-### Delete service (Admin only - requires authentication via cookies)
-DELETE {{baseUrl}}/services/cc77a8cd-042d-4077-9d81-cb2badfab1e2
+@bookingId = {{bookClass.response.body.id}}
 
-### Create a new booking (requires authentication via cookies)
-POST {{baseUrl}}/bookings
+### 9. Bookings
+### Get user's bookings
+GET {{baseUrl}}/api/v1/bookings
+Authorization: Bearer {{accessToken}}
+
+### Get booking by ID
+GET {{baseUrl}}/api/v1/bookings/{{bookingId}}
+Authorization: Bearer {{accessToken}}
+
+### Cancel booking
+PATCH {{baseUrl}}/api/v1/bookings/{{bookingId}}/cancel
 Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+### 10. Payments
+### Process payment for booking
+# @name processPayment
+POST {{baseUrl}}/api/v1/payments
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "service_id": "d695f24f-fb62-4f71-8615-94618e452191",
-  "booking_date": "2025-01-15",
-  "booking_time": "10:00",
-  "full_name": "Test User",
-  "email": "test@example.com",
-  "phone": "+1234567891",
-  "special_requests": "Near window if possible"
+  "booking_id": "{{bookingId}}",
+  "amount": 500.00,
+  "payment_method": "credit_card",
+  "payment_details": {
+    "card_number": "4242424242424242",
+    "exp_month": 12,
+    "exp_year": 2025,
+    "cvc": "123"
+  }
 }
 
-### Get user's bookings (requires authentication via cookies)
-GET {{baseUrl}}/bookings
-
-### Get booking by ID (requires authentication via cookies)
-GET {{baseUrl}}/bookings/{{booking_id}}
-
-### Check available slots for a service (requires authentication via cookies)
-GET {{baseUrl}}/bookings/available/1/2025-01-15
-
-### Update booking (Admin only - requires authentication via cookies)
-PATCH {{baseUrl}}/bookings/{{booking_id}}
+### 11. Reviews
+### Add review for a class
+POST {{baseUrl}}/api/v1/reviews
 Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
 
 {
-  "status": "confirmed"
+  "class_schedule_id": "{{class_schedule_id}}",
+  "rating": 5,
+  "comment": "Great class! The instructor was very knowledgeable."
 }
 
-### Delete booking (requires authentication via cookies)
-DELETE {{baseUrl}}/bookings/{{booking_id}}
+### Get reviews for a service
+GET {{baseUrl}}/api/v1/services/{{service_id}}/reviews
 
-### Get all bookings (Admin only - requires authentication via cookies)
-GET {{baseUrl}}/bookings/admin/all
+### 12. Admin Endpoints (Requires Admin Role)
+### Get all users (Admin)
+GET {{baseUrl}}/api/v1/admin/users
+Authorization: Bearer {{accessToken}}
+
+### Create new service (Admin)
+POST {{baseUrl}}/api/v1/admin/services
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Hatha Yoga",
+  "description": "Traditional Hatha Yoga session",
+  "price": 500,
+  "duration_minutes": 60,
+  "category_id": "{{category_id}}",
+  "trainer_id": "{{trainer_id}}"
+}
+
+### Create class schedule (Admin)
+POST {{baseUrl}}/api/v1/admin/class-schedules
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "title": "Morning Yoga Flow",
+  "description": "Energizing morning yoga session",
+  "start_time": "2025-01-15T08:00:00Z",
+  "end_time": "2025-01-15T09:00:00Z",
+  "max_participants": 15,
+  "price": 500,
+  "trainer_id": "{{trainer_id}}",
+  "service_id": "{{service_id}}",
+  "is_recurring": false
+}
+
+### 13. Logout
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
