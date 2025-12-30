@@ -1,13 +1,32 @@
 // src/class-schedule/class-schedule.service.ts
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { 
+  Injectable, 
+  NotFoundException, 
+  ConflictException, 
+  BadRequestException,
+  InternalServerErrorException
+} from '@nestjs/common';
 import { ClickhouseService } from '../database/clickhouse.service';
-import { ClassSchedule, ClassStatus, CLASS_SCHEDULE_TABLE } from './entities/class-schedule.entity';
+import { 
+  ClassSchedule, 
+  ClassStatus, 
+  CLASS_SCHEDULE_TABLE
+} from './entities/class-schedule.entity';
 import { CreateClassScheduleDto } from './dto/create-class-schedule.dto';
 import { UpdateClassScheduleDto } from './dto/update-class-schedule.dto';
 import { ClassScheduleResponseDto } from './dto/class-schedule-response.dto';
 import { TrainersService } from '../trainers/trainers.service';
 import { ServicesService } from '../services/services.service';
 import { v4 as uuidv4 } from 'uuid';
+// Using native Date methods instead of date-fns to avoid additional dependency
+// You can install date-fns later if needed: npm install date-fns @types/date-fns
+
+export interface FindAllFilters {
+  start_time?: string;
+  end_time?: string;
+  trainer_id?: string;
+  service_id?: string;
+}
 
 @Injectable()
 export class ClassScheduleService {
@@ -19,200 +38,337 @@ export class ClassScheduleService {
     private readonly servicesService: ServicesService,
   ) {}
 
-  async create(createClassScheduleDto: CreateClassScheduleDto): Promise<ClassScheduleResponseDto> {
-    // Check if trainer exists
-    const trainer = await this.trainersService.findOne(createClassScheduleDto.trainerId);
-    
-    // Check if service exists
-    const service = await this.servicesService.findOne(createClassScheduleDto.serviceId);
-
-    // Set default values
-    const isRecurring = createClassScheduleDto.isRecurring || false;
-    // Using a default of 20 since there's no maxCapacity in the Service entity
-    const maxParticipants = createClassScheduleDto.maxParticipants || 20;
-    
-    // Prepare base class data
-    const classId = uuidv4();
-    const now = new Date().toISOString();
-    
-    const classData = {
-      id: classId,
-      title: createClassScheduleDto.title || `Session with ${trainer.name || 'Trainer'}`,
-      description: createClassScheduleDto.description || service.description || '',
-      start_time: createClassScheduleDto.startTime instanceof Date 
-        ? createClassScheduleDto.startTime.toISOString() 
-        : createClassScheduleDto.startTime,
-      end_time: createClassScheduleDto.endTime instanceof Date 
-        ? createClassScheduleDto.endTime.toISOString() 
-        : createClassScheduleDto.endTime,
-      status: ClassStatus.SCHEDULED,
-      max_participants: maxParticipants,
-      current_participants: 0,
-      trainer_id: createClassScheduleDto.trainerId,
-      service_id: createClassScheduleDto.serviceId,
-      is_recurring: isRecurring,
-      recurrence_pattern: isRecurring ? (createClassScheduleDto.recurrencePattern || 'weekly') : null,
-      recurrence_end_date: isRecurring ? 
-        (createClassScheduleDto.recurrenceEndDate instanceof Date 
-          ? createClassScheduleDto.recurrenceEndDate.toISOString() 
-          : createClassScheduleDto.recurrenceEndDate) 
-        : null,
-      created_at: now,
-      updated_at: now,
+  private toClassScheduleResponse(classSchedule: any): ClassScheduleResponseDto {
+    // Ensure all required fields have proper defaults
+    const response: ClassScheduleResponseDto = {
+      id: classSchedule.id,
+      title: classSchedule.title || '',
+      description: classSchedule.description || null,
+      start_time: classSchedule.start_time,
+      end_time: classSchedule.end_time,
+      status: classSchedule.status || ClassStatus.SCHEDULED,
+      max_participants: classSchedule.max_participants || 20,
+      current_participants: classSchedule.current_participants || 0,
+      trainer_id: classSchedule.trainer_id,
+      service_id: classSchedule.service_id,
+      is_recurring: classSchedule.is_recurring || false,
+      recurrence_pattern: classSchedule.recurrence_pattern || null,
+      recurrence_end_date: classSchedule.recurrence_end_date || null,
+      created_at: classSchedule.created_at,
+      updated_at: classSchedule.updated_at,
     };
+    
+    return response;
+  }
 
-    // Check for scheduling conflicts
-    await this.checkForSchedulingConflicts(classData);
+  async create(createClassScheduleDto: CreateClassScheduleDto): Promise<ClassScheduleResponseDto> {
+    try {
+      // Check if trainer exists
+      const trainer = await this.trainersService.findOne(createClassScheduleDto.trainer_id);
+      if (!trainer) {
+        throw new NotFoundException(`Trainer with ID ${createClassScheduleDto.trainer_id} not found`);
+      }
+      
+      // Check if service exists
+      const service = await this.servicesService.findOne(createClassScheduleDto.service_id);
+      if (!service) {
+        throw new NotFoundException(`Service with ID ${createClassScheduleDto.service_id} not found`);
+      }
 
-    const columns = Object.keys(classData);
-    const values = Object.values(classData).map(v => 
-      typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v === null ? 'NULL' : v
-    );
+      // Parse and validate dates
+      const startTime = new Date(createClassScheduleDto.start_time);
+      const endTime = new Date(createClassScheduleDto.end_time);
+      
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        throw new BadRequestException('Invalid date format');
+      }
+      
+      if (startTime >= endTime) {
+        throw new BadRequestException('End time must be after start time');
+      }
 
-    const query = `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
-    await this.clickhouse.query(query);
+      // Set default values
+      const isRecurring = createClassScheduleDto.is_recurring || false;
+      const maxParticipants = createClassScheduleDto.max_participants || 20;
+      
+      // Prepare base class data
+      const classId = uuidv4();
+      const now = new Date().toISOString();
+      
+      // Format dates as ISO strings
+      const classData = {
+        id: classId,
+        title: createClassScheduleDto.title || `Session with ${trainer.name || 'Trainer'}`,
+        description: createClassScheduleDto.description || service.description || '',
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        status: ClassStatus.SCHEDULED,
+        max_participants: maxParticipants,
+        current_participants: 0,
+        trainer_id: createClassScheduleDto.trainer_id,
+        service_id: createClassScheduleDto.service_id,
+        is_recurring: isRecurring,
+        recurrence_pattern: isRecurring ? (createClassScheduleDto.recurrence_pattern || 'weekly') : null,
+        recurrence_end_date: isRecurring && createClassScheduleDto.recurrence_end_date 
+          ? new Date(createClassScheduleDto.recurrence_end_date).toISOString()
+          : null,
+        created_at: now,
+        updated_at: now,
+      };
 
-    return this.mapToDto(await this.findById(classId));
+      // Check for scheduling conflicts
+      await this.checkForSchedulingConflicts(classData);
+
+      const columns = Object.keys(classData);
+      const values = Object.values(classData).map(v => 
+        typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v === null ? 'NULL' : v
+      );
+
+      const query = `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
+      await this.clickhouse.query(query);
+
+      const createdClass = await this.findById(classId);
+      if (!createdClass) {
+        throw new InternalServerErrorException('Failed to create class schedule');
+      }
+
+      return this.toClassScheduleResponse(createdClass);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to create class schedule');
+    }
   }
 
   async findAll(filters: {
-    startDate?: string;
-    endDate?: string;
-    trainerId?: string;
-    serviceId?: string;
+    start_time?: string;
+    end_time?: string;
+    trainer_id?: string;
+    service_id?: string;
   } = {}): Promise<ClassScheduleResponseDto[]> {
-    const conditions: string[] = [];
+    try {
+      let query = `SELECT * FROM ${this.table}`;
+      const conditions: string[] = [];
+      const params: Record<string, any> = {};
+      let paramIndex = 1;
 
-    if (filters.startDate) {
-      conditions.push(`start_time >= '${filters.startDate}'`);
+      if (filters.start_time) {
+        conditions.push(`start_time >= {start_time: String}`);
+        params.start_time = filters.start_time;
+      }
+
+      if (filters.end_time) {
+        conditions.push(`end_time <= {end_time: String}`);
+        params.end_time = filters.end_time;
+      }
+
+      if (filters.trainer_id) {
+        conditions.push(`trainer_id = {trainer_id: String}`);
+        params.trainer_id = filters.trainer_id;
+      }
+
+      if (filters.service_id) {
+        conditions.push(`service_id = {service_id: String}`);
+        params.service_id = filters.service_id;
+      }
+
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+      }
+
+      query += ' ORDER BY start_time ASC';
+
+      const result = await this.clickhouse.query(query);
+      return result.map((item: any) => this.toClassScheduleResponse(item));
+    } catch (error) {
+      console.error('Error in findAll:', error);
+      throw new InternalServerErrorException('Failed to fetch class schedules');
     }
-
-    if (filters.endDate) {
-      conditions.push(`start_time <= '${filters.endDate}'`);
-    }
-
-    if (filters.trainerId) {
-      conditions.push(`trainer_id = '${filters.trainerId}'`);
-    }
-
-    if (filters.serviceId) {
-      conditions.push(`service_id = '${filters.serviceId}'`);
-    }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const query = `
-      SELECT * FROM ${this.table}
-      ${whereClause}
-      ORDER BY start_time ASC
-    `;
-
-    const result = await this.clickhouse.query<ClassSchedule[]>(query);
-    return Array.isArray(result) ? result.map(row => this.mapToDto(row)) : [];
   }
 
-  private async findById(id: string): Promise<ClassSchedule> {
-    const query = `SELECT * FROM ${this.table} WHERE id = '${id}' LIMIT 1`;
-    const result = await this.clickhouse.query<ClassSchedule[]>(query);
-    
-    if (!result || !Array.isArray(result) || result.length === 0) {
-      throw new NotFoundException(`Class schedule with ID ${id} not found`);
+  // Find a class schedule by ID (internal use)
+  private async findById(id: string): Promise<ClassSchedule | null> {
+    try {
+      const query = `SELECT * FROM ${this.table} FINAL WHERE id = {id: String}`;
+      const result = await this.clickhouse.query<ClassSchedule[]>(query.replace('{id: String}', `'${id}'`));
+      return result && result.length > 0 ? result[0] : null;
+    } catch (error) {
+      console.error('Error in findById:', error);
+      return null;
     }
-    
-    return result[0];
   }
 
   async findOne(id: string): Promise<ClassScheduleResponseDto> {
-    const classSchedule = await this.findById(id);
-    return this.mapToDto(classSchedule);
+    try {
+      const classSchedule = await this.findById(id);
+      if (!classSchedule) {
+        throw new NotFoundException(`Class schedule with ID ${id} not found`);
+      }
+      return this.toClassScheduleResponse(classSchedule);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error in findOne:', error);
+      throw new InternalServerErrorException('Failed to fetch class schedule');
+    }
   }
 
   async update(
     id: string,
     updateClassScheduleDto: UpdateClassScheduleDto,
   ): Promise<ClassScheduleResponseDto> {
-    const existingClass = await this.findById(id);
-    
-    // Create a new object with the updated fields
-    const updatedClass = {
-      ...existingClass,
-      ...updateClassScheduleDto,
-      updated_at: new Date().toISOString()
-    };
-
-    // Check for scheduling conflicts, excluding the current class
-    await this.checkForSchedulingConflicts(updateClassScheduleDto, id);
-
-    const updates: string[] = [];
-    for (const [key, value] of Object.entries(updateClassScheduleDto)) {
-      if (value !== undefined) {
-        const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        const escapedValue = typeof value === 'string' 
-          ? `'${value.replace(/'/g, "''")}'` 
-          : value === null ? 'NULL' : value;
-        updates.push(`${dbKey} = ${escapedValue}`);
+    try {
+      const existingClass = await this.findById(id);
+      if (!existingClass) {
+        throw new NotFoundException(`Class schedule with ID ${id} not found`);
       }
+      
+      // Create a new object with the updated fields
+      const updatedClass = {
+        ...existingClass,
+        ...updateClassScheduleDto,
+        updated_at: new Date().toISOString()
+      };
+
+      // Check for scheduling conflicts, excluding the current class
+      await this.checkForSchedulingConflicts(updatedClass, id);
+
+      const updates: string[] = [];
+      for (const [key, value] of Object.entries(updateClassScheduleDto)) {
+        if (value !== undefined) {
+          const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+          const escapedValue = typeof value === 'string' 
+            ? `'${value.replace(/'/g, "''")}'` 
+            : value === null ? 'NULL' : value;
+          updates.push(`${dbKey} = ${escapedValue}`);
+        }
+      }
+
+      if (updates.length === 0) {
+        return this.toClassScheduleResponse(existingClass);
+      }
+
+      const setClause = updates.join(', ');
+      const query = `
+        ALTER TABLE ${this.table}
+        UPDATE ${setClause}
+        WHERE id = '${id}'
+      `;
+
+      await this.clickhouse.query(query);
+      
+      // Add a small delay to ensure the update is processed
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Retry mechanism to get the updated record
+      const maxRetries = 5;
+      let retries = 0;
+      let result;
+      
+      while (retries < maxRetries) {
+        result = await this.clickhouse.query<ClassSchedule[]>(`
+          SELECT * FROM ${this.table} FINAL WHERE id = '${id}'
+        `);
+        
+        if (result && result.length > 0) {
+          const updatedClass = result[0];
+          // Verify if the record was actually updated by checking one of the updated fields
+          const updatedField = Object.keys(updateClassScheduleDto)[0];
+          if (updatedField) {
+            const dbKey = updatedField.replace(/([A-Z])/g, '_$1').toLowerCase();
+            if (updatedClass[dbKey] !== updateClassScheduleDto[updatedField]) {
+              retries++;
+              await new Promise(resolve => setTimeout(resolve, 100));
+              continue;
+            }
+          }
+          return this.toClassScheduleResponse(updatedClass);
+        }
+        
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // If we got here, we couldn't verify the update after retries
+      // Return the record anyway, even if we can't verify the update
+      result = await this.clickhouse.query<ClassSchedule[]>(`
+        SELECT * FROM ${this.table} FINAL WHERE id = '${id}'
+      `);
+      
+      if (!result || result.length === 0) {
+        throw new NotFoundException(`Class schedule with ID ${id} not found after update`);
+      }
+      
+      return this.toClassScheduleResponse(result[0]);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to update class schedule');
     }
-
-    if (updates.length === 0) {
-      return this.mapToDto(existingClass);
-    }
-
-    const setClause = updates.join(', ');
-    const query = `
-      ALTER TABLE ${this.table}
-      UPDATE ${setClause}
-      WHERE id = '${id}'
-    `;
-
-    await this.clickhouse.query(query);
-    return this.mapToDto(await this.findById(id));
   }
 
   async remove(id: string): Promise<void> {
-    await this.findById(id); // Will throw if not found
-    const query = `ALTER TABLE ${this.table} DELETE WHERE id = '${id}'`;
-    await this.clickhouse.query(query);
+    try {
+      // Check if class exists
+      await this.findOne(id);
+      
+      const query = `DELETE FROM ${this.table} WHERE id = {id: String}`;
+      await this.clickhouse.query(query.replace('{id: String}', `'${id}'`));
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error in remove:', error);
+      throw new InternalServerErrorException('Failed to delete class schedule');
+    }
   }
 
   async checkTrainerAvailability(
-    trainerId: string,
-    startTime: Date | string,
-    endTime: Date | string,
+    trainer_id: string,
+    start_time: Date | string,
+    end_time: Date | string,
     excludeClassId?: string,
   ): Promise<{ available: boolean; message?: string }> {
-    const start = startTime instanceof Date ? startTime : new Date(startTime);
-    const end = endTime instanceof Date ? endTime : new Date(endTime);
+    try {
+      const start = start_time instanceof Date ? start_time : new Date(start_time);
+      const end = end_time instanceof Date ? end_time : new Date(end_time);
 
-    let query = `
-      SELECT id, start_time, end_time 
-      FROM ${this.table}
-      WHERE trainer_id = '${trainerId}'
-      AND status != 'cancelled'
-      AND (
-        (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
-        OR (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
-        OR (start_time <= '${start.toISOString()}' AND end_time >= '${end.toISOString()}')
-      )
-    `;
+      let query = `
+        SELECT id, start_time, end_time 
+        FROM ${this.table}
+        WHERE trainer_id = '${trainer_id}'
+        AND status != 'cancelled'
+        AND (
+          (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
+          OR (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
+          OR (start_time <= '${start.toISOString()}' AND end_time >= '${end.toISOString()}')
+        )
+      `;
 
-    if (excludeClassId) {
-      query += ` AND id != '${excludeClassId}'`;
+      if (excludeClassId) {
+        query += ` AND id != '${excludeClassId}'`;
+      }
+
+      query += ' LIMIT 1';
+
+      const result = await this.clickhouse.query<Array<{ id: string; start_time: string; end_time: string }>>(query);
+      const conflictingClasses = Array.isArray(result) ? result : [];
+
+      if (conflictingClasses.length > 0) {
+        const conflict = conflictingClasses[0];
+        return {
+          available: false,
+          message: `Trainer is already booked from ${conflict.start_time} to ${conflict.end_time}`
+        };
+      }
+
+      return { available: true };
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to check trainer availability');
     }
-
-    query += ' LIMIT 1';
-
-    const result = await this.clickhouse.query<Array<{ id: string; start_time: string; end_time: string }>>(query);
-    const conflictingClasses = Array.isArray(result) ? result : [];
-
-    if (conflictingClasses.length > 0) {
-      const conflict = conflictingClasses[0];
-      return {
-        available: false,
-        message: `Trainer is already booked from ${conflict.start_time} to ${conflict.end_time}`
-      };
-    }
-
-    return { available: true };
   }
 
   async updateClassCapacity(
@@ -220,35 +376,48 @@ export class ClassScheduleService {
     change: number = 1,
     action: 'increment' | 'decrement',
   ): Promise<{ currentParticipants: number; maxParticipants: number }> {
-    const classData = await this.findById(classId);
-    
-    if (classData.status !== ClassStatus.SCHEDULED) {
-      throw new BadRequestException('Cannot update capacity for a cancelled or completed class');
-    }
-
-    let newCount = classData.current_participants;
-    
-    if (action === 'increment') {
-      if (classData.current_participants + change > classData.max_participants) {
-        throw new BadRequestException('Class is at maximum capacity');
+    try {
+      const classData = await this.findById(classId);
+      
+      if (!classData) {
+        throw new NotFoundException(`Class with ID ${classId} not found`);
       }
-      newCount += change;
-    } else {
-      if (classData.current_participants - change < 0) {
-        throw new BadRequestException('Cannot have negative participants');
+      
+      if (classData.status !== ClassStatus.SCHEDULED) {
+        throw new BadRequestException('Cannot update capacity for a cancelled or completed class');
       }
-      newCount -= change;
+
+      const currentParticipants = classData.current_participants || 0;
+      const maxParticipants = classData.max_participants || 20;
+      let newCount = currentParticipants;
+      
+      if (action === 'increment') {
+        if (currentParticipants + change > maxParticipants) {
+          throw new BadRequestException('Class is at maximum capacity');
+        }
+        newCount += change;
+      } else {
+        if (currentParticipants - change < 0) {
+          throw new BadRequestException('Cannot have negative participants');
+        }
+        newCount -= change;
+      }
+
+      const query = `
+        ALTER TABLE ${this.table}
+        UPDATE current_participants = ${newCount}
+        WHERE id = '${classId}'
+      `;
+
+      await this.clickhouse.query(query);
+
+      return { currentParticipants: newCount, maxParticipants };
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to update class capacity');
     }
-
-    const query = `
-      ALTER TABLE ${this.table}
-      UPDATE current_participants = ${newCount}
-      WHERE id = '${classId}'
-    `;
-
-    await this.clickhouse.query(query);
-
-    return { currentParticipants: newCount, maxParticipants: classData.max_participants };
   }
 
   async generateRecurringClasses(
@@ -256,135 +425,146 @@ export class ClassScheduleService {
     pattern: 'daily' | 'weekly' | 'monthly' = 'weekly',
     endDate: Date,
   ): Promise<ClassScheduleResponseDto[]> {
-    const baseClass = await this.findOne(classId);
-    if (!baseClass) {
-      throw new NotFoundException('Base class not found');
-    }
-
-    const startDate = new Date(baseClass.startTime);
-    const endDateTime = new Date(endDate);
-    let currentDate = new Date(startDate);
-    const recurringClasses: ClassScheduleResponseDto[] = [];
-
-    // Calculate interval based on pattern
-    const getNextDate = (date: Date): Date => {
-      const nextDate = new Date(date);
-      switch (pattern) {
-        case 'daily':
-          nextDate.setDate(date.getDate() + 1);
-          break;
-        case 'weekly':
-          nextDate.setDate(date.getDate() + 7);
-          break;
-        case 'monthly':
-          nextDate.setMonth(date.getMonth() + 1);
-          break;
+    try {
+      const baseClass = await this.findOne(classId);
+      if (!baseClass) {
+        throw new NotFoundException('Base class not found');
       }
-      return nextDate;
-    };
 
-    // Generate recurring classes
-    while (currentDate <= endDateTime) {
-      // Skip the base class date
-      if (currentDate.getTime() !== startDate.getTime()) {
-        const classStart = new Date(currentDate);
-        const classEnd = new Date(classStart.getTime() + 
-          (new Date(baseClass.endTime).getTime() - new Date(baseClass.startTime).getTime()));
+      const startDate = new Date(baseClass.start_time);
+      const endDateTime = new Date(endDate);
+      let currentDate = new Date(startDate);
+      const recurringClasses: ClassScheduleResponseDto[] = [];
+
+      // Calculate interval based on pattern
+      const getNextDate = (date: Date): Date => {
+        const nextDate = new Date(date);
+        switch (pattern) {
+          case 'daily':
+            nextDate.setDate(date.getDate() + 1);
+            break;
+          case 'weekly':
+            nextDate.setDate(date.getDate() + 7);
+            break;
+          case 'monthly':
+            nextDate.setMonth(date.getMonth() + 1);
+            break;
+        }
+        return nextDate;
+      };
+
+      // Generate recurring classes
+      while (currentDate <= endDateTime) {
+        // Skip the base class date
+        if (currentDate.getTime() !== startDate.getTime()) {
+          const classStart = new Date(currentDate);
+          const classEnd = new Date(classStart.getTime() + 
+            (new Date(baseClass.end_time).getTime() - new Date(baseClass.start_time).getTime()));
+          
+          const newClass = await this.create({
+            ...baseClass,
+            start_time: classStart.toISOString(),
+            end_time: classEnd.toISOString(),
+            is_recurring: true,
+            recurrence_pattern: pattern,
+            recurrence_end_date: endDate.toISOString(),
+          } as CreateClassScheduleDto);
+          
+          recurringClasses.push(newClass);
+        }
         
-        const newClass = await this.create({
-          ...baseClass,
-          startTime: classStart,
-          endTime: classEnd,
-          isRecurring: true,
-          recurrencePattern: pattern,
-          recurrenceEndDate: endDate,
-        } as CreateClassScheduleDto);
-        
-        recurringClasses.push(newClass);
+        currentDate = getNextDate(currentDate);
       }
-      
-      currentDate = getNextDate(currentDate);
-    }
 
-    return recurringClasses;
+      return recurringClasses;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to generate recurring classes');
+    }
   }
 
   private async checkForSchedulingConflicts(
-    classSchedule: CreateClassScheduleDto | UpdateClassScheduleDto | ClassSchedule,
+    classSchedule: CreateClassScheduleDto | UpdateClassScheduleDto | (Omit<ClassSchedule, 'recurrence_pattern' | 'recurrence_end_date'> & { recurrence_pattern?: string | null; recurrence_end_date?: string | null }),
     excludeId?: string,
   ): Promise<void> {
-    const trainerId = 'trainerId' in classSchedule ? classSchedule.trainerId : 
-                     'trainer_id' in classSchedule ? classSchedule.trainer_id : undefined;
-    
-    const startTime = 'startTime' in classSchedule ? classSchedule.startTime : 
-                     'start_time' in classSchedule ? classSchedule.start_time : undefined;
-    
-    const endTime = 'endTime' in classSchedule ? classSchedule.endTime : 
-                   'end_time' in classSchedule ? classSchedule.end_time : undefined;
+    try {
+      const { start_time, end_time, trainer_id, service_id } = classSchedule;
+      const id = 'id' in classSchedule ? classSchedule.id : undefined;
+      
+      // Convert to Date objects for comparison
+      if (!start_time || !end_time) {
+        throw new BadRequestException('Start time and end time are required');
+      }
+      
+      const startDate = new Date(start_time);
+      const endDate = new Date(end_time);
 
-    if (!trainerId || !startTime || !endTime) {
-      throw new BadRequestException('Missing required fields for scheduling check');
+      // Check if dates are valid
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        throw new BadRequestException('Invalid date format');
+      }
+
+      // Check if end time is after start time
+      if (startDate >= endDate) {
+        throw new BadRequestException('End time must be after start time');
+      }
+
+      // Format dates for SQL query
+      const formatDate = (date: Date) => date.toISOString().replace('T', ' ').replace('Z', '');
+      const startTimeStr = formatDate(startDate);
+      const endTimeStr = formatDate(endDate);
+
+      // Build the query with proper parameter handling
+      let query = `
+        SELECT id, start_time, end_time, trainer_id, service_id 
+        FROM ${this.table}
+        WHERE 
+          (
+            (start_time <= '${endTimeStr}' AND end_time >= '${startTimeStr}') OR
+            (start_time <= '${endTimeStr}' AND end_time >= '${startTimeStr}') OR
+            (start_time >= '${startTimeStr}' AND end_time <= '${endTimeStr}')
+          )
+          AND (trainer_id = '${trainer_id}' OR service_id = '${service_id}')
+      `;
+
+      // Add ID exclusion if provided
+      if (id) {
+        query += ` AND id != '${id}'`;
+      }
+      
+      // Add excludeId if provided (for update operations)
+      if (excludeId) {
+        query += ` AND id != '${excludeId}'`;
+      }
+
+      query += ' LIMIT 1';
+
+      const result = await this.clickhouse.query<Array<{ 
+        id: string; 
+        start_time: string; 
+        end_time: string;
+        trainer_id: string;
+        service_id: string;
+      }>>(query);
+      
+      const existingClasses = Array.isArray(result) ? result : [];
+
+      if (existingClasses.length > 0) {
+        const conflict = existingClasses[0];
+        // Check if the conflict is with the trainer or the service
+        const conflictType = conflict.trainer_id === trainer_id ? 'trainer' : 'service';
+        throw new ConflictException(
+          `${conflictType.charAt(0).toUpperCase() + conflictType.slice(1)} is already scheduled for a class during this time: ${conflict.start_time} - ${conflict.end_time}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof ConflictException || error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('Error in checkForSchedulingConflicts:', error);
+      throw new InternalServerErrorException('Error checking for scheduling conflicts');
     }
-
-    // Convert to Date objects for comparison
-    const startDate = new Date(startTime);
-    const endDate = new Date(endTime);
-
-    // Check if end time is after start time
-    if (endDate <= startDate) {
-      throw new BadRequestException('End time must be after start time');
-    }
-
-    // Format dates for SQL query
-    const formatDate = (date: Date) => date.toISOString().replace('T', ' ').replace('Z', '');
-    const startTimeStr = formatDate(startDate);
-    const endTimeStr = formatDate(endDate);
-
-    let query = `
-      SELECT * FROM ${this.table}
-      WHERE trainer_id = '${trainerId}'
-      AND status != 'cancelled'
-      AND (
-        (start_time < '${endTimeStr}' AND end_time > '${startTimeStr}')
-        OR (start_time < '${endTimeStr}' AND end_time > '${startTimeStr}')
-        OR (start_time <= '${startTimeStr}' AND end_time >= '${endTimeStr}')
-      )
-    `;
-
-    if (excludeId) {
-      query += ` AND id != '${excludeId}'`;
-    }
-
-    query += ' LIMIT 1';
-
-    const result = await this.clickhouse.query<ClassSchedule[]>(query);
-    const existingClasses = Array.isArray(result) ? result : [];
-
-    if (existingClasses.length > 0) {
-      const conflict = existingClasses[0];
-      throw new ConflictException(
-        `Trainer is already scheduled for a class during this time: ${conflict.start_time} - ${conflict.end_time}`,
-      );
-    }
-  }
-
-  private mapToDto(classSchedule: ClassSchedule): ClassScheduleResponseDto {
-    return {
-      id: classSchedule.id,
-      title: classSchedule.title,
-      description: classSchedule.description,
-      startTime: classSchedule.start_time,
-      endTime: classSchedule.end_time,
-      status: classSchedule.status,
-      maxParticipants: classSchedule.max_participants,
-      currentParticipants: classSchedule.current_participants,
-      trainerId: classSchedule.trainer_id,
-      serviceId: classSchedule.service_id,
-      isRecurring: classSchedule.is_recurring,
-      recurrencePattern: classSchedule.recurrence_pattern as 'daily' | 'weekly' | 'monthly' | undefined,
-      recurrenceEndDate: classSchedule.recurrence_end_date,
-      createdAt: classSchedule.created_at,
-      updatedAt: classSchedule.updated_at,
-    };
   }
 }

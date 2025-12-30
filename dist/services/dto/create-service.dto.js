@@ -12,18 +12,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateServiceDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateServiceDto {
-    service_type;
     service_name;
     description;
     price;
-    duration;
+    type;
+    duration_minutes;
+    trainer_id;
+    category;
+    image_url;
+    is_active;
 }
 exports.CreateServiceDto = CreateServiceDto;
-__decorate([
-    (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", String)
-], CreateServiceDto.prototype, "service_type", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
@@ -41,8 +40,34 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateServiceDto.prototype, "price", void 0);
 __decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateServiceDto.prototype, "type", void 0);
+__decorate([
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.IsPositive)(),
     __metadata("design:type", Number)
-], CreateServiceDto.prototype, "duration", void 0);
+], CreateServiceDto.prototype, "duration_minutes", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsUUID)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateServiceDto.prototype, "trainer_id", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateServiceDto.prototype, "category", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateServiceDto.prototype, "image_url", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateServiceDto.prototype, "is_active", void 0);
 //# sourceMappingURL=create-service.dto.js.map

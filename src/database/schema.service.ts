@@ -68,29 +68,30 @@ export class SchemaService implements OnModuleInit {
       SETTINGS index_granularity = 8192`,
 
       // Trainers Table
-      `CREATE TABLE IF NOT EXISTS ${this.database}.trainers (
-        id UUID DEFAULT generateUUIDv4(),
-        name String,
-        bio Nullable(String),
-        specializations Array(String),
-        profile_image Nullable(String),
-        rating Float64 DEFAULT 0.0,
-        total_reviews UInt32 DEFAULT 0,
-        availability Nullable(String),
-        certifications Array(String),
-        experience_years UInt8,
-        is_active Boolean DEFAULT true,
-        created_at DateTime64(3) DEFAULT now64(),
-        updated_at DateTime64(3) DEFAULT now64()
-      ) ENGINE = ReplacingMergeTree(updated_at)
-      PARTITION BY toYYYYMM(created_at)
-      ORDER BY (id, created_at)
-      SETTINGS index_granularity = 8192`,
+`CREATE TABLE IF NOT EXISTS ${this.database}.trainers (
+  id UUID DEFAULT generateUUIDv4(),
+  name String,
+  bio Nullable(String),
+  specializations String,  // Changed from Array(String) to String to store JSON
+  profile_image Nullable(String),
+  rating Float64 DEFAULT 0.0,
+  total_reviews UInt32 DEFAULT 0,
+  availability String DEFAULT '{}',  // Changed from Nullable(String) to String with default
+  certifications String,  // Changed from Array(String) to String to store JSON
+  experience_years UInt8 DEFAULT 0,
+  is_active Boolean DEFAULT true,
+  social_media String DEFAULT '{}',  // Stores JSON object as string
+  created_at DateTime64(3) DEFAULT now64(),
+  updated_at DateTime64(3) DEFAULT now64()
+) ENGINE = ReplacingMergeTree(updated_at)
+PARTITION BY toYYYYMM(created_at)
+ORDER BY (id, created_at)
+SETTINGS index_granularity = 8192`,
 
       // Services Table
       `CREATE TABLE IF NOT EXISTS ${this.database}.services (
         id UUID DEFAULT generateUUIDv4(),
-        name String,
+        service_name String,
         description String,
         price Float64,
         type LowCardinality(String),
@@ -128,14 +129,21 @@ export class SchemaService implements OnModuleInit {
       ORDER BY (start_time, status)
       SETTINGS index_granularity = 8192`,
       
-      // Bookings Table
+      // Bookings Table - Create if not exists
       `CREATE TABLE IF NOT EXISTS ${this.database}.bookings (
         id UUID DEFAULT generateUUIDv4(),
         user_id UUID,
+        user_phone String DEFAULT '',
         service_id UUID,
+        booking_date Date,
+        booking_time String,
+        full_name String DEFAULT '',
+        email String DEFAULT '',
+        phone String DEFAULT '',
+        special_requests Nullable(String),
+        status LowCardinality(String) DEFAULT 'pending',
         start_time DateTime,
         end_time DateTime,
-        status LowCardinality(String) DEFAULT 'pending',
         notes Nullable(String),
         amount Float64,
         payment_status LowCardinality(String) DEFAULT 'pending',
@@ -143,8 +151,8 @@ export class SchemaService implements OnModuleInit {
         created_at DateTime64(3) DEFAULT now64(),
         updated_at DateTime64(3) DEFAULT now64()
       ) ENGINE = ReplacingMergeTree(updated_at)
-      PARTITION BY toYYYYMM(start_time)
-      ORDER BY (user_id, service_id, start_time)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (user_id, service_id, booking_date, booking_time)
       SETTINGS index_granularity = 8192`,
       
       // Payments Table
@@ -195,16 +203,7 @@ export class SchemaService implements OnModuleInit {
       ORDER BY (user_id, booking_id, created_at)
       SETTINGS index_granularity = 8192`,
       
-      // Trainer Specializations Table
-      `CREATE TABLE IF NOT EXISTS ${this.database}.trainer_specializations (
-        trainer_id UUID,
-        specialization String,
-        created_at DateTime64(3) DEFAULT now64()
-      ) ENGINE = ReplacingMergeTree(created_at)
-      PARTITION BY toYYYYMM(created_at)
-      ORDER BY (trainer_id, specialization)
-      SETTINGS index_granularity = 8192`,
-      
+        
       // Class Schedules Table
       `CREATE TABLE IF NOT EXISTS ${this.database}.class_schedules (
         id UUID DEFAULT generateUUIDv4(),

@@ -19,6 +19,6 @@ export class RegisterDto {
   pin: string;
 
   @IsOptional()
-  @IsEnum(['customer', 'admin'])
+  @IsEnum(['member', 'admin', 'trainer'])
   role?: string;
 }

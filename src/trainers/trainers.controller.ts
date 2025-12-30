@@ -1,7 +1,7 @@
 // src/trainers/trainers.controller.ts
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth } from '@nestjs/swagger';
+import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
@@ -10,42 +10,52 @@ import { CreateTrainerDto } from './dto/create-trainer.dto';
 import { UpdateTrainerDto } from './dto/update-trainer.dto';
 import { TrainerResponseDto } from './dto/trainer-response.dto';
 
-@ApiTags('trainers')
+@ApiTags('Trainers')
 @Controller('api/v1/trainers')
 export class TrainersController {
   constructor(private readonly trainersService: TrainersService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(CookieJwtGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Create a new trainer' })
-  @ApiResponse({ status: 201, description: 'Trainer successfully created', type: TrainerResponseDto })
+  @ApiResponse({ status: 201, description: 'Trainer created successfully', type: TrainerResponseDto })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async create(@Body() createTrainerDto: CreateTrainerDto): Promise<TrainerResponseDto> {
     return this.trainersService.create(createTrainerDto);
   }
 
   @Get()
+  @UseGuards(CookieJwtGuard)
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Get all trainers' })
-  @ApiResponse({ status: 200, description: 'Return all trainers', type: [TrainerResponseDto] })
+  @ApiResponse({ status: 200, description: 'Returns all trainers', type: [TrainerResponseDto] })
   async findAll(): Promise<TrainerResponseDto[]> {
     return this.trainersService.findAll();
   }
 
   @Get(':id')
+  @UseGuards(CookieJwtGuard)
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Get a trainer by ID' })
-  @ApiResponse({ status: 200, description: 'Return the trainer', type: TrainerResponseDto })
+  @ApiResponse({ status: 200, description: 'Returns the trainer', type: TrainerResponseDto })
   @ApiResponse({ status: 404, description: 'Trainer not found' })
   async findOne(@Param('id') id: string): Promise<TrainerResponseDto> {
     return this.trainersService.findOne(id);
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(CookieJwtGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Update a trainer' })
-  @ApiResponse({ status: 200, description: 'Trainer updated successfully', type: TrainerResponseDto })
+  @ApiResponse({ status: 200, description: 'Trainer updated', type: TrainerResponseDto })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 404, description: 'Trainer not found' })
   async update(
     @Param('id') id: string,
@@ -55,13 +65,16 @@ export class TrainersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(CookieJwtGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Delete a trainer' })
-  @ApiResponse({ status: 200, description: 'Trainer deleted successfully' })
+  @ApiResponse({ status: 204, description: 'Trainer deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 404, description: 'Trainer not found' })
   async remove(@Param('id') id: string): Promise<void> {
-    return this.trainersService.remove(id);
+    await this.trainersService.remove(id);
   }
 }

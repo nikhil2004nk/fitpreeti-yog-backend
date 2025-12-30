@@ -17,6 +17,7 @@ const bookings_module_1 = require("./bookings/bookings.module");
 const users_module_1 = require("./users/users.module");
 const health_module_1 = require("./health/health.module");
 const trainers_module_1 = require("./trainers/trainers.module");
+const class_schedule_module_1 = require("./class-schedule/class-schedule.module");
 const clickhouse_module_1 = require("./database/clickhouse.module");
 let AppModule = class AppModule {
 };
@@ -35,6 +36,7 @@ exports.AppModule = AppModule = __decorate([
             users_module_1.UsersModule,
             health_module_1.HealthModule,
             trainers_module_1.TrainersModule,
+            class_schedule_module_1.ClassScheduleModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

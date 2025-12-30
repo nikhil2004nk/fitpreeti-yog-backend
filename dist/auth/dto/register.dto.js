@@ -42,7 +42,7 @@ __decorate([
 ], RegisterDto.prototype, "pin", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['customer', 'admin']),
+    (0, class_validator_1.IsEnum)(['member', 'admin', 'trainer']),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "role", void 0);
 //# sourceMappingURL=register.dto.js.map

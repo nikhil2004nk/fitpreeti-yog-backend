@@ -5,9 +5,15 @@ import { ClassScheduleController } from './class-schedule.controller';
 import { TrainersModule } from '../trainers/trainers.module';
 import { ServicesModule } from '../services/services.module';
 import { ClickhouseModule } from '../database/clickhouse.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [ClickhouseModule, TrainersModule, ServicesModule],
+  imports: [
+    ClickhouseModule, 
+    TrainersModule, 
+    ServicesModule,
+    AuthModule
+  ],
   controllers: [ClassScheduleController],
   providers: [ClassScheduleService],
   exports: [ClassScheduleService],

@@ -1,58 +1,77 @@
+// src/trainers/dto/create-trainer.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { TrainerSpecialization } from '../enums/trainer-specialization.enum';
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, IsObject, IsBoolean } from 'class-validator';
+
+class SocialMediaDto {
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  instagram?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  youtube?: string;
+
+  [key: string]: any;
+}
 
 export class CreateTrainerDto {
-  @ApiProperty({ description: 'Full name of the trainer' })
+  @ApiProperty({ example: 'John Doe' })
   @IsString()
-  @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Biography of the trainer', required: false })
+  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   bio?: string;
 
-  @ApiProperty({ 
-    description: 'List of trainer specializations',
-    enum: TrainerSpecialization,
-    isArray: true,
-    example: [TrainerSpecialization.HATHA, TrainerSpecialization.VINYASA]
-  })
+  @ApiProperty({ example: ['yoga', 'pilates'], required: false })
   @IsArray()
-  @IsEnum(TrainerSpecialization, { each: true })
-  specializations: TrainerSpecialization[];
+  @IsString({ each: true })
+  @IsOptional()
+  specializations?: string[];
 
-  @ApiProperty({ description: 'URL to trainer profile image', required: false })
-  @IsUrl()
+  @ApiProperty({ required: false })
+  @IsString()
   @IsOptional()
   profileImage?: string;
 
-  @ApiProperty({ 
-    description: 'Trainer certifications', 
-    type: [String],
-    required: false,
-    example: ['RYT 200', 'Yoga Alliance Certified']
-  })
+  @ApiProperty({ example: ['RYT 200', 'Yoga Alliance'], required: false })
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
   certifications?: string[];
 
-  @ApiProperty({ description: 'Years of experience', required: false, default: 0 })
+  @ApiProperty({ example: 5, required: false })
   @IsNumber()
   @IsOptional()
   experienceYears?: number;
 
   @ApiProperty({ 
-    description: 'Trainer availability (weekly schedule)', 
-    required: false,
-    example: {
+    example: { 
       monday: [{ start: '09:00', end: '17:00' }],
-      tuesday: [{ start: '09:00', end: '17:00' }],
-      // ... other days
-    }
+      tuesday: [{ start: '09:00', end: '17:00' }]
+    }, 
+    required: false 
   })
+  @IsObject()
   @IsOptional()
-  availability?: any;
+  availability?: Record<string, Array<{ start: string; end: string }>>;
+
+  @ApiProperty({ example: true, default: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
+  @ApiProperty({
+    example: {
+      instagram: 'insta_handle',
+      youtube: 'youtube_handle'
+    },
+    required: false
+  })
+  @IsObject()
+  @IsOptional()
+  socialMedia?: SocialMediaDto;
 }

@@ -1,18 +1,21 @@
-import { TrainerSpecialization } from '../enums/trainer-specialization.enum';
-
-export interface Trainer {
+// src/trainers/entities/trainer.entity.ts
+export class Trainer {
   id: string;
   name: string;
-  bio: string | null;
+  bio?: string;
   specializations: string[];
-  profile_image: string | null;
-  rating: number;
-  total_reviews: number;
-  availability: Record<string, any> | null;
+  profile_image?: string;
   certifications: string[];
   experience_years: number;
+  rating: number;
+  total_reviews: number;
   is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
-  schedules?: any[]; // Update with proper type when available
+  social_media: {
+    instagram?: string;
+    youtube?: string;
+    [key: string]: any;
+  };
+  availability: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }

@@ -1,10 +1,6 @@
-import { IsString, IsNumber, IsNotEmpty, MinLength, IsPositive } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty, MinLength, IsPositive, IsOptional, IsBoolean, IsUUID } from 'class-validator';
 
 export class CreateServiceDto {
-  @IsString()
-  @IsNotEmpty()
-  service_type: string;
-
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -18,7 +14,28 @@ export class CreateServiceDto {
   @IsPositive()
   price: number;
 
+  @IsString()
+  @IsNotEmpty()
+  type: string;
+
   @IsNumber()
   @IsPositive()
-  duration: number; // minutes
+  duration_minutes: number;
+
+  @IsString()
+  @IsUUID()
+  @IsOptional()
+  trainer_id?: string;
+
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @IsString()
+  @IsOptional()
+  image_url?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  is_active?: boolean;
 }

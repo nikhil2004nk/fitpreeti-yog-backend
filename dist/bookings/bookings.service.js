@@ -101,7 +101,42 @@ let BookingsService = class BookingsService {
       UPDATE ${updates.join(', ')} 
       WHERE id = '${escapedId}'
     `);
-        return this.findOne(id, userPhone);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const maxRetries = 5;
+        let retries = 0;
+        let result;
+        while (retries < maxRetries) {
+            const whereClause = userPhone
+                ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'`
+                : `id = '${escapedId}'`;
+            result = await this.ch.query(`
+        SELECT * FROM fitpreeti.bookings FINAL 
+        WHERE ${whereClause}
+      `);
+            if (result && result.length > 0) {
+                const updatedBooking = result[0];
+                const updatedField = Object.keys(updateBookingDto)[0];
+                if (updatedField && updatedBooking[updatedField] !== updateBookingDto[updatedField]) {
+                    retries++;
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    continue;
+                }
+                return updatedBooking;
+            }
+            retries++;
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const whereClause = userPhone
+            ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'`
+            : `id = '${escapedId}'`;
+        result = await this.ch.query(`
+      SELECT * FROM fitpreeti.bookings FINAL 
+      WHERE ${whereClause}
+    `);
+        if (!result || result.length === 0) {
+            throw new common_1.NotFoundException(`Booking with ID ${id} not found after update`);
+        }
+        return result[0];
     }
     async remove(id, userPhone) {
         await this.findOne(id, userPhone);

@@ -13,45 +13,45 @@ export class ClassScheduleResponseDto {
   description?: string;
 
   @ApiProperty({ description: 'Start time of the class' })
-  startTime: string;
+  start_time: string;
 
   @ApiProperty({ description: 'End time of the class' })
-  endTime: string;
+  end_time: string;
 
   @ApiProperty({ enum: ClassStatus, description: 'Status of the class' })
   status: ClassStatus;
 
   @ApiProperty({ description: 'Maximum number of participants' })
-  maxParticipants: number;
+  max_participants: number;
 
   @ApiProperty({ description: 'Current number of participants' })
-  currentParticipants: number;
+  current_participants: number;
 
   @ApiProperty({ description: 'ID of the trainer' })
-  trainerId: string;
+  trainer_id: string;
 
   @ApiProperty({ description: 'ID of the service' })
-  serviceId: string;
+  service_id: string;
 
   @ApiProperty({ description: 'Whether this is a recurring class' })
-  isRecurring: boolean;
+  is_recurring: boolean;
 
   @ApiProperty({ 
     description: 'Recurrence pattern (daily, weekly, monthly)',
     enum: ['daily', 'weekly', 'monthly'],
     required: false 
   })
-  recurrencePattern?: string;
+  recurrence_pattern?: string;
 
   @ApiProperty({ 
     description: 'End date for recurring classes',
     required: false 
   })
-  recurrenceEndDate?: string;
+  recurrence_end_date?: string;
 
   @ApiProperty({ description: 'Creation timestamp' })
-  createdAt: string;
+  created_at: string;
 
   @ApiProperty({ description: 'Last update timestamp' })
-  updatedAt: string;
+  updated_at: string;
 }

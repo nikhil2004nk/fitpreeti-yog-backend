@@ -79,6 +79,32 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
             const formattedQuery = query.trim();
             const upperQuery = formattedQuery.toUpperCase();
             if (!upperQuery.startsWith('SELECT') && !upperQuery.startsWith('WITH')) {
+                if (upperQuery.startsWith('ALTER TABLE') && upperQuery.includes('UPDATE')) {
+                    const tableMatch = formattedQuery.match(/ALTER TABLE\s+([^\s]+)/i);
+                    const setMatch = formattedQuery.match(/UPDATE\s+(.+?)(?:\s+WHERE|$)/is);
+                    const whereMatch = formattedQuery.match(/WHERE\s+(.+?)(?:\s*;?\s*)$/is);
+                    if (tableMatch && setMatch) {
+                        const table = tableMatch[1];
+                        const setClause = setMatch[1].trim();
+                        const whereClause = whereMatch ? whereMatch[1].trim() : '1=1';
+                        const fieldMatch = setClause.match(/^(\w+)\s*=/);
+                        const checkField = fieldMatch ? fieldMatch[1] : undefined;
+                        let expectedValue;
+                        if (checkField) {
+                            const valueMatch = setClause.match(new RegExp(`${checkField}\\s*=\\s*([^,]+)`));
+                            if (valueMatch) {
+                                expectedValue = valueMatch[1].trim().replace(/^'|'$/g, '');
+                            }
+                        }
+                        return this.updateWithConsistency({
+                            table,
+                            setClause,
+                            whereClause,
+                            checkField,
+                            expectedValue,
+                        });
+                    }
+                }
                 await this.client.exec({
                     query: formattedQuery,
                     clickhouse_settings: { wait_end_of_query: 1 },
@@ -130,6 +156,50 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
             this.logger.error('Connection check failed:', error);
             return false;
         }
+    }
+    async updateWithConsistency(options) {
+        const { table, setClause, whereClause, checkField, expectedValue, maxRetries = 5, retryDelayMs = 100 } = options;
+        if (!this.client) {
+            throw new Error('ClickHouse client is not initialized');
+        }
+        const updateQuery = `ALTER TABLE ${table} UPDATE ${setClause} WHERE ${whereClause}`;
+        await this.client.exec({
+            query: updateQuery,
+            clickhouse_settings: { wait_end_of_query: 1 },
+        });
+        if (!checkField) {
+            return { success: true, updated: null };
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        let retries = 0;
+        while (retries < maxRetries) {
+            try {
+                const selectQuery = `SELECT * FROM ${table} FINAL WHERE ${whereClause} LIMIT 1`;
+                const result = await this.client.query({
+                    query: selectQuery,
+                    format: 'JSONEachRow',
+                });
+                const records = await result.json();
+                if (records && records.length > 0) {
+                    const updatedRecord = records[0];
+                    if (expectedValue !== undefined) {
+                        const actualValue = String(updatedRecord[checkField]);
+                        if (actualValue !== String(expectedValue)) {
+                            throw new Error(`Field ${checkField} was not updated to ${expectedValue}, got ${actualValue}`);
+                        }
+                    }
+                    return { success: true, updated: updatedRecord };
+                }
+            }
+            catch (error) {
+                this.logger.warn(`Update verification attempt ${retries + 1} failed:`, error.message);
+            }
+            retries++;
+            if (retries < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+            }
+        }
+        throw new Error(`Failed to verify update after ${maxRetries} attempts`);
     }
 };
 exports.ClickhouseService = ClickhouseService;

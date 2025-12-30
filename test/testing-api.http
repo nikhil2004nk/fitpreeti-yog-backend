@@ -47,7 +47,73 @@ Authorization: Bearer {{accessToken}}
   "phone_number": "+911234567891"
 }
 
-### 4. Refresh Token
+### 4. Service Management
+### Create a new service (Admin only)
+# @name createService
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "service_name": "Hatha Yoga",
+  "type": "yoga",
+  "category": "traditional",
+  "description": "Traditional yoga practice focusing on physical postures and breathing techniques.",
+  "price": 500,
+  "duration_minutes": 60,
+  "trainer_id": "00000000-0000-0000-0000-000000000000",
+  "image_url": "https://example.com/hatha-yoga.jpg",
+  "is_active": true
+}
+
+### Get all services (optionally filtered by type)
+GET {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+### Get all services of a specific type
+GET {{baseUrl}}/services?type=yoga
+Content-Type: {{contentType}}
+
+### Get popular services
+GET {{baseUrl}}/services/popular
+Content-Type: {{contentType}}
+
+### Get services by specific type using path parameter
+GET {{baseUrl}}/services/type/yoga
+Content-Type: {{contentType}}
+
+### Get service by ID
+@serviceId = {{createService.response.body.id}}
+GET {{baseUrl}}/services/{{serviceId}}
+Content-Type: {{contentType}}
+
+### Update a service (Admin only)
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "service_name": "Advanced Hatha Yoga",
+  "description": "Advanced level Hatha Yoga with focus on alignment and breath control.",
+  "price": 600,
+  "duration_minutes": 75,
+  "category": "advanced",
+  "is_active": true
+}
+
+### Deactivate a service (Admin only)
+DELETE {{baseUrl}}/services/{{serviceId}}
+Authorization: Bearer {{accessToken}}
+
+### Get all active yoga services
+GET {{baseUrl}}/services/type/yoga
+Content-Type: {{contentType}}
+
+### Get all active services in the 'advanced' category
+GET {{baseUrl}}/services?category=advanced
+Content-Type: {{contentType}}
+
+### 5. Refresh Token
 POST {{baseUrl}}/auth/refresh
 Content-Type: {{contentType}}
 
@@ -76,12 +142,6 @@ GET {{baseUrl}}/api/v1/trainers
 ### Get trainer by ID
 GET {{baseUrl}}/api/v1/trainers/{{trainer_id}}
 
-### 7. Services
-### Get all services
-GET {{baseUrl}}/api/v1/services
-
-### Get service by ID
-GET {{baseUrl}}/api/v1/services/{{service_id}}
 
 ### 8. Class Schedules
 ### Get available class schedules
@@ -148,7 +208,108 @@ Authorization: Bearer {{accessToken}}
 ### Get reviews for a service
 GET {{baseUrl}}/api/v1/services/{{service_id}}/reviews
 
-### 12. Admin Endpoints (Requires Admin Role)
+### 12. Class Schedule Management
+### Create a new class schedule (Admin/Trainer)
+# @name createClassSchedule
+POST {{baseUrl}}/api/v1/class-schedule
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "serviceId": "00000000-0000-0000-0000-000000000000",
+  "trainerId": "00000000-0000-0000-0000-000000000000",
+  "startTime": "2025-01-01T09:00:00.000Z",
+  "endTime": "2025-01-01T10:00:00.000Z",
+  "recurring": {
+    "frequency": "weekly",
+    "interval": 1,
+    "endDate": "2025-12-31T23:59:59.000Z"
+  },
+  "maxParticipants": 10,
+  "isActive": true
+}
+
+### Get all class schedules with optional filters
+GET {{baseUrl}}/api/v1/class-schedule?startDate=2025-01-01&endDate=2025-01-31&trainerId=00000000-0000-0000-0000-000000000000&serviceId=00000000-0000-0000-0000-000000000000
+Content-Type: {{contentType}}
+
+### Get a specific class schedule by ID
+@scheduleId = {{createClassSchedule.response.body.id}}
+GET {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
+Content-Type: {{contentType}}
+
+### Update a class schedule (Admin/Trainer)
+PUT {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "startTime": "2025-01-01T10:00:00.000Z",
+  "endTime": "2025-01-01T11:00:00.000Z",
+  "maxParticipants": 15,
+  "isActive": true
+}
+
+### Check trainer availability
+GET {{baseUrl}}/api/v1/class-schedule/trainer/00000000-0000-0000-0000-000000000000/availability?date=2025-01-01T09:00:00.000Z&duration=60
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+### Delete a class schedule (Admin/Trainer)
+DELETE {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
+Authorization: Bearer {{accessToken}}
+
+### 13. Trainer Management
+### Get all trainers
+GET {{baseUrl}}/api/v1/trainers
+Content-Type: {{contentType}}
+
+### Get a specific trainer by ID
+# @name getTrainer
+GET {{baseUrl}}/api/v1/trainers/{{$random.uuid}}
+Content-Type: {{contentType}}
+
+### Create a new trainer (Admin only)
+# @name createTrainer
+POST {{baseUrl}}/api/v1/trainers
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Yoga Master",
+  "bio": "Certified yoga instructor with 5+ years of experience in Hatha and Vinyasa yoga.",
+  "specializations": ["hatha", "vinyasa"],
+  "profileImage": "https://example.com/trainers/yoga-master.jpg",
+  "certifications": ["RYT 500", "Yoga Alliance Certified"],
+  "experienceYears": 5,
+  "availability": {
+    "monday": [{"start": "09:00", "end": "17:00"}],
+    "tuesday": [{"start": "09:00", "end": "17:00"}],
+    "wednesday": [{"start": "09:00", "end": "17:00"}],
+    "thursday": [{"start": "09:00", "end": "17:00"}],
+    "friday": [{"start": "09:00", "end": "17:00"}]
+  }
+}
+
+### Update a trainer (Admin only)
+@trainerId = {{createTrainer.response.body.id}}
+PATCH {{baseUrl}}/api/v1/trainers/{{trainerId}}
+Content-Type: {{contentType}}
+Authorization: Bearer {{accessToken}}
+
+{
+  "name": "Senior Yoga Master",
+  "bio": "Senior certified yoga instructor with 8+ years of experience in Hatha, Vinyasa, and Ashtanga yoga.",
+  "specializations": ["hatha", "vinyasa", "ashtanga"],
+  "experienceYears": 8,
+  "isActive": true
+}
+
+### Delete a trainer (Admin only)
+DELETE {{baseUrl}}/api/v1/trainers/{{trainerId}}
+Authorization: Bearer {{accessToken}}
+
+### 13. Admin Endpoints (Requires Admin Role)
 ### Get all users (Admin)
 GET {{baseUrl}}/api/v1/admin/users
 Authorization: Bearer {{accessToken}}

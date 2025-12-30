@@ -123,8 +123,57 @@ export class BookingsService {
       UPDATE ${updates.join(', ')} 
       WHERE id = '${escapedId}'
     `);
-
-    return this.findOne(id, userPhone);
+    
+    // Add a small delay to ensure the update is processed
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Retry mechanism to get the updated record
+    const maxRetries = 5;
+    let retries = 0;
+    let result;
+    
+    while (retries < maxRetries) {
+      const whereClause = userPhone 
+        ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'` 
+        : `id = '${escapedId}'`;
+      
+      result = await this.ch.query<Booking[]>(`
+        SELECT * FROM fitpreeti.bookings FINAL 
+        WHERE ${whereClause}
+      `);
+      
+      if (result && result.length > 0) {
+        const updatedBooking = result[0];
+        // Verify if the record was actually updated by checking one of the updated fields
+        const updatedField = Object.keys(updateBookingDto)[0];
+        if (updatedField && updatedBooking[updatedField] !== updateBookingDto[updatedField]) {
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue;
+        }
+        return updatedBooking;
+      }
+      
+      retries++;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    // If we got here, we couldn't verify the update after retries
+    // Return the record anyway, even if we can't verify the update
+    const whereClause = userPhone 
+      ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'` 
+      : `id = '${escapedId}'`;
+    
+    result = await this.ch.query<Booking[]>(`
+      SELECT * FROM fitpreeti.bookings FINAL 
+      WHERE ${whereClause}
+    `);
+    
+    if (!result || result.length === 0) {
+      throw new NotFoundException(`Booking with ID ${id} not found after update`);
+    }
+    
+    return result[0];
   }
 
   async remove(id: string, userPhone?: string): Promise<void> {

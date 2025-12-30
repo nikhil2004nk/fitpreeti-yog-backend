@@ -9,6 +9,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { TrainersModule } from './trainers/trainers.module';
+import { ClassScheduleModule } from './class-schedule/class-schedule.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { ClickhouseModule } from './database/clickhouse.module';
     UsersModule,
     HealthModule,
     TrainersModule,
+    ClassScheduleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

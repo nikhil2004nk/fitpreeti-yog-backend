@@ -1,13 +1,157 @@
 {
   "info": {
-    "name": "Fitpreeti Yoga API",
-    "description": "Complete API collection for Fitpreeti Yoga Backend",
+    "name": "Fitpreeti Yoga API - COMPLETE",
+    "description": "Complete API collection for Fitpreeti Yoga Backend v1.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "a1b2c3d4-e5f6-7890-1234-56789abcdef0"
   },
   "item": [
     {
-      "name": "Authentication",
+      "name": "🧑‍🏫 Trainers",
+      "description": "Trainer management endpoints",
+      "item": [
+        {
+          "name": "Get All Trainers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/trainers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "trainers"]
+            },
+            "description": "Get all trainers with their details. Requires authentication."
+          }
+        },
+        {
+          "name": "Get Trainer by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/trainers/{{trainer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "trainers", "{{trainer_id}}"],
+              "variable": [
+                {
+                  "key": "trainer_id",
+                  "value": "",
+                  "description": "ID of the trainer to retrieve"
+                }
+              ]
+            },
+            "description": "Get a specific trainer by their ID. Requires authentication."
+          }
+        },
+        {
+          "name": "Create Trainer (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Yoga Master\",\n  \"bio\": \"Certified yoga instructor with 5+ years of experience\",\n  \"specializations\": [\"hatha\", \"vinyasa\"],\n  \"profileImage\": \"https://example.com/trainers/yoga-master.jpg\",\n  \"certifications\": [\"RYT 500\", \"Yoga Alliance Certified\"],\n  \"experienceYears\": 5,\n  \"isActive\": true,\n  \"availability\": {\n    \"monday\": [{\"start\": \"09:00\", \"end\": \"17:00\"}],\n    \"tuesday\": [{\"start\": \"09:00\", \"end\": \"17:00\"}]\n  },\n  \"socialMedia\": {\n    \"instagram\": \"@yogamaster\",\n    \"youtube\": \"yogamaster\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/trainers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "trainers"]
+            },
+            "description": "Create a new trainer. Admin only."
+          }
+        },
+        {
+          "name": "Update Trainer (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Senior Yoga Master\",\n  \"bio\": \"Senior certified yoga instructor with 8+ years of experience\",\n  \"specializations\": [\"hatha\", \"vinyasa\", \"ashtanga\"],\n  \"experienceYears\": 8,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/trainers/{{trainer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "trainers", "{{trainer_id}}"],
+              "variable": [
+                {
+                  "key": "trainer_id",
+                  "value": "",
+                  "description": "ID of the trainer to update"
+                }
+              ]
+            },
+            "description": "Update a trainer's information. Admin only."
+          }
+        },
+        {
+          "name": "Delete Trainer (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/trainers/{{trainer_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "trainers", "{{trainer_id}}"],
+              "variable": [
+                {
+                  "key": "trainer_id",
+                  "value": "",
+                  "description": "ID of the trainer to delete"
+                }
+              ]
+            },
+            "description": "Delete a trainer. Admin only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication",
+      "description": "User authentication endpoints",
       "item": [
         {
           "name": "Register User",
@@ -21,7 +165,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"+1234567890\",\n  \"email\": \"john@example.com\",\n  \"pin\": \"1234\",\n  \"role\": \"customer\"\n}",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"phone\": \"+919876543210\",\n  \"email\": \"john@example.com\",\n  \"pin\": \"1234\",\n  \"role\": \"customer\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -48,7 +192,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"pin\": \"1234\"\n}",
+              "raw": "{\n  \"phone\": \"+919876543210\",\n  \"pin\": \"1234\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -61,59 +205,27 @@
               "path": ["auth", "login"]
             },
             "description": "Login with phone and PIN. Sets httpOnly cookies (access_token and refresh_token)."
-          }
-        },
-        {
-          "name": "Refresh Token",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.access_token) {",
+                  "        pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+                  "        console.log(\"User access_token saved:\", jsonData.access_token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
               }
-            ],
-            "url": {
-              "raw": "{{base_url}}/auth/refresh",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "refresh"]
-            },
-            "description": "Refresh access token using refresh_token cookie. Returns new tokens in cookies."
-          }
+            }
+          ]
         },
         {
-          "name": "Logout",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/auth/logout",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "logout"]
-            },
-            "description": "Logout user and clear authentication cookies. Requires authentication."
-          }
-        },
-        {
-          "name": "Get Profile",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/auth/profile",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "profile"]
-            },
-            "description": "Get authenticated user profile. Requires authentication via cookies."
-          }
-        },
-        {
-          "name": "Create Admin (Admin Only)",
+          "name": "Login Admin",
           "request": {
             "method": "POST",
             "header": [
@@ -124,7 +236,99 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Admin User\",\n  \"phone\": \"+1987654321\",\n  \"email\": \"admin@example.com\",\n  \"pin\": \"5678\"\n}",
+              "raw": "{\n  \"phone\": \"+919876543211\",\n  \"pin\": \"5678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login as admin user"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.access_token) {",
+                  "        pm.collectionVariables.set(\"admin_access_token\", jsonData.access_token);",
+                  "        console.log(\"Admin access_token saved:\", jsonData.access_token);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Refresh access token using refresh_token cookie."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout user and clear authentication cookies."
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile"]
+            },
+            "description": "Get authenticated user profile."
+          }
+        },
+        {
+          "name": "Create Admin (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"phone\": \"+919876543211\",\n  \"email\": \"admin@example.com\",\n  \"pin\": \"5678\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -142,8 +346,102 @@
       ]
     },
     {
-      "name": "Services",
+      "name": "🏋️ Services",
+      "description": "Service management endpoints",
       "item": [
+        {
+          "name": "Get All Services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/services?type={{service_type}}",
+              "host": ["{{base_url}}"],
+              "path": ["services"],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "{{service_type}}",
+                  "description": "Optional: Filter services by type"
+                }
+              ]
+            },
+            "description": "Get all services, optionally filtered by type."
+          }
+        },
+        {
+          "name": "Get Popular Services",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/services/popular",
+              "host": ["{{base_url}}"],
+              "path": ["services", "popular"]
+            },
+            "description": "Get top 5 most popular services by booking count."
+          }
+        },
+        {
+          "name": "Get Services by Type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/services/type/{{service_type}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "type", "{{service_type}}"],
+              "variable": [
+                {
+                  "key": "service_type",
+                  "value": "group",
+                  "description": "Service type (group, private, workshop)"
+                }
+              ]
+            },
+            "description": "Get services filtered by specific type."
+          }
+        },
+        {
+          "name": "Get Service by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/services/{{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["services", "{{service_id}}"],
+              "variable": [
+                {
+                  "key": "service_id",
+                  "value": "",
+                  "description": "ID of the service"
+                }
+              ]
+            },
+            "description": "Get service details by ID."
+          }
+        },
         {
           "name": "Create Service (Admin)",
           "request": {
@@ -152,11 +450,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Hatha Yoga\",\n  \"description\": \"Traditional yoga practice\",\n  \"duration\": 60,\n  \"price\": 500,\n  \"type\": \"yoga\"\n}",
+              "raw": "{\n  \"service_name\": \"Hatha Yoga\",\n  \"type\": \"yoga\",\n  \"category\": \"traditional\",\n  \"description\": \"Traditional Hatha Yoga practice focusing on physical postures and breathing techniques.\",\n  \"price\": 500,\n  \"duration_minutes\": 60,\n  \"trainer_id\": \"{{trainer_id}}\",\n  \"image_url\": \"https://example.com/hatha-yoga.jpg\",\n  \"is_active\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -172,93 +474,6 @@
           }
         },
         {
-          "name": "Get All Services",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/services",
-              "host": ["{{base_url}}"],
-              "path": ["services"]
-            },
-            "description": "Get all services. Optional query parameter: ?type=yoga"
-          }
-        },
-        {
-          "name": "Get Service by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/services/1",
-              "host": ["{{base_url}}"],
-              "path": ["services", "1"]
-            },
-            "description": "Get a specific service by ID"
-          }
-        },
-        {
-          "name": "Get Popular Services",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/services/popular",
-              "host": ["{{base_url}}"],
-              "path": ["services", "popular"]
-            },
-            "description": "Get top 5 most popular services by booking count"
-          }
-        },
-        {
-          "name": "Get Services by Type",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/services/type/:type",
-              "host": ["{{base_url}}"],
-              "path": ["services", "type", ":type"],
-              "variable": [
-                {
-                  "key": "type",
-                  "value": "yoga"
-                }
-              ]
-            },
-            "description": "Get services filtered by type"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Service (Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"service_type\": \"yoga\",\n  \"service_name\": \"Hatha Yoga Class\",\n  \"description\": \"1 hour Hatha yoga session for all levels\",\n  \"price\": 500,\n  \"duration\": 60\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/services",
-              "host": ["{{base_url}}"],
-              "path": ["services"]
-            },
-            "description": "Create a new service. Requires admin authentication via cookies."
-          },
-          "response": []
-        },
-        {
           "name": "Update Service (Admin)",
           "request": {
             "method": "PATCH",
@@ -266,6 +481,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
               }
             ],
             "body": {
@@ -278,45 +497,50 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/services/:id",
+              "raw": "{{base_url}}/services/{{service_id}}",
               "host": ["{{base_url}}"],
-              "path": ["services", ":id"],
+              "path": ["services", "{{service_id}}"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1"
+                  "key": "service_id",
+                  "value": "",
+                  "description": "ID of the service to update"
                 }
               ]
             },
-            "description": "Update a service. Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Update a service. Admin only."
+          }
         },
         {
           "name": "Delete Service (Admin)",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/services/:id",
+              "raw": "{{base_url}}/services/{{service_id}}",
               "host": ["{{base_url}}"],
-              "path": ["services", ":id"],
+              "path": ["services", "{{service_id}}"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1"
+                  "key": "service_id",
+                  "value": "",
+                  "description": "ID of the service to delete"
                 }
               ]
             },
-            "description": "Delete a service. Cannot delete if service has active bookings. Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Delete a service. Cannot delete if service has active bookings."
+          }
         }
-      ],
-      "description": "Service management endpoints"
+      ]
     },
     {
-      "name": "Bookings",
+      "name": "📅 Bookings",
+      "description": "Booking management endpoints",
       "item": [
         {
           "name": "Create Booking",
@@ -326,11 +550,15 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"service_id\": 1,\n  \"booking_date\": \"2025-01-15\",\n  \"booking_time\": \"10:00\",\n  \"full_name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+1234567890\",\n  \"special_requests\": \"First time booking, need beginner-friendly session\"\n}",
+              "raw": "{\n  \"service_id\": \"{{service_id}}\",\n  \"service_type\": \"{{service_type}}\",\n  \"booking_date\": \"2025-01-15\",\n  \"booking_time\": \"10:00\",\n  \"full_name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+919876543210\",\n  \"special_requests\": \"First time booking, need beginner-friendly session\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -342,67 +570,81 @@
               "host": ["{{base_url}}"],
               "path": ["bookings"]
             },
-            "description": "Create a new booking. Requires user authentication via cookies. User phone is automatically taken from authenticated user."
-          },
-          "response": []
+            "description": "Create a new booking. Requires user authentication."
+          }
         },
         {
           "name": "Get My Bookings",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/bookings",
               "host": ["{{base_url}}"],
               "path": ["bookings"]
             },
-            "description": "Get all bookings for the authenticated user. Requires authentication via cookies."
-          },
-          "response": []
+            "description": "Get all bookings for authenticated user."
+          }
         },
         {
           "name": "Get Booking by ID",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/bookings/:id",
+              "raw": "{{base_url}}/bookings/{{booking_id}}",
               "host": ["{{base_url}}"],
-              "path": ["bookings", ":id"],
+              "path": ["bookings", "{{booking_id}}"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1"
+                  "key": "booking_id",
+                  "value": "",
+                  "description": "ID of the booking"
                 }
               ]
             },
-            "description": "Get a specific booking by ID. Users can only see their own bookings. Requires authentication via cookies."
-          },
-          "response": []
+            "description": "Get specific booking by ID. Users can only see their own bookings."
+          }
         },
         {
           "name": "Get Available Slots",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/bookings/available/:serviceId/:date",
+              "raw": "{{base_url}}/bookings/available/{{service_id}}/{{booking_date}}",
               "host": ["{{base_url}}"],
-              "path": ["bookings", "available", ":serviceId", ":date"],
+              "path": ["bookings", "available", "{{service_id}}", "{{booking_date}}"],
               "variable": [
                 {
-                  "key": "serviceId",
-                  "value": "1"
+                  "key": "service_id",
+                  "value": "",
+                  "description": "Service ID"
                 },
                 {
-                  "key": "date",
-                  "value": "2025-01-15"
+                  "key": "booking_date",
+                  "value": "2025-01-15",
+                  "description": "Booking date (YYYY-MM-DD)"
                 }
               ]
             },
-            "description": "Get available time slots for a service on a specific date. Requires authentication via cookies."
-          },
-          "response": []
+            "description": "Get available time slots for a service on specific date."
+          }
         },
         {
           "name": "Update Booking (Admin)",
@@ -412,6 +654,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
               }
             ],
             "body": {
@@ -424,93 +670,111 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/bookings/:id",
+              "raw": "{{base_url}}/bookings/{{booking_id}}",
               "host": ["{{base_url}}"],
-              "path": ["bookings", ":id"],
+              "path": ["bookings", "{{booking_id}}"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1"
+                  "key": "booking_id",
+                  "value": "",
+                  "description": "ID of the booking to update"
                 }
               ]
             },
-            "description": "Update a booking (admin only). Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Update booking status (admin only)."
+          }
         },
         {
           "name": "Delete Booking",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/bookings/:id",
+              "raw": "{{base_url}}/bookings/{{booking_id}}",
               "host": ["{{base_url}}"],
-              "path": ["bookings", ":id"],
+              "path": ["bookings", "{{booking_id}}"],
               "variable": [
                 {
-                  "key": "id",
-                  "value": "1"
+                  "key": "booking_id",
+                  "value": "",
+                  "description": "ID of the booking to delete"
                 }
               ]
             },
-            "description": "Delete/cancel a booking. Users can only delete their own bookings. Requires authentication via cookies."
-          },
-          "response": []
+            "description": "Cancel/delete a booking. Users can only delete their own bookings."
+          }
         },
         {
           "name": "Get All Bookings (Admin)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/bookings/admin/all",
               "host": ["{{base_url}}"],
               "path": ["bookings", "admin", "all"]
             },
-            "description": "Get all bookings (admin only). Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Get all bookings (admin only)."
+          }
         }
-      ],
-      "description": "Booking management endpoints"
+      ]
     },
     {
-      "name": "Users (Admin)",
+      "name": "👥 Users (Admin)",
+      "description": "User management endpoints (Admin only)",
       "item": [
         {
           "name": "Get All Users",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/users",
               "host": ["{{base_url}}"],
               "path": ["users"]
             },
-            "description": "Get all users. Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Get all users."
+          }
         },
         {
           "name": "Get User by Phone",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/users/:phone",
+              "raw": "{{base_url}}/users/{{user_phone}}",
               "host": ["{{base_url}}"],
-              "path": ["users", ":phone"],
+              "path": ["users", "{{user_phone}}"],
               "variable": [
                 {
-                  "key": "phone",
-                  "value": "+1234567890"
+                  "key": "user_phone",
+                  "value": "+919876543210",
+                  "description": "Phone number of the user"
                 }
               ]
             },
-            "description": "Get a specific user by phone number. Phone numbers are automatically normalized. Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Get specific user by phone number."
+          }
         },
         {
           "name": "Update User Role",
@@ -520,6 +784,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
               }
             ],
             "body": {
@@ -532,25 +800,226 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/users/:phone/role",
+              "raw": "{{base_url}}/users/{{user_phone}}/role",
               "host": ["{{base_url}}"],
-              "path": ["users", ":phone", "role"],
+              "path": ["users", "{{user_phone}}", "role"],
               "variable": [
                 {
-                  "key": "phone",
-                  "value": "+1234567890"
+                  "key": "user_phone",
+                  "value": "+919876543210",
+                  "description": "Phone number of the user"
                 }
               ]
             },
-            "description": "Update user role (admin only). Phone numbers are automatically normalized. Requires admin authentication via cookies."
-          },
-          "response": []
+            "description": "Update user role (admin, trainer, customer)."
+          }
         }
-      ],
-      "description": "User management endpoints (Admin only)"
+      ]
     },
     {
-      "name": "Health Check",
+      "name": "📚 Class Schedule",
+      "description": "Class schedule management endpoints",
+      "item": [
+        {
+          "name": "Create Class Schedule (Admin/Trainer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": \"{{service_id}}\",\n  \"trainerId\": \"{{trainer_id}}\",\n  \"startTime\": \"2025-01-01T09:00:00.000Z\",\n  \"endTime\": \"2025-01-01T10:00:00.000Z\",\n  \"recurring\": {\n    \"frequency\": \"weekly\",\n    \"interval\": 1,\n    \"endDate\": \"2025-12-31T23:59:59.000Z\"\n  },\n  \"maxParticipants\": 10,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule"]
+            },
+            "description": "Create a new class schedule. Admin or trainer role."
+          }
+        },
+        {
+          "name": "Get All Class Schedules",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule?startDate={{start_date}}&endDate={{end_date}}&trainerId={{trainer_id}}&serviceId={{service_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01",
+                  "description": "Start date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-01-31",
+                  "description": "End date (YYYY-MM-DD)"
+                },
+                {
+                  "key": "trainerId",
+                  "value": "{{trainer_id}}",
+                  "description": "Optional trainer ID"
+                },
+                {
+                  "key": "serviceId",
+                  "value": "{{service_id}}",
+                  "description": "Optional service ID"
+                }
+              ]
+            },
+            "description": "Get class schedules with optional filtering."
+          }
+        },
+        {
+          "name": "Get Class Schedule by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule/{{schedule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule", "{{schedule_id}}"],
+              "variable": [
+                {
+                  "key": "schedule_id",
+                  "value": "",
+                  "description": "ID of the class schedule"
+                }
+              ]
+            },
+            "description": "Get specific class schedule by ID."
+          }
+        },
+        {
+          "name": "Update Class Schedule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"2025-01-01T10:00:00.000Z\",\n  \"endTime\": \"2025-01-01T11:00:00.000Z\",\n  \"maxParticipants\": 15,\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule/{{schedule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule", "{{schedule_id}}"],
+              "variable": [
+                {
+                  "key": "schedule_id",
+                  "value": "",
+                  "description": "ID of the class schedule to update"
+                }
+              ]
+            },
+            "description": "Update class schedule. Admin or trainer role."
+          }
+        },
+        {
+          "name": "Delete Class Schedule",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{admin_access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule/{{schedule_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule", "{{schedule_id}}"],
+              "variable": [
+                {
+                  "key": "schedule_id",
+                  "value": "",
+                  "description": "ID of the class schedule to delete"
+                }
+              ]
+            },
+            "description": "Delete class schedule. Admin or trainer role."
+          }
+        },
+        {
+          "name": "Check Trainer Availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "access_token={{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/class-schedule/trainer/{{trainer_id}}/availability?date={{availability_date}}&duration={{duration_minutes}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "class-schedule", "trainer", "{{trainer_id}}", "availability"],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2025-01-01T09:00:00.000Z",
+                  "description": "Date and time to check (ISO 8601)"
+                },
+                {
+                  "key": "duration",
+                  "value": "60",
+                  "description": "Duration in minutes"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "trainer_id",
+                  "value": "",
+                  "description": "Trainer ID"
+                }
+              ]
+            },
+            "description": "Check trainer availability for specific time slot."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🩺 Health Check",
       "item": [
         {
           "name": "Check Health",
@@ -562,22 +1031,103 @@
               "host": ["{{base_url}}"],
               "path": ["health"]
             },
-            "description": "Health check endpoint"
-          },
-          "response": []
+            "description": "Health check endpoint - No authentication required"
+          }
         }
       ]
     }
   ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "User access token - Auto-populated after login"
+    },
+    {
+      "key": "admin_access_token",
+      "value": "",
+      "type": "string",
+      "description": "Admin access token - Auto-populated after admin login"
+    },
+    {
+      "key": "trainer_id",
+      "value": "",
+      "type": "string",
+      "description": "ID of the trainer - Copy from Get All Trainers"
+    },
+    {
+      "key": "service_id",
+      "value": "",
+      "type": "string",
+      "description": "ID of the service - Copy from Get All Services"
+    },
+    {
+      "key": "service_type",
+      "value": "group",
+      "type": "string",
+      "description": "Service type: group, private, workshop, yoga"
+    },
+    {
+      "key": "booking_id",
+      "value": "",
+      "type": "string",
+      "description": "ID of the booking - Copy from Get My Bookings"
+    },
+    {
+      "key": "schedule_id",
+      "value": "",
+      "type": "string",
+      "description": "ID of the class schedule"
+    },
+    {
+      "key": "user_phone",
+      "value": "+919876543210",
+      "type": "string",
+      "description": "Phone number for user operations"
+    },
+    {
+      "key": "start_date",
+      "value": "2025-01-01",
+      "type": "string",
+      "description": "Start date for schedule filtering"
+    },
+    {
+      "key": "end_date",
+      "value": "2025-01-31",
+      "type": "string",
+      "description": "End date for schedule filtering"
+    },
+    {
+      "key": "availability_date",
+      "value": "2025-01-01T09:00:00.000Z",
+      "type": "string",
+      "description": "Date for availability check"
+    },
+    {
+      "key": "duration_minutes",
+      "value": "60",
+      "type": "string",
+      "description": "Duration in minutes for availability"
+    }
+  ],
+  "auth": {
+    "type": "noauth"
+  },
   "event": [
     {
       "listen": "prerequest",
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Pre-request script",
-          "// Note: This API uses cookie-based authentication",
-          "// Cookies are automatically managed by Postman"
+          "console.log('🔄 Using access_token:', pm.collectionVariables.get('access_token') ? 'SET' : 'NOT SET');",
+          "console.log('🔄 Using admin_access_token:', pm.collectionVariables.get('admin_access_token') ? 'SET' : 'NOT SET');"
         ]
       }
     },
@@ -586,21 +1136,14 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Test script",
-          "if (pm.response.code === 200 || pm.response.code === 201) {",
-          "    pm.test(\"Status code is success\", function () {",
-          "        pm.response.to.have.status(200);",
-          "    });",
-          "}"
+          "pm.test('Status code is OK', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+          "});",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});"
         ]
       }
-    }
-  ],
-  "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:3000",
-      "type": "string"
     }
   ]
 }
