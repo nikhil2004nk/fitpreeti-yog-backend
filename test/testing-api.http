@@ -285,6 +285,65 @@ DELETE {{baseUrl}}/bookings/00000000-0000-0000-0000-000000000000
 GET {{baseUrl}}/bookings/admin/all
 
 ### ============================================
+### ⭐ REVIEWS
+### ============================================
+
+### Create a new review
+# @name createReview
+POST {{baseUrl}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "rating": 5,
+  "comment": "FitPreeti transformed my fitness journey! The instructors are amazing and the classes are so much fun.",
+  "reviewer_type": "Zumba Regular",
+  "booking_id": "00000000-0000-0000-0000-000000000000"
+}
+
+### Get all approved reviews (public)
+GET {{baseUrl}}/reviews
+
+### Get all approved reviews (explicit)
+GET {{baseUrl}}/reviews/approved
+
+### Get all reviews including pending (public)
+GET {{baseUrl}}/reviews?approved=false
+
+### Get pending reviews (Admin only)
+GET {{baseUrl}}/reviews/pending
+
+### Get my reviews (authenticated user)
+GET {{baseUrl}}/reviews/my-reviews
+
+### Get review by ID
+# Replace review_id with actual ID
+GET {{baseUrl}}/reviews/00000000-0000-0000-0000-000000000000
+
+### Update a review (Owner or Admin)
+# Replace review_id with actual ID
+PATCH {{baseUrl}}/reviews/00000000-0000-0000-0000-000000000000
+Content-Type: {{contentType}}
+
+{
+  "rating": 4,
+  "comment": "Updated review comment",
+  "reviewer_type": "Yoga Regular"
+}
+
+### Approve a review (Admin only)
+# Replace review_id with actual ID
+PATCH {{baseUrl}}/reviews/00000000-0000-0000-0000-000000000000
+Content-Type: {{contentType}}
+
+{
+  "is_approved": true
+}
+
+### Delete (remove) a review (Owner or Admin)
+# Replace review_id with actual ID
+DELETE {{baseUrl}}/reviews/00000000-0000-0000-0000-000000000000
+
+### ============================================
 ### 📝 NOTES
 ### ============================================
 ### 
@@ -307,5 +366,13 @@ GET {{baseUrl}}/bookings/admin/all
 ### 
 ### PIN Requirements:
 ### - PIN must be 6-8 digits
+### 
+### Review Requirements:
+### - Rating must be between 1 and 5
+### - Comment is required (max 1000 characters)
+### - reviewer_type is optional (e.g., "Zumba Regular", "Yoga Regular")
+### - Reviews are not approved by default (need admin approval)
+### - Users can only update/delete their own reviews
+### - Admins can approve/reject and manage all reviews
 ### 
 ### ============================================

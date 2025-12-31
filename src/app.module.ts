@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { TrainersModule } from './trainers/trainers.module';
 import { ClassScheduleModule } from './class-schedule/class-schedule.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 import { validate } from './config/env.validation';
 
@@ -42,6 +43,7 @@ import { validate } from './config/env.validation';
     HealthModule,
     TrainersModule,
     ClassScheduleModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

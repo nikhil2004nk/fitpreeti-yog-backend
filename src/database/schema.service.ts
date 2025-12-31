@@ -179,15 +179,16 @@ SETTINGS index_granularity = 8192`,
       `CREATE TABLE IF NOT EXISTS ${this.database}.reviews (
         id UUID DEFAULT generateUUIDv4(),
         user_id UUID,
-        booking_id UUID,
+        booking_id Nullable(UUID),
         rating UInt8,
         comment String,
+        reviewer_type Nullable(String),
         is_approved Boolean DEFAULT false,
         created_at DateTime64(3) DEFAULT now64(),
         updated_at DateTime64(3) DEFAULT now64()
       ) ENGINE = ReplacingMergeTree(updated_at)
       PARTITION BY toYYYYMM(created_at)
-      ORDER BY (user_id, booking_id, created_at)
+      ORDER BY (user_id, created_at)
       SETTINGS index_granularity = 8192`
     ];
 

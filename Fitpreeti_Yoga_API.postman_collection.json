@@ -922,6 +922,237 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "⭐ Reviews",
+      "description": "Review management endpoints",
+      "item": [
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"FitPreeti transformed my fitness journey! The instructors are amazing and the classes are so much fun.\",\n  \"reviewer_type\": \"Zumba Regular\",\n  \"booking_id\": \"{{booking_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["reviews"]
+            },
+            "description": "Create a new review. Requires authentication. Reviews are not approved by default and need admin approval."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Approved Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["reviews"],
+              "query": [
+                {
+                  "key": "approved",
+                  "value": "true",
+                  "description": "Filter by approval status (default: true)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get all approved reviews. Public endpoint - no authentication required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Reviews (Include Pending)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews?approved=false",
+              "host": ["{{base_url}}"],
+              "path": ["reviews"],
+              "query": [
+                {
+                  "key": "approved",
+                  "value": "false",
+                  "description": "Get all reviews including pending ones"
+                }
+              ]
+            },
+            "description": "Get all reviews including pending ones. Public endpoint."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Approved Reviews Only",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/approved",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "approved"]
+            },
+            "description": "Get all approved reviews. Public endpoint - no authentication required."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Pending Reviews (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/pending",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "pending"]
+            },
+            "description": "Get all pending reviews awaiting approval. Admin only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/my-reviews",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "my-reviews"]
+            },
+            "description": "Get all reviews created by the authenticated user. Requires authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "{{review_id}}"],
+              "variable": [
+                {
+                  "key": "review_id",
+                  "value": "",
+                  "description": "UUID of the review"
+                }
+              ]
+            },
+            "description": "Get a specific review by ID. Public endpoint - no authentication required."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated review comment\",\n  \"reviewer_type\": \"Yoga Regular\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "{{review_id}}"],
+              "variable": [
+                {
+                  "key": "review_id",
+                  "value": "",
+                  "description": "UUID of the review to update"
+                }
+              ]
+            },
+            "description": "Update a review. Users can only update their own reviews. Admins can update any review and approve/reject reviews. Requires authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Review (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_approved\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "{{review_id}}"],
+              "variable": [
+                {
+                  "key": "review_id",
+                  "value": "",
+                  "description": "UUID of the review to approve"
+                }
+              ]
+            },
+            "description": "Approve a review. Admin only. Requires admin authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reviews/{{review_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["reviews", "{{review_id}}"],
+              "variable": [
+                {
+                  "key": "review_id",
+                  "value": "",
+                  "description": "UUID of the review to delete"
+                }
+              ]
+            },
+            "description": "Delete a review. Users can only delete their own reviews. Admins can delete any review. Returns 204 No Content."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -996,6 +1227,12 @@
       "value": "60",
       "type": "string",
       "description": "Duration in minutes for availability"
+    },
+    {
+      "key": "review_id",
+      "value": "",
+      "type": "string",
+      "description": "UUID of a review - Copy from Get All Reviews or Get My Reviews response"
     }
   ],
   "auth": {
