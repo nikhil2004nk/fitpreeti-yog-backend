@@ -36,14 +36,15 @@ export class BookingsService {
     }
     const userId = userResult[0].id;
     
-    // Check service exists using parameterized query
-    const serviceQuery = `SELECT id FROM ${this.database}.services WHERE id = {serviceId:String} LIMIT 1`;
-    const service = await this.ch.queryParams<Array<{ id: string }>>(serviceQuery, { 
+    // Check service exists and get price using parameterized query
+    const serviceQuery = `SELECT id, price FROM ${this.database}.services WHERE id = {serviceId:String} LIMIT 1`;
+    const service = await this.ch.queryParams<Array<{ id: string; price: number }>>(serviceQuery, { 
       serviceId: String(createBookingDto.service_id) 
     });
     if (!Array.isArray(service) || service.length === 0) {
       throw new NotFoundException('Service not found');
     }
+    const servicePrice = service[0].price;
 
     // Check time slot availability using parameterized query
     const conflictQuery = `
@@ -64,6 +65,9 @@ export class BookingsService {
     }
 
     const bookingId = uuidv4();
+    // Use provided amount or fallback to service price
+    const bookingAmount = createBookingDto.amount !== undefined ? createBookingDto.amount : servicePrice;
+    
     const bookingData = {
       id: bookingId,
       user_id: userId,
@@ -71,6 +75,11 @@ export class BookingsService {
       booking_date: sanitizeText(createBookingDto.booking_date),
       booking_time: sanitizeText(createBookingDto.booking_time),
       user_phone: normalizedPhone,
+      full_name: sanitizeText(createBookingDto.full_name),
+      email: sanitizeText(createBookingDto.email),
+      phone: normalizePhone(sanitizeText(createBookingDto.phone)),
+      special_requests: createBookingDto.special_requests ? sanitizeText(createBookingDto.special_requests) : null,
+      amount: bookingAmount,
       status: 'pending' as const,
     };
 

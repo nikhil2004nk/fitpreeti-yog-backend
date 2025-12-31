@@ -30,4 +30,8 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   special_requests?: string;
+
+  @IsNumber()
+  @IsOptional()
+  amount?: number;
 }

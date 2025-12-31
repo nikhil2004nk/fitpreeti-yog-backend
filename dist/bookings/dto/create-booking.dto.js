@@ -25,6 +25,7 @@ class CreateBookingDto {
     email;
     phone;
     special_requests;
+    amount;
 }
 exports.CreateBookingDto = CreateBookingDto;
 __decorate([
@@ -58,4 +59,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateBookingDto.prototype, "special_requests", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Number)
+], CreateBookingDto.prototype, "amount", void 0);
 //# sourceMappingURL=create-booking.dto.js.map

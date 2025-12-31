@@ -11,4 +11,5 @@ export declare class CreateBookingDto {
     email: string;
     phone: string;
     special_requests?: string;
+    amount?: number;
 }
