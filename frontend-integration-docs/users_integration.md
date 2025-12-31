@@ -42,36 +42,58 @@ None required
 
 ### Success Response (200 OK)
 ```json
-[
-  {
-    "id": "123e4567-e89b-12d3-a456-426614174000",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "1234567890",
-    "role": "customer",
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  },
-  {
-    "id": "123e4567-e89b-12d3-a456-426614174001",
-    "name": "Jane Smith",
-    "email": "jane@example.com",
-    "phone": "9876543210",
-    "role": "trainer",
-    "created_at": "2024-01-01T00:00:00.000Z",
-    "updated_at": "2024-01-01T00:00:00.000Z"
-  }
-]
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "1234567890",
+      "role": "customer",
+      "profile_image": null,
+      "is_active": true,
+      "last_login": "2024-01-15T10:30:00.000Z",
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174001",
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "phone": "9876543210",
+      "role": "trainer",
+      "profile_image": "https://example.com/profile.jpg",
+      "is_active": true,
+      "last_login": null,
+      "created_at": "2024-01-01T00:00:00.000Z",
+      "updated_at": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "timestamp": "2024-01-01T00:00:00.000Z"
+}
 ```
 
 ### Response Schema
 | Field | Type | Description |
 |-------|------|-------------|
+| success | boolean | Indicates if the request was successful |
+| message | string | Response message |
+| data | array | Array of user objects |
+| timestamp | string | Response timestamp (ISO) |
+
+### User Object Schema
+| Field | Type | Description |
+|-------|------|-------------|
 | id | string | User UUID |
 | name | string | User's full name |
-| email | string \| null | User's email address |
+| email | string | User's email address |
 | phone | string | User's phone number |
 | role | string | User role: "customer" \| "admin" \| "trainer" |
+| profile_image | string \| null | URL to user's profile image |
+| is_active | boolean | Whether the user account is active |
+| last_login | string \| null | Last login timestamp (ISO) |
 | created_at | string | Creation timestamp (ISO) |
 | updated_at | string | Last update timestamp (ISO) |
 
@@ -121,7 +143,8 @@ const getAllUsers = async () => {
       throw new Error(data.message || 'Failed to fetch users');
     }
 
-    return data;
+    // Response is wrapped in standard format: { success, message, data, timestamp }
+    return data.data; // Return the users array
   } catch (error) {
     console.error('Get users error:', error);
     throw error;
@@ -130,6 +153,7 @@ const getAllUsers = async () => {
 
 // Usage (Admin only)
 getAllUsers().then(users => {
+  // users is an array of user objects
   console.log('All users:', users);
 });
 ```
@@ -165,15 +189,45 @@ None required
 ### Success Response (200 OK)
 ```json
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phone": "1234567890",
-  "role": "customer",
-  "created_at": "2024-01-01T00:00:00.000Z",
-  "updated_at": "2024-01-01T00:00:00.000Z"
+  "success": true,
+  "message": "Operation successful",
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "1234567890",
+    "role": "customer",
+    "profile_image": null,
+    "is_active": true,
+    "last_login": "2024-01-15T10:30:00.000Z",
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:00:00.000Z"
+  },
+  "timestamp": "2024-01-01T00:00:00.000Z"
 }
 ```
+
+### Response Schema
+| Field | Type | Description |
+|-------|------|-------------|
+| success | boolean | Indicates if the request was successful |
+| message | string | Response message |
+| data | object | User object |
+| timestamp | string | Response timestamp (ISO) |
+
+### User Object Schema
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | User UUID |
+| name | string | User's full name |
+| email | string | User's email address |
+| phone | string | User's phone number |
+| role | string | User role: "customer" \| "admin" \| "trainer" |
+| profile_image | string \| null | URL to user's profile image |
+| is_active | boolean | Whether the user account is active |
+| last_login | string \| null | Last login timestamp (ISO) |
+| created_at | string | Creation timestamp (ISO) |
+| updated_at | string | Last update timestamp (ISO) |
 
 ### Error Responses
 
@@ -221,7 +275,8 @@ const getUserByPhone = async (phone) => {
       throw new Error(data.message || 'Failed to fetch user');
     }
 
-    return data;
+    // Response is wrapped in standard format: { success, message, data, timestamp }
+    return data.data; // Return the user object
   } catch (error) {
     console.error('Get user error:', error);
     throw error;
@@ -230,6 +285,7 @@ const getUserByPhone = async (phone) => {
 
 // Usage (Admin only)
 getUserByPhone('1234567890').then(user => {
+  // user is a user object with all fields
   console.log('User:', user);
 });
 ```
@@ -274,15 +330,45 @@ PATCH /api/v1/users/:phone/role
 ### Success Response (200 OK)
 ```json
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phone": "1234567890",
-  "role": "trainer",
-  "created_at": "2024-01-01T00:00:00.000Z",
-  "updated_at": "2024-01-01T01:00:00.000Z"
+  "success": true,
+  "message": "Operation successful",
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "1234567890",
+    "role": "trainer",
+    "profile_image": null,
+    "is_active": true,
+    "last_login": "2024-01-15T10:30:00.000Z",
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T01:00:00.000Z"
+  },
+  "timestamp": "2024-01-01T01:00:00.000Z"
 }
 ```
+
+### Response Schema
+| Field | Type | Description |
+|-------|------|-------------|
+| success | boolean | Indicates if the request was successful |
+| message | string | Response message |
+| data | object | Updated user object |
+| timestamp | string | Response timestamp (ISO) |
+
+### User Object Schema
+| Field | Type | Description |
+|-------|------|-------------|
+| id | string | User UUID |
+| name | string | User's full name |
+| email | string | User's email address |
+| phone | string | User's phone number |
+| role | string | User role: "customer" \| "admin" \| "trainer" |
+| profile_image | string \| null | URL to user's profile image |
+| is_active | boolean | Whether the user account is active |
+| last_login | string \| null | Last login timestamp (ISO) |
+| created_at | string | Creation timestamp (ISO) |
+| updated_at | string | Last update timestamp (ISO) |
 
 ### Error Responses
 
@@ -344,7 +430,8 @@ const updateUserRole = async (phone, role) => {
       throw new Error(data.message || 'Failed to update user role');
     }
 
-    return data;
+    // Response is wrapped in standard format: { success, message, data, timestamp }
+    return data.data; // Return the updated user object
   } catch (error) {
     console.error('Update user role error:', error);
     throw error;
@@ -353,6 +440,7 @@ const updateUserRole = async (phone, role) => {
 
 // Usage (Admin only)
 updateUserRole('1234567890', 'trainer').then(user => {
+  // user is the updated user object with all fields
   console.log('Updated user:', user);
 });
 ```
@@ -400,7 +488,8 @@ class UserService {
     if (!response.ok) {
       throw new Error(data.message || 'Request failed');
     }
-    return data;
+    // Response is wrapped in standard format: { success, message, data, timestamp }
+    return data.data; // Return the actual data
   }
 }
 

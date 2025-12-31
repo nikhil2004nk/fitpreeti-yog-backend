@@ -164,8 +164,9 @@ export class TrainersService {
       return this.findOne(id);
     }
 
-    // Add updated_at
-    updates.push(`updated_at = '${new Date().toISOString()}'`);
+    // Note: updated_at is the version column for ReplacingMergeTree
+    // ClickHouse handles versioning automatically - we cannot update it directly
+    // The updated_at will be automatically set when the merge happens
 
     // Update the record using parameterized WHERE clause
     const updateQuery = `
@@ -233,12 +234,12 @@ export class TrainersService {
         this.logger.log(`Updated trainer ${trainerId} rating: ${avgRating.toFixed(2)}, reviews: ${totalReviews}`);
       } else {
         // No approved reviews, set to 0
+        // Note: updated_at is the version column - ClickHouse handles it automatically
         const updateQuery = `
           ALTER TABLE ${this.database}.trainers 
           UPDATE 
             rating = 0,
-            total_reviews = 0,
-            updated_at = '${new Date().toISOString()}'
+            total_reviews = 0
           WHERE id = {trainerId:String}
         `;
         

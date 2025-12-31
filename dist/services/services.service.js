@@ -130,8 +130,6 @@ let ServicesService = ServicesService_1 = class ServicesService {
             if (updates.length === 0) {
                 return this.findOne(id);
             }
-            updates.push(`updated_at = {updated_at:String}`);
-            updateData.updated_at = new Date().toISOString();
             const setClause = Object.entries(updateServiceDto)
                 .filter(([_, value]) => value !== undefined)
                 .map(([key, value]) => {
@@ -145,7 +143,7 @@ let ServicesService = ServicesService_1 = class ServicesService {
                     return `${key} = ${value}`;
                 }
             })
-                .join(', ') + `, updated_at = '${new Date().toISOString()}'`;
+                .join(', ');
             const updateQuery = `
         ALTER TABLE ${this.database}.services 
         UPDATE ${setClause}

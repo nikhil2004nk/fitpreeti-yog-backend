@@ -25,14 +25,36 @@ let UsersService = class UsersService {
         this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     }
     async findAll() {
-        const query = `SELECT id, phone, role, created_at FROM ${this.database}.users ORDER BY created_at DESC`;
+        const query = `SELECT 
+      id, 
+      name, 
+      email, 
+      phone, 
+      role, 
+      profile_image, 
+      is_active, 
+      last_login, 
+      created_at, 
+      updated_at 
+    FROM ${this.database}.users 
+    ORDER BY created_at DESC`;
         const result = await this.ch.queryParams(query, {});
         return Array.isArray(result) ? result : [];
     }
     async findOne(phone) {
         const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(phone));
         const query = `
-      SELECT id, phone, role, created_at 
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone, 
+        role, 
+        profile_image, 
+        is_active, 
+        last_login, 
+        created_at, 
+        updated_at 
       FROM ${this.database}.users 
       WHERE phone = {phone:String}
       LIMIT 1

@@ -16,20 +16,64 @@ export class UsersService {
   }
 
   async findAll() {
-    const query = `SELECT id, phone, role, created_at FROM ${this.database}.users ORDER BY created_at DESC`;
-    const result = await this.ch.queryParams<Array<{ id: string; phone: string; role: string; created_at: string }>>(query, {});
+    const query = `SELECT 
+      id, 
+      name, 
+      email, 
+      phone, 
+      role, 
+      profile_image, 
+      is_active, 
+      last_login, 
+      created_at, 
+      updated_at 
+    FROM ${this.database}.users 
+    ORDER BY created_at DESC`;
+    const result = await this.ch.queryParams<Array<{ 
+      id: string; 
+      name: string; 
+      email: string; 
+      phone: string; 
+      role: string; 
+      profile_image: string | null; 
+      is_active: boolean; 
+      last_login: string | null; 
+      created_at: string; 
+      updated_at: string;
+    }>>(query, {});
     return Array.isArray(result) ? result : [];
   }
 
   async findOne(phone: string) {
     const normalizedPhone = normalizePhone(sanitizeText(phone));
     const query = `
-      SELECT id, phone, role, created_at 
+      SELECT 
+        id, 
+        name, 
+        email, 
+        phone, 
+        role, 
+        profile_image, 
+        is_active, 
+        last_login, 
+        created_at, 
+        updated_at 
       FROM ${this.database}.users 
       WHERE phone = {phone:String}
       LIMIT 1
     `;
-    const result = await this.ch.queryParams<Array<{ id: string; phone: string; role: string; created_at: string }>>(query, { 
+    const result = await this.ch.queryParams<Array<{ 
+      id: string; 
+      name: string; 
+      email: string; 
+      phone: string; 
+      role: string; 
+      profile_image: string | null; 
+      is_active: boolean; 
+      last_login: string | null; 
+      created_at: string; 
+      updated_at: string;
+    }>>(query, { 
       phone: normalizedPhone 
     });
     if (!Array.isArray(result) || result.length === 0) {

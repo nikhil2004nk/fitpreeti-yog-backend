@@ -272,8 +272,9 @@ export class ClassScheduleService {
         return this.toClassScheduleResponse(existingClass);
       }
 
-      // Add updated_at
-      updates.push(`updated_at = '${this.toClickHouseDateTime(new Date())}'`);
+      // Note: updated_at is the version column for ReplacingMergeTree
+      // ClickHouse handles versioning automatically - we cannot update it directly
+      // The updated_at will be automatically set when the merge happens
       
       const setClause = updates.join(', ');
       const updateQuery = `

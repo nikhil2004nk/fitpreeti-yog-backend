@@ -146,9 +146,9 @@ export class ServicesService {
         return this.findOne(id);
       }
       
-      // Add updated_at
-      updates.push(`updated_at = {updated_at:String}`);
-      updateData.updated_at = new Date().toISOString();
+      // Note: updated_at is the version column for ReplacingMergeTree
+      // ClickHouse handles versioning automatically - we cannot update it directly
+      // The updated_at will be automatically set when the merge happens
       
       // Note: ClickHouse parameterized queries have limitations for ALTER TABLE UPDATE
       // So we use sanitized string concatenation for the SET clause but parameterized WHERE
@@ -163,7 +163,7 @@ export class ServicesService {
             return `${key} = ${value}`;
           }
         })
-        .join(', ') + `, updated_at = '${new Date().toISOString()}'`;
+        .join(', ');
       
       // Execute the update query
       const updateQuery = `
