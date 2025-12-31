@@ -1,7 +1,7 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -48,7 +48,7 @@ import { validate } from './config/env.validation';
     AppService,
     {
       provide: APP_GUARD,
-      useFactory: (options, storageService: ThrottlerStorage, reflector: Reflector) => {
+      useFactory: (options: ThrottlerModuleOptions, storageService: ThrottlerStorage, reflector: Reflector) => {
         return new ThrottlerGuard(options, storageService, reflector);
       },
       inject: ['THROTTLER:MODULE_OPTIONS', ThrottlerStorage, Reflector],

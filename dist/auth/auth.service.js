@@ -359,8 +359,7 @@ let AuthService = AuthService_1 = class AuthService {
         ALTER TABLE ${this.database}.users 
         UPDATE 
           refresh_token = {token:String},
-          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String}),
-          updated_at = now64()
+          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String})
         WHERE phone = {phone:String}
       `;
             await this.ch.queryParams(updateQuery, {
@@ -381,8 +380,7 @@ let AuthService = AuthService_1 = class AuthService {
         ALTER TABLE ${this.database}.users 
         UPDATE 
           refresh_token = NULL,
-          refresh_token_expires_at = NULL,
-          updated_at = now64()
+          refresh_token_expires_at = NULL
         WHERE phone = {phone:String}
       `;
             await this.ch.queryParams(updateQuery, { phone: normalizedPhone });

@@ -47,6 +47,19 @@ export class ClassScheduleService {
     this.table = `${this.database}.${CLASS_SCHEDULE_TABLE}`;
   }
 
+  /**
+   * Convert ISO datetime string to ClickHouse DateTime64(3) format
+   * ClickHouse expects: YYYY-MM-DD HH:mm:ss.SSS (no T or Z)
+   */
+  private toClickHouseDateTime(dateTime: string | Date): string {
+    const date = typeof dateTime === 'string' ? new Date(dateTime) : dateTime;
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException(`Invalid date: ${dateTime}`);
+    }
+    // Convert to ClickHouse format: YYYY-MM-DD HH:mm:ss.SSS
+    return date.toISOString().replace('T', ' ').replace('Z', '');
+  }
+
   private toClassScheduleResponse(classSchedule: any): ClassScheduleResponseDto {
     // Ensure all required fields have proper defaults
     const response: ClassScheduleResponseDto = {
@@ -102,15 +115,15 @@ export class ClassScheduleService {
       
       // Prepare base class data
       const classId = uuidv4();
-      const now = new Date().toISOString();
+      const now = this.toClickHouseDateTime(new Date());
       
-      // Format dates as ISO strings
+      // Format dates for ClickHouse (YYYY-MM-DD HH:mm:ss.SSS)
       const classData = {
         id: classId,
         title: createClassScheduleDto.title || `Session with ${trainer.name || 'Trainer'}`,
         description: createClassScheduleDto.description || service.description || '',
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
+        start_time: this.toClickHouseDateTime(startTime),
+        end_time: this.toClickHouseDateTime(endTime),
         status: ClassStatus.SCHEDULED,
         max_participants: maxParticipants,
         current_participants: 0,
@@ -119,7 +132,7 @@ export class ClassScheduleService {
         is_recurring: isRecurring,
         recurrence_pattern: isRecurring ? (createClassScheduleDto.recurrence_pattern || 'weekly') : null,
         recurrence_end_date: isRecurring && createClassScheduleDto.recurrence_end_date 
-          ? new Date(createClassScheduleDto.recurrence_end_date).toISOString()
+          ? this.toClickHouseDateTime(new Date(createClassScheduleDto.recurrence_end_date))
           : null,
         created_at: now,
         updated_at: now,
@@ -141,7 +154,10 @@ export class ClassScheduleService {
       if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to create class schedule');
+      this.logger.error('Error creating class schedule:', error);
+      throw new InternalServerErrorException(
+        error instanceof Error ? error.message : 'Failed to create class schedule'
+      );
     }
   }
 
@@ -232,7 +248,7 @@ export class ClassScheduleService {
       const updatedClass = {
         ...existingClass,
         ...updateClassScheduleDto,
-        updated_at: new Date().toISOString()
+        updated_at: this.toClickHouseDateTime(new Date())
       };
 
       // Check for scheduling conflicts, excluding the current class
@@ -257,7 +273,7 @@ export class ClassScheduleService {
       }
 
       // Add updated_at
-      updates.push(`updated_at = '${new Date().toISOString()}'`);
+      updates.push(`updated_at = '${this.toClickHouseDateTime(new Date())}'`);
       
       const setClause = updates.join(', ');
       const updateQuery = `
@@ -321,8 +337,8 @@ export class ClassScheduleService {
 
       const params: Record<string, any> = {
         trainer_id,
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        start_time: this.toClickHouseDateTime(start),
+        end_time: this.toClickHouseDateTime(end),
       };
 
       if (excludeClassId) {
@@ -391,7 +407,7 @@ export class ClassScheduleService {
       await this.clickhouse.queryParams(updateQuery, { 
         classId, 
         newCount, 
-        updated_at: new Date().toISOString() 
+        updated_at: this.toClickHouseDateTime(new Date())
       });
 
       return { currentParticipants: newCount, maxParticipants };
@@ -494,9 +510,9 @@ export class ClassScheduleService {
         throw new BadRequestException('End time must be after start time');
       }
 
-      // Format dates for SQL query
-      const startTimeStr = startDate.toISOString();
-      const endTimeStr = endDate.toISOString();
+      // Format dates for ClickHouse SQL query (YYYY-MM-DD HH:mm:ss.SSS)
+      const startTimeStr = this.toClickHouseDateTime(startDate);
+      const endTimeStr = this.toClickHouseDateTime(endDate);
 
       // Build the query with parameterized values
       let query = `

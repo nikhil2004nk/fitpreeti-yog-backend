@@ -1,6 +1,7 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
+import { ThrottlerException } from '@nestjs/throttler';
 import { ApiErrorResponse } from '../interfaces/api-response.interface';
 
 @Catch()
@@ -22,7 +23,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let validationErrors: string[] = [];
     let errorType = 'Internal Server Error';
 
-    if (exception instanceof HttpException) {
+    // Handle ThrottlerException specifically (rate limiting)
+    // ThrottlerException extends HttpException, but we handle it explicitly for clarity
+    if (exception instanceof ThrottlerException || (exception instanceof HttpException && exception.getStatus() === HttpStatus.TOO_MANY_REQUESTS)) {
+      status = HttpStatus.TOO_MANY_REQUESTS;
+      errorMessage = 'Too many requests. Please try again later.';
+      errorType = 'Too Many Requests';
+    } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const errorResponse = exception.getResponse();
       

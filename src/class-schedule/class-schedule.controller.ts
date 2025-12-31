@@ -11,6 +11,8 @@ import {
   HttpCode, 
   HttpStatus,
   BadRequestException,
+  NotFoundException,
+  ConflictException,
   ParseUUIDPipe
 } from '@nestjs/common';
 import { 
@@ -63,7 +65,15 @@ export class ClassScheduleController {
     try {
       return await this.classScheduleService.create(createClassScheduleDto);
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to create class schedule');
+      // Preserve the original error if it's already an HttpException
+      if (error instanceof BadRequestException || 
+          error instanceof NotFoundException || 
+          error instanceof ConflictException) {
+        throw error;
+      }
+      // Log the full error for debugging
+      console.error('Error creating class schedule:', error);
+      throw new BadRequestException(error?.message || 'Failed to create class schedule');
     }
   }
 

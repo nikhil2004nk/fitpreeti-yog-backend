@@ -13,6 +13,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HttpExceptionFilter = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
+const throttler_1 = require("@nestjs/throttler");
 let HttpExceptionFilter = HttpExceptionFilter_1 = class HttpExceptionFilter {
     configService;
     logger = new common_1.Logger(HttpExceptionFilter_1.name);
@@ -29,7 +30,12 @@ let HttpExceptionFilter = HttpExceptionFilter_1 = class HttpExceptionFilter {
         let errorMessage = 'Internal server error';
         let validationErrors = [];
         let errorType = 'Internal Server Error';
-        if (exception instanceof common_1.HttpException) {
+        if (exception instanceof throttler_1.ThrottlerException || (exception instanceof common_1.HttpException && exception.getStatus() === common_1.HttpStatus.TOO_MANY_REQUESTS)) {
+            status = common_1.HttpStatus.TOO_MANY_REQUESTS;
+            errorMessage = 'Too many requests. Please try again later.';
+            errorType = 'Too Many Requests';
+        }
+        else if (exception instanceof common_1.HttpException) {
             status = exception.getStatus();
             const errorResponse = exception.getResponse();
             if (typeof errorResponse === 'string') {

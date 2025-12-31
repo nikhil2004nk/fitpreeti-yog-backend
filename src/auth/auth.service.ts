@@ -385,8 +385,7 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
         ALTER TABLE ${this.database}.users 
         UPDATE 
           refresh_token = {token:String},
-          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String}),
-          updated_at = now64()
+          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String})
         WHERE phone = {phone:String}
       `;
       
@@ -409,8 +408,7 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
         ALTER TABLE ${this.database}.users 
         UPDATE 
           refresh_token = NULL,
-          refresh_token_expires_at = NULL,
-          updated_at = now64()
+          refresh_token_expires_at = NULL
         WHERE phone = {phone:String}
       `;
       
