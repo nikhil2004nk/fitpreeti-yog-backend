@@ -59,7 +59,10 @@ exports.AppModule = AppModule = __decorate([
             app_service_1.AppService,
             {
                 provide: core_1.APP_GUARD,
-                useClass: throttler_1.ThrottlerGuard,
+                useFactory: (options, storageService, reflector) => {
+                    return new throttler_1.ThrottlerGuard(options, storageService, reflector);
+                },
+                inject: ['THROTTLER:MODULE_OPTIONS', throttler_1.ThrottlerStorage, core_1.Reflector],
             },
         ],
     })
