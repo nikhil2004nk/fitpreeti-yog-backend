@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsNotEmpty, MinLength, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, MinLength, IsOptional, IsEnum, Matches } from 'class-validator';
 
 export class RegisterDto {
   @IsString()
@@ -14,11 +14,12 @@ export class RegisterDto {
   phone: string;
 
   @IsString()
-  @MinLength(4)
+  @MinLength(6)
   @IsNotEmpty()
+  @Matches(/^\d{6,8}$/, { message: 'PIN must be 6-8 digits' })
   pin: string;
 
   @IsOptional()
-  @IsEnum(['member', 'admin', 'trainer'])
+  @IsEnum(['customer', 'admin', 'trainer'])
   role?: string;
 }

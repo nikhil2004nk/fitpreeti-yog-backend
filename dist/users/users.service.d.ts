@@ -1,8 +1,10 @@
 import { ClickhouseService } from '../database/clickhouse.service';
+import { ConfigService } from '@nestjs/config';
 export declare class UsersService {
     private ch;
-    constructor(ch: ClickhouseService);
-    private normalizePhone;
+    private configService;
+    private readonly database;
+    constructor(ch: ClickhouseService, configService: ConfigService);
     findAll(): Promise<{
         id: string;
         phone: string;

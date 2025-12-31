@@ -10,7 +10,8 @@ import {
   Query, 
   HttpCode, 
   HttpStatus,
-  BadRequestException
+  BadRequestException,
+  ParseUUIDPipe
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -22,23 +23,23 @@ import {
 } from '@nestjs/swagger';
 import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/enums/user-role.enum';
+import { Roles } from '../common/decorators/roles.decorator';
 import { CreateClassScheduleDto } from './dto/create-class-schedule.dto';
 import { UpdateClassScheduleDto } from './dto/update-class-schedule.dto';
 import { ClassScheduleService } from './class-schedule.service';
 import { ClassScheduleResponseDto } from './dto/class-schedule-response.dto';
 
 @ApiTags('Class Schedule')
-@Controller('api/v1/class-schedule')
+@Controller('class-schedule')
 export class ClassScheduleController {
   constructor(private readonly classScheduleService: ClassScheduleService) {}
 
   @Post()
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.TRAINER)
+  @Roles('admin', 'trainer')
+  @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Create a new class schedule' })
+  @ApiOperation({ summary: 'Create a new class schedule (Admin or Trainer)' })
   @ApiResponse({ 
     status: HttpStatus.CREATED, 
     description: 'Class schedule successfully created', 
@@ -52,10 +53,10 @@ export class ClassScheduleController {
     status: HttpStatus.UNAUTHORIZED, 
     description: 'Unauthorized' 
   })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Insufficient permissions' 
-  })
+    @ApiResponse({ 
+      status: HttpStatus.FORBIDDEN, 
+      description: 'Forbidden - Admin or Trainer access required' 
+    })
   async create(
     @Body() createClassScheduleDto: CreateClassScheduleDto
   ): Promise<ClassScheduleResponseDto> {
@@ -105,7 +106,7 @@ export class ClassScheduleController {
   @UseGuards(CookieJwtGuard)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Get a class schedule by ID' })
-  @ApiParam({ name: 'id', required: true, type: String })
+  @ApiParam({ name: 'id', required: true, type: String, description: 'Class schedule UUID' })
   @ApiResponse({ 
     status: HttpStatus.OK, 
     description: 'Returns the class schedule', 
@@ -120,7 +121,7 @@ export class ClassScheduleController {
     description: 'Unauthorized' 
   })
   async findOne(
-    @Param('id') id: string
+    @Param('id', ParseUUIDPipe) id: string
   ): Promise<ClassScheduleResponseDto> {
     try {
       return await this.classScheduleService.findOne(id);
@@ -131,10 +132,10 @@ export class ClassScheduleController {
 
   @Put(':id')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.TRAINER)
+  @Roles('admin', 'trainer')
   @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Update a class schedule' })
-  @ApiParam({ name: 'id', required: true, type: String })
+  @ApiOperation({ summary: 'Update a class schedule (Admin or Trainer)' })
+  @ApiParam({ name: 'id', required: true, type: String, description: 'Class schedule UUID' })
   @ApiResponse({ 
     status: HttpStatus.OK, 
     description: 'Class schedule updated successfully', 
@@ -152,12 +153,12 @@ export class ClassScheduleController {
     status: HttpStatus.UNAUTHORIZED, 
     description: 'Unauthorized' 
   })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Insufficient permissions' 
-  })
+    @ApiResponse({ 
+      status: HttpStatus.FORBIDDEN, 
+      description: 'Forbidden - Admin or Trainer access required' 
+    })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateClassScheduleDto: UpdateClassScheduleDto,
   ): Promise<ClassScheduleResponseDto> {
     return this.classScheduleService.update(id, updateClassScheduleDto);
@@ -165,12 +166,16 @@ export class ClassScheduleController {
 
   @Delete(':id')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.TRAINER)
+  @Roles('admin', 'trainer')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Delete a class schedule' })
-  @ApiResponse({ status: 200, description: 'Class schedule deleted successfully' })
+  @ApiOperation({ summary: 'Delete a class schedule (Admin or Trainer)' })
+  @ApiParam({ name: 'id', type: String, description: 'Class schedule UUID' })
+  @ApiResponse({ status: 204, description: 'Class schedule deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin or Trainer access required' })
   @ApiResponse({ status: 404, description: 'Class schedule not found' })
-  async remove(@Param('id') id: string): Promise<void> {
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.classScheduleService.remove(id);
   }
 
@@ -178,9 +183,14 @@ export class ClassScheduleController {
   @UseGuards(CookieJwtGuard)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Check trainer availability' })
+  @ApiParam({ name: 'trainerId', type: String, description: 'Trainer UUID' })
+  @ApiQuery({ name: 'date', required: true, type: String, description: 'Date in ISO format' })
+  @ApiQuery({ name: 'duration', required: true, type: Number, description: 'Duration in minutes' })
   @ApiResponse({ status: 200, description: 'Returns available time slots for the trainer' })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid date or duration' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkTrainerAvailability(
-    @Param('trainerId') trainerId: string,
+    @Param('trainerId', ParseUUIDPipe) trainerId: string,
     @Query('date') date: string,
     @Query('duration') duration: number,
   ) {

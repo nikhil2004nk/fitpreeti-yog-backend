@@ -1,12 +1,14 @@
 import { ClickhouseService } from '../database/clickhouse.service';
+import { ConfigService } from '@nestjs/config';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { Service } from './interfaces/service.interface';
 export declare class ServicesService {
     private ch;
-    private readonly tableName;
+    private configService;
+    private readonly database;
     private readonly logger;
-    constructor(ch: ClickhouseService);
+    constructor(ch: ClickhouseService, configService: ConfigService);
     create(createServiceDto: CreateServiceDto): Promise<Service>;
     findAll(type?: string): Promise<Service[]>;
     findOne(id: string): Promise<Service>;

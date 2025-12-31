@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger, NotFoundException, InternalServerErrorException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, ClickHouseClient } from '@clickhouse/client';
 import type { ClickHouseSettings } from '@clickhouse/client';
@@ -62,7 +62,7 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
       this.logger.log('✅ ClickHouse connection test successful:', data);
     } catch (error) {
       this.logger.error('❌ Failed to connect to ClickHouse:', error);
-      throw new Error('Failed to connect to ClickHouse');
+      throw new ServiceUnavailableException('Failed to connect to ClickHouse database');
     }
   }
 
@@ -79,9 +79,65 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
     return lowerQuery.startsWith('select');
   }
 
+  /**
+   * Execute a parameterized query to prevent SQL injection
+   * @param query - SQL query with {param:type} placeholders
+   * @param params - Object with parameter values
+   * @returns Query results
+   */
+  async queryParams<T = any>(
+    query: string,
+    params: Record<string, string | number | boolean | null> = {},
+  ): Promise<T> {
+    if (!this.client) {
+      throw new ServiceUnavailableException('Database service is not available');
+    }
+
+    try {
+      const formattedQuery = query.trim();
+      const upperQuery = formattedQuery.toUpperCase();
+      
+      // For non-SELECT queries (DDL, INSERT, etc.)
+      if (!upperQuery.startsWith('SELECT') && !upperQuery.startsWith('WITH')) {
+        await this.client.exec({
+          query: formattedQuery,
+          query_params: params,
+          clickhouse_settings: { wait_end_of_query: 1 },
+        });
+        return { success: true } as unknown as T;
+      }
+      
+      // For SELECT queries, remove any FORMAT clause and use format parameter instead
+      let finalQuery = formattedQuery.replace(/;*$/, '').trim();
+      finalQuery = finalQuery.replace(/\s+FORMAT\s+\w+/i, '').trim();
+      
+      this.logger.debug(`Executing parameterized query: ${finalQuery.substring(0, 100)}${finalQuery.length > 100 ? '...' : ''}`);
+      
+      const result = await this.client.query({
+        query: finalQuery,
+        query_params: params,
+        format: 'JSONEachRow',
+        clickhouse_settings: {
+          wait_end_of_query: 1,
+          output_format_json_quote_64bit_integers: 0,
+        },
+      });
+
+      const data = await result.json<any[]>();
+      return (Array.isArray(data) ? data : []) as unknown as T;
+    } catch (error: any) {
+      this.logger.error(`Parameterized query failed: ${query.substring(0, 100)}`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * @deprecated Use queryParams instead to prevent SQL injection
+   * Legacy method for backward compatibility - will be removed in future version
+   */
   async query<T = any>(query: string): Promise<T> {
     if (!this.client) {
-      throw new Error('ClickHouse client is not initialized');
+      throw new ServiceUnavailableException('Database service is not available');
     }
 
     try {
@@ -161,7 +217,7 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
 
   async insert(table: string, data: Record<string, any> | Record<string, any>[]) {
     if (!this.client) {
-      throw new Error('ClickHouse client is not initialized');
+      throw new ServiceUnavailableException('Database service is not available');
     }
 
     try {
@@ -203,7 +259,7 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
     } = options;
 
     if (!this.client) {
-      throw new Error('ClickHouse client is not initialized');
+      throw new ServiceUnavailableException('Database service is not available');
     }
 
     // Execute the update query
@@ -242,7 +298,7 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
           if (expectedValue !== undefined) {
             const actualValue = String(updatedRecord[checkField]);
             if (actualValue !== String(expectedValue)) {
-              throw new Error(`Field ${checkField} was not updated to ${expectedValue}, got ${actualValue}`);
+              throw new InternalServerErrorException(`Field ${checkField} was not updated to ${expectedValue}, got ${actualValue}`);
             }
           }
           
@@ -259,6 +315,6 @@ export class ClickhouseService implements OnModuleInit, OnModuleDestroy {
     }
     
     // If we get here, all retries failed
-    throw new Error(`Failed to verify update after ${maxRetries} attempts`);
+    throw new InternalServerErrorException(`Failed to verify update after ${maxRetries} attempts`);
   }
 }

@@ -9,15 +9,15 @@ import { REQUEST } from '@nestjs/core';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
-import type { User, UserLite } from '../common/interfaces/user.interface';
+import type { User, UserLite, UserRole } from '../common/interfaces/user.interface';
 import { SessionService } from './session.service';
-
-type UserRole = 'customer' | 'admin';
+import { normalizePhone, isValidPhone } from '../common/utils/phone.util';
+import { sanitizeText } from '../common/utils/sanitize.util';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly saltRounds = 12;
+  private readonly saltRounds: number;
   private readonly database: string;
 
   constructor(
@@ -28,38 +28,16 @@ export class AuthService {
     @Inject(REQUEST) private readonly request: Request,
   ) {
     this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
+    this.saltRounds = this.configService.get<number>('BCRYPT_SALT_ROUNDS', 12);
   }
 
   /**
-   * Normalize phone number by removing spaces, dashes, and other non-digit characters
-   * Keeps only digits and leading + for country codes
-   */
-  private normalizePhone(phone: string): string {
-    if (!phone) return '';
-    const cleaned = phone.trim();
-    if (cleaned.startsWith('+')) {
-      return '+' + cleaned.slice(1).replace(/\D/g, '');
-    }
-    return cleaned.replace(/\D/g, '');
-  }
-
-  /**
-   * Escape single quotes for SQL injection prevention
-   */
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
-  }
-
-  /**
-   * Check if phone number already exists - SIMPLE COUNT QUERY
+   * Check if phone number already exists using parameterized query
    */
   private async checkPhoneExists(phone: string): Promise<boolean> {
     try {
-      const escapedPhone = this.escapeSqlString(phone);
-      // Use COUNT(*) instead of count() and let ClickHouse service add FORMAT
-      const query = `SELECT COUNT(*) as cnt FROM fitpreeti.users WHERE phone = '${escapedPhone}'`;
-      
-      const result = await this.ch.query<Array<{ cnt: number }>>(query);
+      const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE phone = {phone:String}`;
+      const result = await this.ch.queryParams<Array<{ cnt: number }>>(query, { phone });
       
       if (Array.isArray(result) && result.length > 0) {
         return result[0].cnt > 0;
@@ -72,15 +50,13 @@ export class AuthService {
   }
 
   /**
-   * Check if email already exists - SIMPLE COUNT QUERY
+   * Check if email already exists using parameterized query
    */
   private async checkEmailExists(email: string): Promise<boolean> {
     try {
-      const escapedEmail = this.escapeSqlString(email);
-      // Use COUNT(*) instead of count() and let ClickHouse service add FORMAT
-      const query = `SELECT COUNT(*) as cnt FROM fitpreeti.users WHERE lower(trim(email)) = '${escapedEmail}'`;
-      
-      const result = await this.ch.query<Array<{ cnt: number }>>(query);
+      const normalizedEmail = email.trim().toLowerCase();
+      const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE lower(trim(email)) = {email:String}`;
+      const result = await this.ch.queryParams<Array<{ cnt: number }>>(query, { email: normalizedEmail });
       
       if (Array.isArray(result) && result.length > 0) {
         return result[0].cnt > 0;
@@ -94,10 +70,10 @@ export class AuthService {
 
   async register(dto: RegisterDto): Promise<{ success: boolean; message: string; data?: Partial<User> }> {
     try {
-      // Normalize phone number
-      const normalizedPhone = this.normalizePhone(dto.phone);
-      if (!normalizedPhone || normalizedPhone.length < 10) {
-        throw new BadRequestException('Invalid phone number format');
+      // Sanitize and normalize inputs
+      const normalizedPhone = normalizePhone(sanitizeText(dto.phone));
+      if (!isValidPhone(normalizedPhone)) {
+        throw new BadRequestException('Invalid phone number format. Must be at least 10 digits.');
       }
 
       this.logger.log(`🔍 Registering user with phone: ${normalizedPhone}`);
@@ -111,7 +87,7 @@ export class AuthService {
 
       // CHECK FOR DUPLICATE EMAIL (if provided)
       if (dto.email) {
-        const normalizedEmail = dto.email.trim().toLowerCase();
+        const normalizedEmail = sanitizeText(dto.email).trim().toLowerCase();
         const emailExists = await this.checkEmailExists(normalizedEmail);
         if (emailExists) {
           this.logger.warn(`🚫 Duplicate email blocked: ${normalizedEmail}`);
@@ -119,9 +95,9 @@ export class AuthService {
         }
       }
 
-      // VALIDATE PIN
-      if (!dto.pin || dto.pin.length < 4) {
-        throw new BadRequestException('PIN must be at least 4 digits');
+      // VALIDATE PIN - Improved validation (6-8 digits)
+      if (!dto.pin || dto.pin.length < 6 || dto.pin.length > 8 || !/^\d+$/.test(dto.pin)) {
+        throw new BadRequestException('PIN must be 6-8 digits');
       }
 
       // HASH PIN before storing
@@ -133,13 +109,13 @@ export class AuthService {
 
       const userData = {
         id: userId,
-        name: dto.name.trim(),
-        email: dto.email ? dto.email.trim().toLowerCase() : '',
+        name: sanitizeText(dto.name).trim(),
+        email: dto.email ? sanitizeText(dto.email).trim().toLowerCase() : '',
         phone: normalizedPhone,
-        pin: hashedPin, // Store hashed PIN as pin
+        pin: hashedPin,
         role,
         profile_image: null,
-        is_active: false, // Will be set to true on first login
+        is_active: false,
         last_login: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -152,7 +128,7 @@ export class AuthService {
       return {
         success: true,
         message: 'User registered successfully',
-        data: { id: userId, name: dto.name, email: dto.email || '', phone: normalizedPhone, role },
+        data: { id: userId, name: userData.name, email: userData.email, phone: normalizedPhone, role },
       };
     } catch (error) {
       if (error instanceof ConflictException || error instanceof BadRequestException) {
@@ -164,8 +140,8 @@ export class AuthService {
   }
 
   async login(dto: LoginDto): Promise<{ access_token: string; refresh_token: string; user: UserLite }> {
-    const normalizedPhone = this.normalizePhone(dto.phone);
-    if (!normalizedPhone || normalizedPhone.length < 10) {
+    const normalizedPhone = normalizePhone(sanitizeText(dto.phone));
+    if (!isValidPhone(normalizedPhone)) {
       throw new BadRequestException('Invalid phone number format');
     }
 
@@ -179,19 +155,24 @@ export class AuthService {
       phone: user.phone,
       email: user.email || '',
       name: user.name,
-      role: user.role as 'customer' | 'admin',
+      role: user.role as UserRole,
     };
 
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('JWT_EXPIRES_IN', '1h'),
+      expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '15m'),
     });
 
+    // Generate refresh token (UUID-based for simplicity)
     const refreshToken = uuidv4();
-    await this.createRefreshToken(user.phone, refreshToken);
+    const refreshTokenExpiresAt = new Date();
+    refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + 7); // 7 days
+
+    // Store refresh token in users table
+    await this.updateUserRefreshToken(user.phone, refreshToken, refreshTokenExpiresAt);
 
     // Create session
     const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + parseInt(this.configService.get('JWT_EXPIRES_IN', '3600')));
+    expiresAt.setSeconds(expiresAt.getSeconds() + parseInt(this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '900')));
     
     await this.sessionService.createSession(
       user.id || '',
@@ -217,10 +198,10 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
     const phone = await this.validateRefreshToken(refreshToken);
     if (!phone) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const normalizedPhone = this.normalizePhone(phone);
+    const normalizedPhone = normalizePhone(phone);
     const user = await this.findUserByPhonePublic(normalizedPhone);
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -229,7 +210,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: user.id?.toString(),
       phone: user.phone,
-      email: user.email,
+      email: user.email || '',
       name: user.name,
       role: user.role as UserRole,
     };
@@ -238,19 +219,26 @@ export class AuthService {
       expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '15m'),
     });
 
+    // Generate new refresh token
     const newRefreshToken = uuidv4();
-    await this.createRefreshToken(normalizedPhone, newRefreshToken);
+    const refreshTokenExpiresAt = new Date();
+    refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + 7); // 7 days
 
-    const escapedToken = this.escapeSqlString(refreshToken);
-    await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE token = '${escapedToken}'`);
+    // Update refresh token in users table
+    await this.updateUserRefreshToken(normalizedPhone, newRefreshToken, refreshTokenExpiresAt);
 
     return { access_token: newAccessToken, refresh_token: newRefreshToken };
   }
 
   async logout(refreshToken: string, accessToken?: string): Promise<{ success: boolean }> {
     try {
-      // Invalidate the refresh token
-      await this.ch.query(`ALTER TABLE ${this.database}.refresh_tokens DELETE WHERE token = '${this.escapeSqlString(refreshToken)}'`);
+      // Clear refresh token from users table
+      if (refreshToken) {
+        const phone = await this.validateRefreshToken(refreshToken);
+        if (phone) {
+          await this.clearUserRefreshToken(phone);
+        }
+      }
 
       // Invalidate the session if access token is provided
       if (accessToken) {
@@ -259,22 +247,21 @@ export class AuthService {
       
       return { success: true };
     } catch (error) {
-      this.logger.error('Logout failed', error.stack);
+      this.logger.error('Logout failed', error instanceof Error ? error.stack : String(error));
       return { success: false };
     }
   }
 
   public async findUserById(id: string): Promise<UserLite | null> {
     try {
-      const escapedId = this.escapeSqlString(id);
       const query = `
-        SELECT id, name, email, phone_number as phone, role, created_at
+        SELECT id, name, email, phone as phone, role, created_at
         FROM ${this.database}.users 
-        WHERE id = '${escapedId}'
+        WHERE id = {id:String}
         LIMIT 1
       `;
       
-      const result = await this.ch.query<UserLite[]>(query);
+      const result = await this.ch.queryParams<UserLite[]>(query, { id });
       return result?.[0] || null;
     } catch (error) {
       this.logger.error(`Error finding user by ID: ${id}`, error);
@@ -284,7 +271,6 @@ export class AuthService {
 
   private async findUserByPhone(phone: string): Promise<User | null> {
     try {
-      const escapedPhone = this.escapeSqlString(phone);
       const query = `
         SELECT 
           id,
@@ -295,11 +281,11 @@ export class AuthService {
           role,
           created_at
         FROM ${this.database}.users 
-        WHERE phone = '${escapedPhone}'
+        WHERE phone = {phone:String}
         LIMIT 1
       `;
       
-      const result = await this.ch.query<User[]>(query);
+      const result = await this.ch.queryParams<User[]>(query, { phone });
       return result?.[0] || null;
     } catch (error) {
       this.logger.error(`Error finding user by phone: ${phone}`, error);
@@ -309,15 +295,14 @@ export class AuthService {
 
   public async findUserByPhonePublic(phone: string): Promise<UserLite | null> {
     try {
-      const escapedPhone = this.escapeSqlString(phone);
       const query = `
         SELECT id, name, email, phone, role, created_at 
         FROM ${this.database}.users 
-        WHERE phone = '${escapedPhone}'
+        WHERE phone = {phone:String}
         LIMIT 1
       `;
       
-      const result = await this.ch.query<UserLite[]>(query);
+      const result = await this.ch.queryParams<UserLite[]>(query, { phone });
       return result?.[0] || null;
     } catch (error) {
       this.logger.error(`Error finding user by phone (public): ${phone}`, error);
@@ -349,15 +334,16 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
     const now = new Date();
     const formattedDate = now.toISOString().replace('T', ' ').replace('Z', '');
     
-    // Update is_active and last_login
-    const escapedPhone = this.escapeSqlString(phone);
-    await this.ch.query(`
+    // Update is_active and last_login using parameterized query
+    // Note: ClickHouse parameterized queries don't support all functions, so we use a hybrid approach
+    const updateQuery = `
       ALTER TABLE ${this.database}.users 
       UPDATE 
         is_active = true, 
-        last_login = parseDateTime64BestEffort('${formattedDate}')
-      WHERE phone = '${escapedPhone}'
-    `);
+        last_login = parseDateTime64BestEffort({date:String})
+      WHERE phone = {phone:String}
+    `;
+    await this.ch.queryParams(updateQuery, { phone, date: formattedDate });
 
     // Return updated user data
     return {
@@ -373,16 +359,16 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
 
   public async validateRefreshToken(token: string): Promise<string | null> {
     try {
-      const escapedToken = this.escapeSqlString(token);
       const query = `
         SELECT phone 
-        FROM ${this.database}.refresh_tokens 
-        WHERE token = '${escapedToken}'
-        AND expires_at > now()
+        FROM ${this.database}.users 
+        WHERE refresh_token = {token:String}
+          AND refresh_token_expires_at > now()
+          AND is_active = true
         LIMIT 1
       `;
       
-      const result = await this.ch.query<Array<{ phone: string }>>(query);
+      const result = await this.ch.queryParams<Array<{ phone: string }>>(query, { token });
       return result?.[0]?.phone || null;
     } catch (error) {
       this.logger.error('Error validating refresh token', error);
@@ -390,25 +376,47 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
     }
   }
 
-  private async createRefreshToken(phone: string, refreshToken: string): Promise<void> {
+  private async updateUserRefreshToken(phone: string, refreshToken: string, expiresAt: Date): Promise<void> {
     try {
-      const normalizedPhone = this.normalizePhone(phone);
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days from now
+      const normalizedPhone = normalizePhone(phone);
+      const expiresAtStr = expiresAt.toISOString();
       
-      await this.ch.insert('refresh_tokens', {
-        phone_number: normalizedPhone,
+      const updateQuery = `
+        ALTER TABLE ${this.database}.users 
+        UPDATE 
+          refresh_token = {token:String},
+          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String}),
+          updated_at = now64()
+        WHERE phone = {phone:String}
+      `;
+      
+      await this.ch.queryParams(updateQuery, { 
+        phone: normalizedPhone, 
         token: refreshToken,
-        expires_at: expiresAt.toISOString(),
+        expiresAt: expiresAtStr
       });
     } catch (error) {
-      this.logger.error(`Error creating refresh token for phone: ${phone}`, error);
+      this.logger.error(`Error updating refresh token for phone: ${phone}`, error);
+      throw error;
     }
   }
 
-  private async revokeUserTokens(phone: string): Promise<void> {
-    const normalizedPhone = this.normalizePhone(phone);
-    const escapedPhone = this.escapeSqlString(normalizedPhone);
-    await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE phone = '${escapedPhone}'`);
+  private async clearUserRefreshToken(phone: string): Promise<void> {
+    try {
+      const normalizedPhone = normalizePhone(phone);
+      
+      const updateQuery = `
+        ALTER TABLE ${this.database}.users 
+        UPDATE 
+          refresh_token = NULL,
+          refresh_token_expires_at = NULL,
+          updated_at = now64()
+        WHERE phone = {phone:String}
+      `;
+      
+      await this.ch.queryParams(updateQuery, { phone: normalizedPhone });
+    } catch (error) {
+      this.logger.error(`Error clearing refresh token for phone: ${phone}`, error);
+    }
   }
 }

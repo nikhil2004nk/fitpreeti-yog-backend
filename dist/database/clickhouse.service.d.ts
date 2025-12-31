@@ -18,6 +18,7 @@ export declare class ClickhouseService implements OnModuleInit, OnModuleDestroy 
     onModuleInit(): Promise<void>;
     onModuleDestroy(): Promise<void>;
     private isSelectQuery;
+    queryParams<T = any>(query: string, params?: Record<string, string | number | boolean | null>): Promise<T>;
     query<T = any>(query: string): Promise<T>;
     insert(table: string, data: Record<string, any> | Record<string, any>[]): Promise<import("@clickhouse/client").InsertResult>;
     checkConnection(): Promise<boolean>;

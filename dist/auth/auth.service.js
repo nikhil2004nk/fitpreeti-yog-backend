@@ -55,6 +55,8 @@ const uuid_1 = require("uuid");
 const bcrypt = __importStar(require("bcrypt"));
 const core_1 = require("@nestjs/core");
 const session_service_1 = require("./session.service");
+const phone_util_1 = require("../common/utils/phone.util");
+const sanitize_util_1 = require("../common/utils/sanitize.util");
 let AuthService = AuthService_1 = class AuthService {
     ch;
     jwtService;
@@ -62,7 +64,7 @@ let AuthService = AuthService_1 = class AuthService {
     sessionService;
     request;
     logger = new common_1.Logger(AuthService_1.name);
-    saltRounds = 12;
+    saltRounds;
     database;
     constructor(ch, jwtService, configService, sessionService, request) {
         this.ch = ch;
@@ -71,24 +73,12 @@ let AuthService = AuthService_1 = class AuthService {
         this.sessionService = sessionService;
         this.request = request;
         this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
-    }
-    normalizePhone(phone) {
-        if (!phone)
-            return '';
-        const cleaned = phone.trim();
-        if (cleaned.startsWith('+')) {
-            return '+' + cleaned.slice(1).replace(/\D/g, '');
-        }
-        return cleaned.replace(/\D/g, '');
-    }
-    escapeSqlString(value) {
-        return value.replace(/'/g, "''");
+        this.saltRounds = this.configService.get('BCRYPT_SALT_ROUNDS', 12);
     }
     async checkPhoneExists(phone) {
         try {
-            const escapedPhone = this.escapeSqlString(phone);
-            const query = `SELECT COUNT(*) as cnt FROM fitpreeti.users WHERE phone = '${escapedPhone}'`;
-            const result = await this.ch.query(query);
+            const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE phone = {phone:String}`;
+            const result = await this.ch.queryParams(query, { phone });
             if (Array.isArray(result) && result.length > 0) {
                 return result[0].cnt > 0;
             }
@@ -101,9 +91,9 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async checkEmailExists(email) {
         try {
-            const escapedEmail = this.escapeSqlString(email);
-            const query = `SELECT COUNT(*) as cnt FROM fitpreeti.users WHERE lower(trim(email)) = '${escapedEmail}'`;
-            const result = await this.ch.query(query);
+            const normalizedEmail = email.trim().toLowerCase();
+            const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE lower(trim(email)) = {email:String}`;
+            const result = await this.ch.queryParams(query, { email: normalizedEmail });
             if (Array.isArray(result) && result.length > 0) {
                 return result[0].cnt > 0;
             }
@@ -116,9 +106,9 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async register(dto) {
         try {
-            const normalizedPhone = this.normalizePhone(dto.phone);
-            if (!normalizedPhone || normalizedPhone.length < 10) {
-                throw new common_1.BadRequestException('Invalid phone number format');
+            const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(dto.phone));
+            if (!(0, phone_util_1.isValidPhone)(normalizedPhone)) {
+                throw new common_1.BadRequestException('Invalid phone number format. Must be at least 10 digits.');
             }
             this.logger.log(`🔍 Registering user with phone: ${normalizedPhone}`);
             const phoneExists = await this.checkPhoneExists(normalizedPhone);
@@ -127,23 +117,23 @@ let AuthService = AuthService_1 = class AuthService {
                 throw new common_1.ConflictException('Phone number already registered');
             }
             if (dto.email) {
-                const normalizedEmail = dto.email.trim().toLowerCase();
+                const normalizedEmail = (0, sanitize_util_1.sanitizeText)(dto.email).trim().toLowerCase();
                 const emailExists = await this.checkEmailExists(normalizedEmail);
                 if (emailExists) {
                     this.logger.warn(`🚫 Duplicate email blocked: ${normalizedEmail}`);
                     throw new common_1.ConflictException('Email already registered');
                 }
             }
-            if (!dto.pin || dto.pin.length < 4) {
-                throw new common_1.BadRequestException('PIN must be at least 4 digits');
+            if (!dto.pin || dto.pin.length < 6 || dto.pin.length > 8 || !/^\d+$/.test(dto.pin)) {
+                throw new common_1.BadRequestException('PIN must be 6-8 digits');
             }
             const hashedPin = await bcrypt.hash(dto.pin, this.saltRounds);
             const role = dto.role || 'customer';
             const userId = (0, uuid_1.v4)();
             const userData = {
                 id: userId,
-                name: dto.name.trim(),
-                email: dto.email ? dto.email.trim().toLowerCase() : '',
+                name: (0, sanitize_util_1.sanitizeText)(dto.name).trim(),
+                email: dto.email ? (0, sanitize_util_1.sanitizeText)(dto.email).trim().toLowerCase() : '',
                 phone: normalizedPhone,
                 pin: hashedPin,
                 role,
@@ -158,7 +148,7 @@ let AuthService = AuthService_1 = class AuthService {
             return {
                 success: true,
                 message: 'User registered successfully',
-                data: { id: userId, name: dto.name, email: dto.email || '', phone: normalizedPhone, role },
+                data: { id: userId, name: userData.name, email: userData.email, phone: normalizedPhone, role },
             };
         }
         catch (error) {
@@ -170,8 +160,8 @@ let AuthService = AuthService_1 = class AuthService {
         }
     }
     async login(dto) {
-        const normalizedPhone = this.normalizePhone(dto.phone);
-        if (!normalizedPhone || normalizedPhone.length < 10) {
+        const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(dto.phone));
+        if (!(0, phone_util_1.isValidPhone)(normalizedPhone)) {
             throw new common_1.BadRequestException('Invalid phone number format');
         }
         const user = await this.validateUserCredentials(normalizedPhone, dto.pin);
@@ -186,12 +176,14 @@ let AuthService = AuthService_1 = class AuthService {
             role: user.role,
         };
         const accessToken = this.jwtService.sign(payload, {
-            expiresIn: this.configService.get('JWT_EXPIRES_IN', '1h'),
+            expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '15m'),
         });
         const refreshToken = (0, uuid_1.v4)();
-        await this.createRefreshToken(user.phone, refreshToken);
+        const refreshTokenExpiresAt = new Date();
+        refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + 7);
+        await this.updateUserRefreshToken(user.phone, refreshToken, refreshTokenExpiresAt);
         const expiresAt = new Date();
-        expiresAt.setSeconds(expiresAt.getSeconds() + parseInt(this.configService.get('JWT_EXPIRES_IN', '3600')));
+        expiresAt.setSeconds(expiresAt.getSeconds() + parseInt(this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '900')));
         await this.sessionService.createSession(user.id || '', accessToken, this.request.headers['user-agent'] || 'unknown', this.request.headers['x-forwarded-for'] || this.request.socket.remoteAddress || 'unknown', expiresAt);
         return {
             access_token: accessToken,
@@ -208,9 +200,9 @@ let AuthService = AuthService_1 = class AuthService {
     async refresh(refreshToken) {
         const phone = await this.validateRefreshToken(refreshToken);
         if (!phone) {
-            throw new common_1.UnauthorizedException('Invalid refresh token');
+            throw new common_1.UnauthorizedException('Invalid or expired refresh token');
         }
-        const normalizedPhone = this.normalizePhone(phone);
+        const normalizedPhone = (0, phone_util_1.normalizePhone)(phone);
         const user = await this.findUserByPhonePublic(normalizedPhone);
         if (!user) {
             throw new common_1.UnauthorizedException('User not found');
@@ -218,7 +210,7 @@ let AuthService = AuthService_1 = class AuthService {
         const payload = {
             sub: user.id?.toString(),
             phone: user.phone,
-            email: user.email,
+            email: user.email || '',
             name: user.name,
             role: user.role,
         };
@@ -226,34 +218,38 @@ let AuthService = AuthService_1 = class AuthService {
             expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN', '15m'),
         });
         const newRefreshToken = (0, uuid_1.v4)();
-        await this.createRefreshToken(normalizedPhone, newRefreshToken);
-        const escapedToken = this.escapeSqlString(refreshToken);
-        await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE token = '${escapedToken}'`);
+        const refreshTokenExpiresAt = new Date();
+        refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + 7);
+        await this.updateUserRefreshToken(normalizedPhone, newRefreshToken, refreshTokenExpiresAt);
         return { access_token: newAccessToken, refresh_token: newRefreshToken };
     }
     async logout(refreshToken, accessToken) {
         try {
-            await this.ch.query(`ALTER TABLE ${this.database}.refresh_tokens DELETE WHERE token = '${this.escapeSqlString(refreshToken)}'`);
+            if (refreshToken) {
+                const phone = await this.validateRefreshToken(refreshToken);
+                if (phone) {
+                    await this.clearUserRefreshToken(phone);
+                }
+            }
             if (accessToken) {
                 await this.sessionService.invalidateSession(accessToken);
             }
             return { success: true };
         }
         catch (error) {
-            this.logger.error('Logout failed', error.stack);
+            this.logger.error('Logout failed', error instanceof Error ? error.stack : String(error));
             return { success: false };
         }
     }
     async findUserById(id) {
         try {
-            const escapedId = this.escapeSqlString(id);
             const query = `
-        SELECT id, name, email, phone_number as phone, role, created_at
+        SELECT id, name, email, phone as phone, role, created_at
         FROM ${this.database}.users 
-        WHERE id = '${escapedId}'
+        WHERE id = {id:String}
         LIMIT 1
       `;
-            const result = await this.ch.query(query);
+            const result = await this.ch.queryParams(query, { id });
             return result?.[0] || null;
         }
         catch (error) {
@@ -263,7 +259,6 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async findUserByPhone(phone) {
         try {
-            const escapedPhone = this.escapeSqlString(phone);
             const query = `
         SELECT 
           id,
@@ -274,10 +269,10 @@ let AuthService = AuthService_1 = class AuthService {
           role,
           created_at
         FROM ${this.database}.users 
-        WHERE phone = '${escapedPhone}'
+        WHERE phone = {phone:String}
         LIMIT 1
       `;
-            const result = await this.ch.query(query);
+            const result = await this.ch.queryParams(query, { phone });
             return result?.[0] || null;
         }
         catch (error) {
@@ -287,14 +282,13 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async findUserByPhonePublic(phone) {
         try {
-            const escapedPhone = this.escapeSqlString(phone);
             const query = `
         SELECT id, name, email, phone, role, created_at 
         FROM ${this.database}.users 
-        WHERE phone = '${escapedPhone}'
+        WHERE phone = {phone:String}
         LIMIT 1
       `;
-            const result = await this.ch.query(query);
+            const result = await this.ch.queryParams(query, { phone });
             return result?.[0] || null;
         }
         catch (error) {
@@ -320,14 +314,14 @@ let AuthService = AuthService_1 = class AuthService {
             }
             const now = new Date();
             const formattedDate = now.toISOString().replace('T', ' ').replace('Z', '');
-            const escapedPhone = this.escapeSqlString(phone);
-            await this.ch.query(`
+            const updateQuery = `
       ALTER TABLE ${this.database}.users 
       UPDATE 
         is_active = true, 
-        last_login = parseDateTime64BestEffort('${formattedDate}')
-      WHERE phone = '${escapedPhone}'
-    `);
+        last_login = parseDateTime64BestEffort({date:String})
+      WHERE phone = {phone:String}
+    `;
+            await this.ch.queryParams(updateQuery, { phone, date: formattedDate });
             return {
                 ...user,
                 is_active: true,
@@ -341,15 +335,15 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async validateRefreshToken(token) {
         try {
-            const escapedToken = this.escapeSqlString(token);
             const query = `
         SELECT phone 
-        FROM ${this.database}.refresh_tokens 
-        WHERE token = '${escapedToken}'
-        AND expires_at > now()
+        FROM ${this.database}.users 
+        WHERE refresh_token = {token:String}
+          AND refresh_token_expires_at > now()
+          AND is_active = true
         LIMIT 1
       `;
-            const result = await this.ch.query(query);
+            const result = await this.ch.queryParams(query, { token });
             return result?.[0]?.phone || null;
         }
         catch (error) {
@@ -357,25 +351,45 @@ let AuthService = AuthService_1 = class AuthService {
             return null;
         }
     }
-    async createRefreshToken(phone, refreshToken) {
+    async updateUserRefreshToken(phone, refreshToken, expiresAt) {
         try {
-            const normalizedPhone = this.normalizePhone(phone);
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 30);
-            await this.ch.insert('refresh_tokens', {
-                phone_number: normalizedPhone,
+            const normalizedPhone = (0, phone_util_1.normalizePhone)(phone);
+            const expiresAtStr = expiresAt.toISOString();
+            const updateQuery = `
+        ALTER TABLE ${this.database}.users 
+        UPDATE 
+          refresh_token = {token:String},
+          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String}),
+          updated_at = now64()
+        WHERE phone = {phone:String}
+      `;
+            await this.ch.queryParams(updateQuery, {
+                phone: normalizedPhone,
                 token: refreshToken,
-                expires_at: expiresAt.toISOString(),
+                expiresAt: expiresAtStr
             });
         }
         catch (error) {
-            this.logger.error(`Error creating refresh token for phone: ${phone}`, error);
+            this.logger.error(`Error updating refresh token for phone: ${phone}`, error);
+            throw error;
         }
     }
-    async revokeUserTokens(phone) {
-        const normalizedPhone = this.normalizePhone(phone);
-        const escapedPhone = this.escapeSqlString(normalizedPhone);
-        await this.ch.query(`ALTER TABLE fitpreeti.refresh_tokens DELETE WHERE phone = '${escapedPhone}'`);
+    async clearUserRefreshToken(phone) {
+        try {
+            const normalizedPhone = (0, phone_util_1.normalizePhone)(phone);
+            const updateQuery = `
+        ALTER TABLE ${this.database}.users 
+        UPDATE 
+          refresh_token = NULL,
+          refresh_token_expires_at = NULL,
+          updated_at = now64()
+        WHERE phone = {phone:String}
+      `;
+            await this.ch.queryParams(updateQuery, { phone: normalizedPhone });
+        }
+        catch (error) {
+            this.logger.error(`Error clearing refresh token for phone: ${phone}`, error);
+        }
     }
 };
 exports.AuthService = AuthService;

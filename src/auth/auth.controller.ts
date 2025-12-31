@@ -7,10 +7,12 @@ import {
   Res, 
   UseGuards, 
   HttpCode, 
-  HttpStatus 
+  HttpStatus,
+  BadRequestException
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -18,6 +20,7 @@ import { CookieJwtGuard } from './guards/cookie-jwt.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import type { UserRole } from '../common/interfaces/user.interface';
+import { ApiSuccessResponse } from '../common/interfaces/api-response.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -25,20 +28,24 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 requests per 15 minutes
   @ApiOperation({ summary: 'Register new user with full profile' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Phone or email already exists' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 requests per 15 minutes
   @ApiOperation({ summary: 'Login with phone and PIN' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
@@ -76,7 +83,7 @@ export class AuthController {
   ) {
     const refreshToken = req.cookies?.['refresh_token'];
     if (!refreshToken) {
-      throw new Error('No refresh token found');
+      throw new BadRequestException('No refresh token found');
     }
 
     const { access_token, refresh_token } = await this.authService.refresh(refreshToken);
@@ -109,8 +116,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const user = req.user as any;
-    await this.authService.logout(user.phone);
+    // Extract tokens from cookies
+    const refreshToken = req.cookies?.['refresh_token'];
+    const accessToken = req.cookies?.['access_token'];
+    
+    // Invalidate tokens
+    await this.authService.logout(refreshToken || '', accessToken);
     
     // Clear cookies
     res.clearCookie('access_token', {

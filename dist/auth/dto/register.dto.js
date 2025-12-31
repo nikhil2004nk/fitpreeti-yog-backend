@@ -36,13 +36,14 @@ __decorate([
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.MinLength)(4),
+    (0, class_validator_1.MinLength)(6),
     (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/^\d{6,8}$/, { message: 'PIN must be 6-8 digits' }),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "pin", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['member', 'admin', 'trainer']),
+    (0, class_validator_1.IsEnum)(['customer', 'admin', 'trainer']),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "role", void 0);
 //# sourceMappingURL=register.dto.js.map

@@ -13,37 +13,46 @@ exports.BookingsService = void 0;
 const common_1 = require("@nestjs/common");
 const clickhouse_service_1 = require("../database/clickhouse.service");
 const uuid_1 = require("uuid");
+const phone_util_1 = require("../common/utils/phone.util");
+const sanitize_util_1 = require("../common/utils/sanitize.util");
+const config_1 = require("@nestjs/config");
 let BookingsService = class BookingsService {
     ch;
-    constructor(ch) {
+    configService;
+    database;
+    constructor(ch, configService) {
         this.ch = ch;
-    }
-    normalizePhone(phone) {
-        if (!phone)
-            return '';
-        const cleaned = phone.trim();
-        if (cleaned.startsWith('+')) {
-            return '+' + cleaned.slice(1).replace(/\D/g, '');
-        }
-        return cleaned.replace(/\D/g, '');
+        this.configService = configService;
+        this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     }
     async create(createBookingDto, userPhone) {
-        const normalizedPhone = this.normalizePhone(userPhone);
-        const escapedPhone = this.escapeSqlString(normalizedPhone);
-        const userQuery = `SELECT id FROM fitpreeti.users WHERE phone = '${escapedPhone}' LIMIT 1`;
-        const userResult = await this.ch.query(userQuery);
+        const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(userPhone));
+        const userQuery = `SELECT id FROM ${this.database}.users WHERE phone = {phone:String} LIMIT 1`;
+        const userResult = await this.ch.queryParams(userQuery, { phone: normalizedPhone });
         if (!Array.isArray(userResult) || userResult.length === 0) {
             throw new common_1.NotFoundException('User not found');
         }
         const userId = userResult[0].id;
-        const escapedServiceId = this.escapeSqlString(String(createBookingDto.service_id));
-        const service = await this.ch.query(`SELECT id FROM fitpreeti.services WHERE id = '${escapedServiceId}'`);
+        const serviceQuery = `SELECT id FROM ${this.database}.services WHERE id = {serviceId:String} LIMIT 1`;
+        const service = await this.ch.queryParams(serviceQuery, {
+            serviceId: String(createBookingDto.service_id)
+        });
         if (!Array.isArray(service) || service.length === 0) {
             throw new common_1.NotFoundException('Service not found');
         }
-        const escapedDate = this.escapeSqlString(createBookingDto.booking_date);
-        const escapedTime = this.escapeSqlString(createBookingDto.booking_time);
-        const conflict = await this.ch.query(`SELECT COUNT(*) as count FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND booking_time = '${escapedTime}' AND status != 'cancelled'`);
+        const conflictQuery = `
+      SELECT COUNT(*) as count 
+      FROM ${this.database}.bookings 
+      WHERE service_id = {serviceId:String} 
+        AND booking_date = {date:String} 
+        AND booking_time = {time:String} 
+        AND status != 'cancelled'
+    `;
+        const conflict = await this.ch.queryParams(conflictQuery, {
+            serviceId: String(createBookingDto.service_id),
+            date: (0, sanitize_util_1.sanitizeText)(createBookingDto.booking_date),
+            time: (0, sanitize_util_1.sanitizeText)(createBookingDto.booking_time),
+        });
         if (Array.isArray(conflict) && conflict.length > 0 && (conflict[0]?.count || 0) > 0) {
             throw new common_1.BadRequestException('Time slot already booked');
         }
@@ -51,34 +60,53 @@ let BookingsService = class BookingsService {
         const bookingData = {
             id: bookingId,
             user_id: userId,
-            ...createBookingDto,
+            service_id: createBookingDto.service_id,
+            booking_date: (0, sanitize_util_1.sanitizeText)(createBookingDto.booking_date),
+            booking_time: (0, sanitize_util_1.sanitizeText)(createBookingDto.booking_time),
             user_phone: normalizedPhone,
             status: 'pending',
         };
         await this.ch.insert('bookings', bookingData);
         return this.findOneByUser(bookingId, normalizedPhone);
     }
-    escapeSqlString(value) {
-        return value.replace(/'/g, "''");
-    }
     async findAll(userPhone) {
-        const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
-        const whereClause = normalizedPhone ? `WHERE user_phone = '${normalizedPhone.replace(/'/g, "''")}'` : '';
-        const result = await this.ch.query(`
-      SELECT * FROM fitpreeti.bookings 
-      ${whereClause} 
+        const normalizedPhone = userPhone ? (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(userPhone)) : undefined;
+        if (normalizedPhone) {
+            const query = `
+        SELECT * FROM ${this.database}.bookings 
+        WHERE user_phone = {phone:String}
+        ORDER BY booking_date DESC, booking_time ASC
+      `;
+            const result = await this.ch.queryParams(query, { phone: normalizedPhone });
+            return Array.isArray(result) ? result : [];
+        }
+        const query = `
+      SELECT * FROM ${this.database}.bookings 
       ORDER BY booking_date DESC, booking_time ASC
-    `);
+    `;
+        const result = await this.ch.queryParams(query, {});
         return Array.isArray(result) ? result : [];
     }
     async findOne(id, userPhone) {
-        const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
-        const escapedId = this.escapeSqlString(id);
-        const whereClause = normalizedPhone ? `AND user_phone = '${this.escapeSqlString(normalizedPhone)}'` : '';
-        const result = await this.ch.query(`
-      SELECT * FROM fitpreeti.bookings 
-      WHERE id = '${escapedId}' ${whereClause}
-    `);
+        const normalizedPhone = userPhone ? (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(userPhone)) : undefined;
+        if (normalizedPhone) {
+            const query = `
+        SELECT * FROM ${this.database}.bookings 
+        WHERE id = {id:String} AND user_phone = {phone:String}
+        LIMIT 1
+      `;
+            const result = await this.ch.queryParams(query, { id, phone: normalizedPhone });
+            if (!Array.isArray(result) || result.length === 0) {
+                throw new common_1.NotFoundException('Booking not found');
+            }
+            return result[0];
+        }
+        const query = `
+      SELECT * FROM ${this.database}.bookings 
+      WHERE id = {id:String}
+      LIMIT 1
+    `;
+        const result = await this.ch.queryParams(query, { id });
         if (!Array.isArray(result) || result.length === 0) {
             throw new common_1.NotFoundException('Booking not found');
         }
@@ -86,83 +114,60 @@ let BookingsService = class BookingsService {
     }
     async update(id, updateBookingDto, userPhone) {
         const existing = await this.findOne(id, userPhone);
-        const updates = [];
+        const sanitizedUpdates = {};
         Object.entries(updateBookingDto).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
-                updates.push(`${key} = '${this.escapeSqlString(String(value))}'`);
+                sanitizedUpdates[key] = typeof value === 'string' ? (0, sanitize_util_1.sanitizeText)(value) : value;
             }
         });
-        if (updates.length === 0) {
+        if (Object.keys(sanitizedUpdates).length === 0) {
             return existing;
         }
-        const escapedId = this.escapeSqlString(id);
-        await this.ch.query(`
-      ALTER TABLE fitpreeti.bookings 
-      UPDATE ${updates.join(', ')} 
-      WHERE id = '${escapedId}'
-    `);
+        const updates = Object.entries(sanitizedUpdates)
+            .map(([key, value]) => `${key} = '${String(value).replace(/'/g, "''")}'`)
+            .join(', ');
+        const updateQuery = `
+      ALTER TABLE ${this.database}.bookings 
+      UPDATE ${updates} 
+      WHERE id = {id:String}
+    `;
+        await this.ch.queryParams(updateQuery, { id });
         await new Promise(resolve => setTimeout(resolve, 100));
-        const maxRetries = 5;
-        let retries = 0;
-        let result;
-        while (retries < maxRetries) {
-            const whereClause = userPhone
-                ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'`
-                : `id = '${escapedId}'`;
-            result = await this.ch.query(`
-        SELECT * FROM fitpreeti.bookings FINAL 
-        WHERE ${whereClause}
-      `);
-            if (result && result.length > 0) {
-                const updatedBooking = result[0];
-                const updatedField = Object.keys(updateBookingDto)[0];
-                if (updatedField && updatedBooking[updatedField] !== updateBookingDto[updatedField]) {
-                    retries++;
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    continue;
-                }
-                return updatedBooking;
-            }
-            retries++;
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        const whereClause = userPhone
-            ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'`
-            : `id = '${escapedId}'`;
-        result = await this.ch.query(`
-      SELECT * FROM fitpreeti.bookings FINAL 
-      WHERE ${whereClause}
-    `);
-        if (!result || result.length === 0) {
-            throw new common_1.NotFoundException(`Booking with ID ${id} not found after update`);
-        }
-        return result[0];
+        return this.findOne(id, userPhone);
     }
     async remove(id, userPhone) {
         await this.findOne(id, userPhone);
-        const escapedId = this.escapeSqlString(id);
-        await this.ch.query(`ALTER TABLE fitpreeti.bookings DELETE WHERE id = '${escapedId}'`);
+        const deleteQuery = `ALTER TABLE ${this.database}.bookings DELETE WHERE id = {id:String}`;
+        await this.ch.queryParams(deleteQuery, { id });
     }
     async getUserBookings(userPhone) {
         return this.findAll(userPhone);
     }
     async getAvailableSlots(serviceId, date) {
-        const escapedServiceId = this.escapeSqlString(serviceId);
-        const escapedDate = this.escapeSqlString(date);
-        const result = await this.ch.query(`SELECT booking_time FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND status != 'cancelled'`);
+        const query = `
+      SELECT booking_time 
+      FROM ${this.database}.bookings 
+      WHERE service_id = {serviceId:String} 
+        AND booking_date = {date:String} 
+        AND status != 'cancelled'
+    `;
+        const result = await this.ch.queryParams(query, {
+            serviceId: (0, sanitize_util_1.sanitizeText)(serviceId),
+            date: (0, sanitize_util_1.sanitizeText)(date),
+        });
         if (!Array.isArray(result)) {
             return [];
         }
         return result.map((slot) => slot.booking_time);
     }
     async findOneByUser(id, userPhone) {
-        const normalizedPhone = this.normalizePhone(userPhone);
-        const escapedId = this.escapeSqlString(id);
-        const escapedPhone = this.escapeSqlString(normalizedPhone);
-        const result = await this.ch.query(`
-      SELECT * FROM fitpreeti.bookings 
-      WHERE id = '${escapedId}' AND user_phone = '${escapedPhone}'
-    `);
+        const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(userPhone));
+        const query = `
+      SELECT * FROM ${this.database}.bookings 
+      WHERE id = {id:String} AND user_phone = {phone:String}
+      LIMIT 1
+    `;
+        const result = await this.ch.queryParams(query, { id, phone: normalizedPhone });
         if (!Array.isArray(result) || result.length === 0) {
             throw new common_1.NotFoundException('Booking not found');
         }
@@ -172,6 +177,7 @@ let BookingsService = class BookingsService {
 exports.BookingsService = BookingsService;
 exports.BookingsService = BookingsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService])
+    __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService,
+        config_1.ConfigService])
 ], BookingsService);
 //# sourceMappingURL=bookings.service.js.map

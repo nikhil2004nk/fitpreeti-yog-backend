@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClickhouseService } from '../database/clickhouse.service';
 import { ConfigService } from '@nestjs/config';
+import { sanitizeText } from '../common/utils/sanitize.util';
 
 @Injectable()
 export class SessionService {
@@ -22,69 +23,76 @@ export class SessionService {
     expiresAt: Date,
   ): Promise<void> {
     try {
-      await this.ch.query(`
-        INSERT INTO ${this.database}.user_sessions 
-        (user_id, token, user_agent, ip_address, expires_at)
-        VALUES 
-        ('${userId}', '${this.escapeSqlString(token)}', 
-         '${this.escapeSqlString(userAgent)}', 
-         '${this.escapeSqlString(ipAddress)}',
-         '${expiresAt.toISOString().replace('T', ' ').replace('Z', '')}')
-      `);
+      const sessionData = {
+        user_id: userId,
+        token: sanitizeText(token),
+        user_agent: sanitizeText(userAgent),
+        ip_address: sanitizeText(ipAddress),
+        expires_at: expiresAt.toISOString(),
+      };
+
+      await this.ch.insert('user_sessions', sessionData);
     } catch (error) {
-      this.logger.error('Failed to create session', error.stack);
+      this.logger.error('Failed to create session', error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }
 
   async validateSession(userId: string, token: string): Promise<boolean> {
     try {
-      const result = await this.ch.query<Array<{ count: number }>>(`
-        SELECT count() as count 
+      const query = `
+        SELECT COUNT(*) as count 
         FROM ${this.database}.user_sessions 
-        WHERE user_id = '${userId}' 
-        AND token = '${this.escapeSqlString(token)}'
-        AND expires_at > now()
-      `);
+        WHERE user_id = {userId:String} 
+          AND token = {token:String}
+          AND expires_at > now()
+      `;
+      const result = await this.ch.queryParams<Array<{ count: number }>>(query, { 
+        userId, 
+        token: sanitizeText(token) 
+      });
       
       return result?.[0]?.count > 0;
     } catch (error) {
-      this.logger.error('Failed to validate session', error.stack);
+      this.logger.error('Failed to validate session', error instanceof Error ? error.stack : String(error));
       return false;
     }
   }
 
   async invalidateSession(token: string): Promise<void> {
     try {
-      await this.ch.query(`
+      const deleteQuery = `
         ALTER TABLE ${this.database}.user_sessions 
-        DELETE WHERE token = '${this.escapeSqlString(token)}'
-      `);
+        DELETE WHERE token = {token:String}
+      `;
+      await this.ch.queryParams(deleteQuery, { token: sanitizeText(token) });
     } catch (error) {
-      this.logger.error('Failed to invalidate session', error.stack);
+      this.logger.error('Failed to invalidate session', error instanceof Error ? error.stack : String(error));
       throw error;
     }
   }
 
   async invalidateAllUserSessions(userId: string, excludeToken?: string): Promise<void> {
     try {
-      let query = `
-        ALTER TABLE ${this.database}.user_sessions 
-        DELETE WHERE user_id = '${userId}'
-      `;
-      
       if (excludeToken) {
-        query += ` AND token != '${this.escapeSqlString(excludeToken)}'`;
+        const deleteQuery = `
+          ALTER TABLE ${this.database}.user_sessions 
+          DELETE WHERE user_id = {userId:String} AND token != {excludeToken:String}
+        `;
+        await this.ch.queryParams(deleteQuery, { 
+          userId, 
+          excludeToken: sanitizeText(excludeToken) 
+        });
+      } else {
+        const deleteQuery = `
+          ALTER TABLE ${this.database}.user_sessions 
+          DELETE WHERE user_id = {userId:String}
+        `;
+        await this.ch.queryParams(deleteQuery, { userId });
       }
-      
-      await this.ch.query(query);
     } catch (error) {
-      this.logger.error('Failed to invalidate user sessions', error.stack);
+      this.logger.error('Failed to invalidate user sessions', error instanceof Error ? error.stack : String(error));
       throw error;
     }
-  }
-
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
   }
 }

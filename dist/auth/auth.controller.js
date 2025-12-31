@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const throttler_1 = require("@nestjs/throttler");
 const auth_service_1 = require("./auth.service");
 const login_dto_1 = require("./dto/login.dto");
 const register_dto_1 = require("./dto/register.dto");
@@ -51,7 +52,7 @@ let AuthController = class AuthController {
     async refresh(req, res) {
         const refreshToken = req.cookies?.['refresh_token'];
         if (!refreshToken) {
-            throw new Error('No refresh token found');
+            throw new common_1.BadRequestException('No refresh token found');
         }
         const { access_token, refresh_token } = await this.authService.refresh(refreshToken);
         res.cookie('access_token', access_token, {
@@ -71,8 +72,9 @@ let AuthController = class AuthController {
         };
     }
     async logout(req, res) {
-        const user = req.user;
-        await this.authService.logout(user.phone);
+        const refreshToken = req.cookies?.['refresh_token'];
+        const accessToken = req.cookies?.['access_token'];
+        await this.authService.logout(refreshToken || '', accessToken);
         res.clearCookie('access_token', {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -101,10 +103,12 @@ let AuthController = class AuthController {
 exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('register'),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 900000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Register new user with full profile' }),
     (0, swagger_1.ApiBody)({ type: register_dto_1.RegisterDto }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'User registered successfully' }),
     (0, swagger_1.ApiResponse)({ status: 409, description: 'Phone or email already exists' }),
+    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
     (0, common_1.HttpCode)(common_1.HttpStatus.CREATED),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -113,10 +117,12 @@ __decorate([
 ], AuthController.prototype, "register", null);
 __decorate([
     (0, common_1.Post)('login'),
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 900000 } }),
     (0, swagger_1.ApiOperation)({ summary: 'Login with phone and PIN' }),
     (0, swagger_1.ApiBody)({ type: login_dto_1.LoginDto }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Login successful' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid credentials' }),
+    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),

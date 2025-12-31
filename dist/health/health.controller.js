@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.HealthController = void 0;
 const common_1 = require("@nestjs/common");
+const swagger_1 = require("@nestjs/swagger");
 const clickhouse_service_1 = require("../database/clickhouse.service");
 let HealthController = class HealthController {
     ch;
@@ -20,7 +21,7 @@ let HealthController = class HealthController {
     async checkHealth() {
         const dbStatus = await this.ch.checkConnection();
         return {
-            status: 'healthy',
+            status: dbStatus ? 'healthy' : 'unhealthy',
             timestamp: new Date().toISOString(),
             database: dbStatus ? 'connected' : 'disconnected',
             uptime: process.uptime(),
@@ -30,11 +31,26 @@ let HealthController = class HealthController {
 exports.HealthController = HealthController;
 __decorate([
     (0, common_1.Get)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Health check endpoint' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Service health status',
+        schema: {
+            type: 'object',
+            properties: {
+                status: { type: 'string', example: 'healthy' },
+                timestamp: { type: 'string', format: 'date-time' },
+                database: { type: 'string', example: 'connected' },
+                uptime: { type: 'number', example: 1234.56 }
+            }
+        }
+    }),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], HealthController.prototype, "checkHealth", null);
 exports.HealthController = HealthController = __decorate([
+    (0, swagger_1.ApiTags)('Health'),
     (0, common_1.Controller)('health'),
     __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService])
 ], HealthController);

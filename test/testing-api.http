@@ -1,10 +1,23 @@
-@baseUrl = http://localhost:3000
+### ============================================
+### Fitpreeti Yoga API - Complete Test Collection
+### Base URL: http://localhost:3000/api/v1
+### Authentication: Uses httpOnly cookies (set automatically on login)
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
 @contentType = application/json
 
-### 1. Health Check
+### ============================================
+### 🩺 HEALTH CHECK
+### ============================================
+
+### Health Check
 GET {{baseUrl}}/health
 
-### 2. User Registration & Authentication
+### ============================================
+### 🔐 AUTHENTICATION
+### ============================================
+
 ### Register a new user
 # @name register
 POST {{baseUrl}}/auth/register
@@ -14,8 +27,8 @@ Content-Type: {{contentType}}
   "name": "Test User",
   "email": "test@example.com",
   "phone": "+911234567890",
-  "pin": "1234",
-  "role": "user"
+  "pin": "123456",
+  "role": "customer"
 }
 
 ### Login with phone and PIN
@@ -25,40 +38,77 @@ Content-Type: {{contentType}}
 
 {
   "phone": "+911234567890",
-  "pin": "1234"
+  "pin": "123456"
 }
 
-### Get access token from login response and set as variable
-@accessToken = {{login.response.body.access_token}}
-@refreshToken = {{login.response.body.refresh_token}}
+### Refresh Token (uses refresh_token cookie)
+POST {{baseUrl}}/auth/refresh
 
-### 3. User Profile Management
 ### Get current user profile
 GET {{baseUrl}}/auth/profile
-Authorization: Bearer {{accessToken}}
 
-### Update user profile
-PATCH {{baseUrl}}/auth/profile
+### Logout (clears cookies)
+POST {{baseUrl}}/auth/logout
+
+### Create Admin User (Admin only - requires admin auth)
+POST {{baseUrl}}/auth/admin/create
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
-  "name": "Updated Test User",
-  "phone_number": "+911234567891"
+  "name": "Admin User",
+  "phone": "+919876543211",
+  "email": "admin@example.com",
+  "pin": "567890"
 }
 
-### 4. Service Management
+### ============================================
+### 👥 USERS (Admin Only)
+### ============================================
+
+### Get all users (Admin only)
+GET {{baseUrl}}/users
+
+### Get user by phone (Admin only)
+GET {{baseUrl}}/users/+911234567890
+
+### Update user role (Admin only)
+PATCH {{baseUrl}}/users/+911234567890/role
+Content-Type: {{contentType}}
+
+{
+  "role": "admin"
+}
+
+### ============================================
+### 🏋️ SERVICES
+### ============================================
+
+### Get all services
+GET {{baseUrl}}/services
+
+### Get all services filtered by type
+GET {{baseUrl}}/services?type=yoga
+
+### Get popular services
+GET {{baseUrl}}/services/popular
+
+### Get services by type (path parameter)
+GET {{baseUrl}}/services/type/yoga
+
+### Get service by ID
+# Replace with actual service ID from Get All Services
+GET {{baseUrl}}/services/00000000-0000-0000-0000-000000000000
+
 ### Create a new service (Admin only)
 # @name createService
 POST {{baseUrl}}/services
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
   "service_name": "Hatha Yoga",
   "type": "yoga",
   "category": "traditional",
-  "description": "Traditional yoga practice focusing on physical postures and breathing techniques.",
+  "description": "Traditional Hatha Yoga practice focusing on physical postures and breathing techniques.",
   "price": 500,
   "duration_minutes": 60,
   "trainer_id": "00000000-0000-0000-0000-000000000000",
@@ -66,31 +116,10 @@ Authorization: Bearer {{accessToken}}
   "is_active": true
 }
 
-### Get all services (optionally filtered by type)
-GET {{baseUrl}}/services
-Content-Type: {{contentType}}
-
-### Get all services of a specific type
-GET {{baseUrl}}/services?type=yoga
-Content-Type: {{contentType}}
-
-### Get popular services
-GET {{baseUrl}}/services/popular
-Content-Type: {{contentType}}
-
-### Get services by specific type using path parameter
-GET {{baseUrl}}/services/type/yoga
-Content-Type: {{contentType}}
-
-### Get service by ID
-@serviceId = {{createService.response.body.id}}
-GET {{baseUrl}}/services/{{serviceId}}
-Content-Type: {{contentType}}
-
 ### Update a service (Admin only)
-PATCH {{baseUrl}}/services/{{serviceId}}
+# Replace service_id with actual ID
+PATCH {{baseUrl}}/services/00000000-0000-0000-0000-000000000000
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
   "service_name": "Advanced Hatha Yoga",
@@ -101,179 +130,25 @@ Authorization: Bearer {{accessToken}}
   "is_active": true
 }
 
-### Deactivate a service (Admin only)
-DELETE {{baseUrl}}/services/{{serviceId}}
-Authorization: Bearer {{accessToken}}
+### Delete (deactivate) a service (Admin only)
+# Replace service_id with actual ID
+DELETE {{baseUrl}}/services/00000000-0000-0000-0000-000000000000
 
-### Get all active yoga services
-GET {{baseUrl}}/services/type/yoga
-Content-Type: {{contentType}}
+### ============================================
+### 🧑‍🏫 TRAINERS
+### ============================================
 
-### Get all active services in the 'advanced' category
-GET {{baseUrl}}/services?category=advanced
-Content-Type: {{contentType}}
-
-### 5. Refresh Token
-POST {{baseUrl}}/auth/refresh
-Content-Type: {{contentType}}
-
-{
-  "refresh_token": "{{refreshToken}}"
-}
-
-### 5. Service Categories (Admin Only)
-### Get all service categories
-GET {{baseUrl}}/api/v1/service-categories
-
-### Create new service category (Admin)
-POST {{baseUrl}}/api/v1/service-categories
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "name": "Yoga",
-  "description": "Various yoga classes and sessions"
-}
-
-### 6. Trainers
 ### Get all trainers
-GET {{baseUrl}}/api/v1/trainers
+GET {{baseUrl}}/trainers
 
 ### Get trainer by ID
-GET {{baseUrl}}/api/v1/trainers/{{trainer_id}}
-
-
-### 8. Class Schedules
-### Get available class schedules
-GET {{baseUrl}}/api/v1/class-schedules?startDate=2025-01-01&endDate=2025-12-31
-
-### Book a class
-# @name bookClass
-POST {{baseUrl}}/api/v1/bookings
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "class_schedule_id": "{{class_schedule_id}}",
-  "notes": "Beginner level, please provide mat"
-}
-
-@bookingId = {{bookClass.response.body.id}}
-
-### 9. Bookings
-### Get user's bookings
-GET {{baseUrl}}/api/v1/bookings
-Authorization: Bearer {{accessToken}}
-
-### Get booking by ID
-GET {{baseUrl}}/api/v1/bookings/{{bookingId}}
-Authorization: Bearer {{accessToken}}
-
-### Cancel booking
-PATCH {{baseUrl}}/api/v1/bookings/{{bookingId}}/cancel
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-### 10. Payments
-### Process payment for booking
-# @name processPayment
-POST {{baseUrl}}/api/v1/payments
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "booking_id": "{{bookingId}}",
-  "amount": 500.00,
-  "payment_method": "credit_card",
-  "payment_details": {
-    "card_number": "4242424242424242",
-    "exp_month": 12,
-    "exp_year": 2025,
-    "cvc": "123"
-  }
-}
-
-### 11. Reviews
-### Add review for a class
-POST {{baseUrl}}/api/v1/reviews
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "class_schedule_id": "{{class_schedule_id}}",
-  "rating": 5,
-  "comment": "Great class! The instructor was very knowledgeable."
-}
-
-### Get reviews for a service
-GET {{baseUrl}}/api/v1/services/{{service_id}}/reviews
-
-### 12. Class Schedule Management
-### Create a new class schedule (Admin/Trainer)
-# @name createClassSchedule
-POST {{baseUrl}}/api/v1/class-schedule
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "serviceId": "00000000-0000-0000-0000-000000000000",
-  "trainerId": "00000000-0000-0000-0000-000000000000",
-  "startTime": "2025-01-01T09:00:00.000Z",
-  "endTime": "2025-01-01T10:00:00.000Z",
-  "recurring": {
-    "frequency": "weekly",
-    "interval": 1,
-    "endDate": "2025-12-31T23:59:59.000Z"
-  },
-  "maxParticipants": 10,
-  "isActive": true
-}
-
-### Get all class schedules with optional filters
-GET {{baseUrl}}/api/v1/class-schedule?startDate=2025-01-01&endDate=2025-01-31&trainerId=00000000-0000-0000-0000-000000000000&serviceId=00000000-0000-0000-0000-000000000000
-Content-Type: {{contentType}}
-
-### Get a specific class schedule by ID
-@scheduleId = {{createClassSchedule.response.body.id}}
-GET {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
-Content-Type: {{contentType}}
-
-### Update a class schedule (Admin/Trainer)
-PUT {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "startTime": "2025-01-01T10:00:00.000Z",
-  "endTime": "2025-01-01T11:00:00.000Z",
-  "maxParticipants": 15,
-  "isActive": true
-}
-
-### Check trainer availability
-GET {{baseUrl}}/api/v1/class-schedule/trainer/00000000-0000-0000-0000-000000000000/availability?date=2025-01-01T09:00:00.000Z&duration=60
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-### Delete a class schedule (Admin/Trainer)
-DELETE {{baseUrl}}/api/v1/class-schedule/{{scheduleId}}
-Authorization: Bearer {{accessToken}}
-
-### 13. Trainer Management
-### Get all trainers
-GET {{baseUrl}}/api/v1/trainers
-Content-Type: {{contentType}}
-
-### Get a specific trainer by ID
-# @name getTrainer
-GET {{baseUrl}}/api/v1/trainers/{{$random.uuid}}
-Content-Type: {{contentType}}
+# Replace trainer_id with actual ID
+GET {{baseUrl}}/trainers/00000000-0000-0000-0000-000000000000
 
 ### Create a new trainer (Admin only)
 # @name createTrainer
-POST {{baseUrl}}/api/v1/trainers
+POST {{baseUrl}}/trainers
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
   "name": "Yoga Master",
@@ -282,20 +157,24 @@ Authorization: Bearer {{accessToken}}
   "profileImage": "https://example.com/trainers/yoga-master.jpg",
   "certifications": ["RYT 500", "Yoga Alliance Certified"],
   "experienceYears": 5,
+  "isActive": true,
   "availability": {
     "monday": [{"start": "09:00", "end": "17:00"}],
     "tuesday": [{"start": "09:00", "end": "17:00"}],
     "wednesday": [{"start": "09:00", "end": "17:00"}],
     "thursday": [{"start": "09:00", "end": "17:00"}],
     "friday": [{"start": "09:00", "end": "17:00"}]
+  },
+  "socialMedia": {
+    "instagram": "@yogamaster",
+    "youtube": "yogamaster"
   }
 }
 
 ### Update a trainer (Admin only)
-@trainerId = {{createTrainer.response.body.id}}
-PATCH {{baseUrl}}/api/v1/trainers/{{trainerId}}
+# Replace trainer_id with actual ID
+PUT {{baseUrl}}/trainers/00000000-0000-0000-0000-000000000000
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
   "name": "Senior Yoga Master",
@@ -306,46 +185,127 @@ Authorization: Bearer {{accessToken}}
 }
 
 ### Delete a trainer (Admin only)
-DELETE {{baseUrl}}/api/v1/trainers/{{trainerId}}
-Authorization: Bearer {{accessToken}}
+# Replace trainer_id with actual ID
+DELETE {{baseUrl}}/trainers/00000000-0000-0000-0000-000000000000
 
-### 13. Admin Endpoints (Requires Admin Role)
-### Get all users (Admin)
-GET {{baseUrl}}/api/v1/admin/users
-Authorization: Bearer {{accessToken}}
+### ============================================
+### 📅 CLASS SCHEDULE
+### ============================================
 
-### Create new service (Admin)
-POST {{baseUrl}}/api/v1/admin/services
+### Create a new class schedule (Admin only)
+# @name createClassSchedule
+POST {{baseUrl}}/class-schedule
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
-
-{
-  "name": "Hatha Yoga",
-  "description": "Traditional Hatha Yoga session",
-  "price": 500,
-  "duration_minutes": 60,
-  "category_id": "{{category_id}}",
-  "trainer_id": "{{trainer_id}}"
-}
-
-### Create class schedule (Admin)
-POST {{baseUrl}}/api/v1/admin/class-schedules
-Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
 
 {
   "title": "Morning Yoga Flow",
   "description": "Energizing morning yoga session",
-  "start_time": "2025-01-15T08:00:00Z",
-  "end_time": "2025-01-15T09:00:00Z",
+  "start_time": "2025-01-15T08:00:00.000Z",
+  "end_time": "2025-01-15T09:00:00.000Z",
   "max_participants": 15,
-  "price": 500,
-  "trainer_id": "{{trainer_id}}",
-  "service_id": "{{service_id}}",
+  "trainer_id": "00000000-0000-0000-0000-000000000000",
+  "service_id": "00000000-0000-0000-0000-000000000000",
   "is_recurring": false
 }
 
-### 13. Logout
-POST {{baseUrl}}/auth/logout
+### Get all class schedules
+GET {{baseUrl}}/class-schedule
+
+### Get class schedules with filters
+GET {{baseUrl}}/class-schedule?start_time=2025-01-01T00:00:00.000Z&end_time=2025-01-31T23:59:59.000Z&trainer_id=00000000-0000-0000-0000-000000000000&service_id=00000000-0000-0000-0000-000000000000
+
+### Get a specific class schedule by ID
+# Replace schedule_id with actual ID
+GET {{baseUrl}}/class-schedule/00000000-0000-0000-0000-000000000000
+
+### Update a class schedule (Admin only)
+# Replace schedule_id with actual ID
+PUT {{baseUrl}}/class-schedule/00000000-0000-0000-0000-000000000000
 Content-Type: {{contentType}}
-Authorization: Bearer {{accessToken}}
+
+{
+  "start_time": "2025-01-15T10:00:00.000Z",
+  "end_time": "2025-01-15T11:00:00.000Z",
+  "max_participants": 20,
+  "status": "scheduled"
+}
+
+### Delete a class schedule (Admin only)
+# Replace schedule_id with actual ID
+DELETE {{baseUrl}}/class-schedule/00000000-0000-0000-0000-000000000000
+
+### Check trainer availability
+# Replace trainer_id with actual ID
+GET {{baseUrl}}/class-schedule/trainer/00000000-0000-0000-0000-000000000000/availability?date=2025-01-01T09:00:00.000Z&duration=60
+
+### ============================================
+### 📅 BOOKINGS
+### ============================================
+
+### Create a new booking
+# @name createBooking
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "00000000-0000-0000-0000-000000000000",
+  "booking_date": "2025-01-15",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+919876543210",
+  "special_requests": "First time booking, need beginner-friendly session"
+}
+
+### Get my bookings
+GET {{baseUrl}}/bookings
+
+### Get booking by ID
+# Replace booking_id with actual ID
+GET {{baseUrl}}/bookings/00000000-0000-0000-0000-000000000000
+
+### Get available time slots for a service
+# Replace service_id and date
+GET {{baseUrl}}/bookings/available/00000000-0000-0000-0000-000000000000/2025-01-15
+
+### Update booking (Admin only)
+# Replace booking_id with actual ID
+PATCH {{baseUrl}}/bookings/00000000-0000-0000-0000-000000000000
+Content-Type: {{contentType}}
+
+{
+  "status": "confirmed"
+}
+
+### Delete (cancel) a booking
+# Replace booking_id with actual ID
+DELETE {{baseUrl}}/bookings/00000000-0000-0000-0000-000000000000
+
+### Get all bookings (Admin only)
+GET {{baseUrl}}/bookings/admin/all
+
+### ============================================
+### 📝 NOTES
+### ============================================
+### 
+### Authentication:
+### - Login endpoint sets httpOnly cookies automatically
+### - All authenticated endpoints use cookies (no Bearer token needed)
+### - Make sure to login first before accessing protected endpoints
+### 
+### Response Format:
+### - Success: { success: true, message: string, data: any, timestamp: string }
+### - Error: { success: false, statusCode: number, error: string, message: string | string[], path: string, method: string, timestamp: string }
+### 
+### UUIDs:
+### - Replace all placeholder UUIDs (00000000-0000-0000-0000-000000000000) with actual IDs from responses
+### - Copy IDs from GET responses and use them in subsequent requests
+### 
+### Rate Limits:
+### - Register: 5 requests per 15 minutes
+### - Login: 5 requests per 15 minutes
+### 
+### PIN Requirements:
+### - PIN must be 6-8 digits
+### 
+### ============================================

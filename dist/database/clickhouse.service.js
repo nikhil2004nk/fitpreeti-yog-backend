@@ -58,7 +58,7 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
         }
         catch (error) {
             this.logger.error('❌ Failed to connect to ClickHouse:', error);
-            throw new Error('Failed to connect to ClickHouse');
+            throw new common_1.ServiceUnavailableException('Failed to connect to ClickHouse database');
         }
     }
     async onModuleDestroy() {
@@ -71,9 +71,44 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
         const lowerQuery = query.trim().toLowerCase();
         return lowerQuery.startsWith('select');
     }
+    async queryParams(query, params = {}) {
+        if (!this.client) {
+            throw new common_1.ServiceUnavailableException('Database service is not available');
+        }
+        try {
+            const formattedQuery = query.trim();
+            const upperQuery = formattedQuery.toUpperCase();
+            if (!upperQuery.startsWith('SELECT') && !upperQuery.startsWith('WITH')) {
+                await this.client.exec({
+                    query: formattedQuery,
+                    query_params: params,
+                    clickhouse_settings: { wait_end_of_query: 1 },
+                });
+                return { success: true };
+            }
+            let finalQuery = formattedQuery.replace(/;*$/, '').trim();
+            finalQuery = finalQuery.replace(/\s+FORMAT\s+\w+/i, '').trim();
+            this.logger.debug(`Executing parameterized query: ${finalQuery.substring(0, 100)}${finalQuery.length > 100 ? '...' : ''}`);
+            const result = await this.client.query({
+                query: finalQuery,
+                query_params: params,
+                format: 'JSONEachRow',
+                clickhouse_settings: {
+                    wait_end_of_query: 1,
+                    output_format_json_quote_64bit_integers: 0,
+                },
+            });
+            const data = await result.json();
+            return (Array.isArray(data) ? data : []);
+        }
+        catch (error) {
+            this.logger.error(`Parameterized query failed: ${query.substring(0, 100)}`, error.message);
+            throw error;
+        }
+    }
     async query(query) {
         if (!this.client) {
-            throw new Error('ClickHouse client is not initialized');
+            throw new common_1.ServiceUnavailableException('Database service is not available');
         }
         try {
             const formattedQuery = query.trim();
@@ -132,7 +167,7 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
     }
     async insert(table, data) {
         if (!this.client) {
-            throw new Error('ClickHouse client is not initialized');
+            throw new common_1.ServiceUnavailableException('Database service is not available');
         }
         try {
             const result = await this.client.insert({
@@ -160,7 +195,7 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
     async updateWithConsistency(options) {
         const { table, setClause, whereClause, checkField, expectedValue, maxRetries = 5, retryDelayMs = 100 } = options;
         if (!this.client) {
-            throw new Error('ClickHouse client is not initialized');
+            throw new common_1.ServiceUnavailableException('Database service is not available');
         }
         const updateQuery = `ALTER TABLE ${table} UPDATE ${setClause} WHERE ${whereClause}`;
         await this.client.exec({
@@ -185,7 +220,7 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
                     if (expectedValue !== undefined) {
                         const actualValue = String(updatedRecord[checkField]);
                         if (actualValue !== String(expectedValue)) {
-                            throw new Error(`Field ${checkField} was not updated to ${expectedValue}, got ${actualValue}`);
+                            throw new common_1.InternalServerErrorException(`Field ${checkField} was not updated to ${expectedValue}, got ${actualValue}`);
                         }
                     }
                     return { success: true, updated: updatedRecord };
@@ -199,7 +234,7 @@ let ClickhouseService = ClickhouseService_1 = class ClickhouseService {
                 await new Promise(resolve => setTimeout(resolve, retryDelayMs));
             }
         }
-        throw new Error(`Failed to verify update after ${maxRetries} attempts`);
+        throw new common_1.InternalServerErrorException(`Failed to verify update after ${maxRetries} attempts`);
     }
 };
 exports.ClickhouseService = ClickhouseService;

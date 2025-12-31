@@ -1,16 +1,24 @@
 // src/trainers/trainers.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ClickhouseService } from '../database/clickhouse.service';
+import { ConfigService } from '@nestjs/config';
 import { CreateTrainerDto } from './dto/create-trainer.dto';
 import { UpdateTrainerDto } from './dto/update-trainer.dto';
 import { TrainerResponseDto } from './dto/trainer-response.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizeText } from '../common/utils/sanitize.util';
 
 @Injectable()
 export class TrainersService {
-  private readonly table = 'trainers';
+  private readonly database: string;
+  private readonly logger = new Logger(TrainersService.name);
 
-  constructor(private readonly clickhouse: ClickhouseService) {}
+  constructor(
+    private readonly clickhouse: ClickhouseService,
+    private readonly configService: ConfigService,
+  ) {
+    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
+  }
 
   private toTrainerResponse(trainer: any): TrainerResponseDto {
     // Parse social media with default values
@@ -53,41 +61,42 @@ export class TrainersService {
     const now = new Date().toISOString();
 
     try {
-      // Prepare values with proper escaping
-      const values = {
-        id: `'${id}'`,
-        name: `'${createTrainerDto.name.replace(/'/g, "''")}'`,
-        bio: createTrainerDto.bio ? `'${createTrainerDto.bio.replace(/'/g, "''")}'` : 'NULL',
-        specializations: `'${JSON.stringify(createTrainerDto.specializations || [])}'`,
-        profile_image: createTrainerDto.profileImage ? `'${createTrainerDto.profileImage.replace(/'/g, "''")}'` : 'NULL',
-        certifications: `'${JSON.stringify(createTrainerDto.certifications || [])}'`,
+      // Prepare trainer data with sanitization
+      const trainerData = {
+        id,
+        name: sanitizeText(createTrainerDto.name),
+        bio: createTrainerDto.bio ? sanitizeText(createTrainerDto.bio) : null,
+        specializations: JSON.stringify(createTrainerDto.specializations || []),
+        profile_image: createTrainerDto.profileImage ? sanitizeText(createTrainerDto.profileImage) : null,
+        certifications: JSON.stringify(createTrainerDto.certifications || []),
         experience_years: createTrainerDto.experienceYears || 0,
         rating: 0,
         total_reviews: 0,
-        availability: `'${JSON.stringify(createTrainerDto.availability || {}).replace(/'/g, "''")}'`,
-        social_media: `'${JSON.stringify(createTrainerDto.socialMedia || {}).replace(/'/g, "''")}'`,
+        availability: JSON.stringify(createTrainerDto.availability || {}),
+        social_media: JSON.stringify(createTrainerDto.socialMedia || {}),
         is_active: createTrainerDto.isActive !== undefined ? createTrainerDto.isActive : true,
-        created_at: `'${now}'`,
-        updated_at: `'${now}'`
+        created_at: now,
+        updated_at: now
       };
 
-      // Build the INSERT query
-      const columns = Object.keys(values).join(', ');
-      const valueList = Object.values(values).join(', ');
-
-      const query = `INSERT INTO ${this.table} (${columns}) VALUES (${valueList})`;
-      await this.clickhouse.query(query);
+      // Use the insert method from ClickhouseService
+      await this.clickhouse.insert('trainers', trainerData);
 
       return this.findOne(id);
     } catch (error) {
-      console.error('Error creating trainer:', error);
+      this.logger.error('Error creating trainer:', error);
       throw new BadRequestException('Failed to create trainer');
     }
   }
 
   async findAll(): Promise<TrainerResponseDto[]> {
-    const query = `SELECT * FROM ${this.table} ORDER BY created_at DESC`;
-    const result = await this.clickhouse.query(query);
+    const query = `SELECT * FROM ${this.database}.trainers ORDER BY created_at DESC`;
+    const result = await this.clickhouse.queryParams<any[]>(query, {});
+    
+    if (!Array.isArray(result)) {
+      return [];
+    }
+    
     return result.map((trainer: any) => {
       // Parse JSON strings back to objects/arrays
       return {
@@ -95,16 +104,16 @@ export class TrainersService {
         specializations: JSON.parse(trainer.specializations || '[]'),
         certifications: JSON.parse(trainer.certifications || '[]'),
         availability: JSON.parse(trainer.availability || '{}'),
-        socialMedia: JSON.parse(trainer.social_media || '{}')
+        social_media: trainer.social_media || '{}'
       };
     }).map(this.toTrainerResponse);
   }
 
   async findOne(id: string): Promise<TrainerResponseDto> {
-    const query = `SELECT * FROM ${this.table} WHERE id = '${id}' LIMIT 1`;
-    const result = await this.clickhouse.query(query);
+    const query = `SELECT * FROM ${this.database}.trainers WHERE id = {id:String} LIMIT 1`;
+    const result = await this.clickhouse.queryParams<any[]>(query, { id });
     
-    if (!result || result.length === 0) {
+    if (!Array.isArray(result) || result.length === 0) {
       throw new NotFoundException(`Trainer with ID ${id} not found`);
     }
 
@@ -115,30 +124,32 @@ export class TrainersService {
   async update(id: string, updateTrainerDto: UpdateTrainerDto): Promise<TrainerResponseDto> {
     await this.findOne(id); // Check if exists
     
+    // Build update fields with sanitization
     const updates: string[] = [];
     
-    // Build update fields
-    if (updateTrainerDto.name) updates.push(`name = '${updateTrainerDto.name.replace(/'/g, "''")}'`);
+    if (updateTrainerDto.name) {
+      updates.push(`name = '${sanitizeText(updateTrainerDto.name).replace(/'/g, "''")}'`);
+    }
     if (updateTrainerDto.bio !== undefined) {
-      updates.push(`bio = ${updateTrainerDto.bio ? `'${updateTrainerDto.bio.replace(/'/g, "''")}'` : 'NULL'}`);
+      updates.push(`bio = ${updateTrainerDto.bio ? `'${sanitizeText(updateTrainerDto.bio).replace(/'/g, "''")}'` : 'NULL'}`);
     }
     if (updateTrainerDto.specializations) {
-      updates.push(`specializations = '${JSON.stringify(updateTrainerDto.specializations)}'`);
+      updates.push(`specializations = '${JSON.stringify(updateTrainerDto.specializations).replace(/'/g, "''")}'`);
     }
     if (updateTrainerDto.profileImage !== undefined) {
-      updates.push(`profile_image = ${updateTrainerDto.profileImage ? `'${updateTrainerDto.profileImage.replace(/'/g, "''")}'` : 'NULL'}`);
+      updates.push(`profile_image = ${updateTrainerDto.profileImage ? `'${sanitizeText(updateTrainerDto.profileImage).replace(/'/g, "''")}'` : 'NULL'}`);
     }
     if (updateTrainerDto.certifications) {
-      updates.push(`certifications = '${JSON.stringify(updateTrainerDto.certifications)}'`);
+      updates.push(`certifications = '${JSON.stringify(updateTrainerDto.certifications).replace(/'/g, "''")}'`);
     }
     if (updateTrainerDto.experienceYears !== undefined) {
       updates.push(`experience_years = ${updateTrainerDto.experienceYears}`);
     }
     if (updateTrainerDto.availability) {
-      updates.push(`availability = '${JSON.stringify(updateTrainerDto.availability)}'`);
+      updates.push(`availability = '${JSON.stringify(updateTrainerDto.availability).replace(/'/g, "''")}'`);
     }
     if (updateTrainerDto.socialMedia) {
-      updates.push(`social_media = '${JSON.stringify(updateTrainerDto.socialMedia)}'`);
+      updates.push(`social_media = '${JSON.stringify(updateTrainerDto.socialMedia).replace(/'/g, "''")}'`);
     }
     if (updateTrainerDto.isActive !== undefined) {
       updates.push(`is_active = ${updateTrainerDto.isActive ? 'true' : 'false'}`);
@@ -148,47 +159,29 @@ export class TrainersService {
       return this.findOne(id);
     }
 
-    // Update the record
-    await this.clickhouse.query(`ALTER TABLE ${this.table} UPDATE ${updates.join(', ')} WHERE id = '${id.replace(/'/g, "''")}'`);
+    // Add updated_at
+    updates.push(`updated_at = '${new Date().toISOString()}'`);
+
+    // Update the record using parameterized WHERE clause
+    const updateQuery = `
+      ALTER TABLE ${this.database}.trainers 
+      UPDATE ${updates.join(', ')} 
+      WHERE id = {id:String}
+    `;
+    await this.clickhouse.queryParams(updateQuery, { id });
     
-    // Add a small delay to ensure the update is processed
+    // Wait for update to process
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Retry mechanism to get the updated record
-    const maxRetries = 5;
-    let retries = 0;
-    let result;
-    
-    while (retries < maxRetries) {
-      result = await this.clickhouse.query(`SELECT * FROM ${this.table} FINAL WHERE id = '${id}'`);
-      
-      if (result && result.length > 0) {
-        const updatedTrainer = result[0];
-        // Verify if the record was actually updated by checking one of the updated fields
-        if (updateTrainerDto.name && updatedTrainer.name !== updateTrainerDto.name) {
-          retries++;
-          await new Promise(resolve => setTimeout(resolve, 100));
-          continue;
-        }
-        return this.toTrainerResponse(updatedTrainer);
-      }
-      
-      retries++;
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // If we got here, we couldn't verify the update after retries
-    // Return the record anyway, even if we can't verify the update
-    result = await this.clickhouse.query(`SELECT * FROM ${this.table} FINAL WHERE id = '${id}'`);
-    if (!result || result.length === 0) {
-      throw new NotFoundException(`Trainer with ID ${id} not found after update`);
-    }
-    
-    return this.toTrainerResponse(result[0]);
+    // Return updated trainer
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id); // Check if exists
-    await this.clickhouse.query(`ALTER TABLE ${this.table} DELETE WHERE id = '${id}'`);
+    
+    // Delete using parameterized query
+    const deleteQuery = `ALTER TABLE ${this.database}.trainers DELETE WHERE id = {id:String}`;
+    await this.clickhouse.queryParams(deleteQuery, { id });
   }
 }

@@ -4,54 +4,56 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import type { Booking } from './interfaces/booking.interface';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizePhone } from '../common/utils/phone.util';
+import { sanitizeText } from '../common/utils/sanitize.util';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class BookingsService {
-  constructor(private ch: ClickhouseService) {}
+  private readonly database: string;
 
-  /**
-   * Normalize phone number by removing spaces, dashes, and other non-digit characters
-   * Keeps only digits and leading + for country codes
-   */
-  private normalizePhone(phone: string): string {
-    if (!phone) return '';
-    // Remove all non-digit characters except leading +
-    const cleaned = phone.trim();
-    if (cleaned.startsWith('+')) {
-      return '+' + cleaned.slice(1).replace(/\D/g, '');
-    }
-    return cleaned.replace(/\D/g, '');
+  constructor(
+    private ch: ClickhouseService,
+    private configService: ConfigService,
+  ) {
+    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
   }
 
   async create(createBookingDto: CreateBookingDto, userPhone: string): Promise<Booking> {
-    const normalizedPhone = this.normalizePhone(userPhone);
+    const normalizedPhone = normalizePhone(sanitizeText(userPhone));
     
-    // Get user_id from phone
-    const escapedPhone = this.escapeSqlString(normalizedPhone);
-    // Don't add FORMAT - ClickHouse service handles it automatically
-    const userQuery = `SELECT id FROM fitpreeti.users WHERE phone = '${escapedPhone}' LIMIT 1`;
-    const userResult = await this.ch.query<Array<{ id: string }>>(userQuery);
+    // Get user_id from phone using parameterized query
+    const userQuery = `SELECT id FROM ${this.database}.users WHERE phone = {phone:String} LIMIT 1`;
+    const userResult = await this.ch.queryParams<Array<{ id: string }>>(userQuery, { phone: normalizedPhone });
     
     if (!Array.isArray(userResult) || userResult.length === 0) {
       throw new NotFoundException('User not found');
     }
     const userId = userResult[0].id;
     
-    // Check service exists - service_id is UUID, must be quoted
-    const escapedServiceId = this.escapeSqlString(String(createBookingDto.service_id));
-    const service = await this.ch.query<Array<{ id: string }>>(
-      `SELECT id FROM fitpreeti.services WHERE id = '${escapedServiceId}'`
-    );
+    // Check service exists using parameterized query
+    const serviceQuery = `SELECT id FROM ${this.database}.services WHERE id = {serviceId:String} LIMIT 1`;
+    const service = await this.ch.queryParams<Array<{ id: string }>>(serviceQuery, { 
+      serviceId: String(createBookingDto.service_id) 
+    });
     if (!Array.isArray(service) || service.length === 0) {
       throw new NotFoundException('Service not found');
     }
 
-    // Check time slot availability - reuse escapedServiceId from above
-    const escapedDate = this.escapeSqlString(createBookingDto.booking_date);
-    const escapedTime = this.escapeSqlString(createBookingDto.booking_time);
-    const conflict = await this.ch.query<Array<{ count: number }>>(
-      `SELECT COUNT(*) as count FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND booking_time = '${escapedTime}' AND status != 'cancelled'`
-    );
+    // Check time slot availability using parameterized query
+    const conflictQuery = `
+      SELECT COUNT(*) as count 
+      FROM ${this.database}.bookings 
+      WHERE service_id = {serviceId:String} 
+        AND booking_date = {date:String} 
+        AND booking_time = {time:String} 
+        AND status != 'cancelled'
+    `;
+    const conflict = await this.ch.queryParams<Array<{ count: number }>>(conflictQuery, {
+      serviceId: String(createBookingDto.service_id),
+      date: sanitizeText(createBookingDto.booking_date),
+      time: sanitizeText(createBookingDto.booking_time),
+    });
     if (Array.isArray(conflict) && conflict.length > 0 && (conflict[0]?.count || 0) > 0) {
       throw new BadRequestException('Time slot already booked');
     }
@@ -60,7 +62,9 @@ export class BookingsService {
     const bookingData = {
       id: bookingId,
       user_id: userId,
-      ...createBookingDto,
+      service_id: createBookingDto.service_id,
+      booking_date: sanitizeText(createBookingDto.booking_date),
+      booking_time: sanitizeText(createBookingDto.booking_time),
       user_phone: normalizedPhone,
       status: 'pending' as const,
     };
@@ -70,31 +74,49 @@ export class BookingsService {
     return this.findOneByUser(bookingId, normalizedPhone);
   }
 
-  private escapeSqlString(value: string): string {
-    return value.replace(/'/g, "''");
-  }
-
   async findAll(userPhone?: string): Promise<Booking[]> {
-    const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
-    const whereClause = normalizedPhone ? `WHERE user_phone = '${normalizedPhone.replace(/'/g, "''")}'` : '';
-    const result = await this.ch.query<Booking[]>(`
-      SELECT * FROM fitpreeti.bookings 
-      ${whereClause} 
+    const normalizedPhone = userPhone ? normalizePhone(sanitizeText(userPhone)) : undefined;
+    
+    if (normalizedPhone) {
+      const query = `
+        SELECT * FROM ${this.database}.bookings 
+        WHERE user_phone = {phone:String}
+        ORDER BY booking_date DESC, booking_time ASC
+      `;
+      const result = await this.ch.queryParams<Booking[]>(query, { phone: normalizedPhone });
+      return Array.isArray(result) ? result : [];
+    }
+    
+    const query = `
+      SELECT * FROM ${this.database}.bookings 
       ORDER BY booking_date DESC, booking_time ASC
-    `);
+    `;
+    const result = await this.ch.queryParams<Booking[]>(query, {});
     return Array.isArray(result) ? result : [];
   }
 
   async findOne(id: string, userPhone?: string): Promise<Booking> {
-    const normalizedPhone = userPhone ? this.normalizePhone(userPhone) : undefined;
-    const escapedId = this.escapeSqlString(id);
-    const whereClause = normalizedPhone ? `AND user_phone = '${this.escapeSqlString(normalizedPhone)}'` : '';
-    // Don't add FORMAT - ClickHouse service handles it automatically
-    const result = await this.ch.query<Booking[]>(`
-      SELECT * FROM fitpreeti.bookings 
-      WHERE id = '${escapedId}' ${whereClause}
-    `);
+    const normalizedPhone = userPhone ? normalizePhone(sanitizeText(userPhone)) : undefined;
     
+    if (normalizedPhone) {
+      const query = `
+        SELECT * FROM ${this.database}.bookings 
+        WHERE id = {id:String} AND user_phone = {phone:String}
+        LIMIT 1
+      `;
+      const result = await this.ch.queryParams<Booking[]>(query, { id, phone: normalizedPhone });
+      if (!Array.isArray(result) || result.length === 0) {
+        throw new NotFoundException('Booking not found');
+      }
+      return result[0];
+    }
+    
+    const query = `
+      SELECT * FROM ${this.database}.bookings 
+      WHERE id = {id:String}
+      LIMIT 1
+    `;
+    const result = await this.ch.queryParams<Booking[]>(query, { id });
     if (!Array.isArray(result) || result.length === 0) {
       throw new NotFoundException('Booking not found');
     }
@@ -104,82 +126,42 @@ export class BookingsService {
   async update(id: string, updateBookingDto: UpdateBookingDto, userPhone?: string): Promise<Booking> {
     const existing = await this.findOne(id, userPhone);
     
-    const updates: string[] = [];
-    
+    // Sanitize update data
+    const sanitizedUpdates: Record<string, any> = {};
     Object.entries(updateBookingDto).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        updates.push(`${key} = '${this.escapeSqlString(String(value))}'`);
+        sanitizedUpdates[key] = typeof value === 'string' ? sanitizeText(value) : value;
       }
     });
 
-    if (updates.length === 0) {
+    if (Object.keys(sanitizedUpdates).length === 0) {
       return existing;
     }
 
-    const escapedId = this.escapeSqlString(id);
-    // ClickHouse UPDATE syntax (lightweight)
-    await this.ch.query(`
-      ALTER TABLE fitpreeti.bookings 
-      UPDATE ${updates.join(', ')} 
-      WHERE id = '${escapedId}'
-    `);
+    // Build update query - Note: ClickHouse parameterized queries have limitations for ALTER TABLE UPDATE
+    // So we use the legacy query method but with sanitized values
+    const updates = Object.entries(sanitizedUpdates)
+      .map(([key, value]) => `${key} = '${String(value).replace(/'/g, "''")}'`)
+      .join(', ');
     
-    // Add a small delay to ensure the update is processed
+    const updateQuery = `
+      ALTER TABLE ${this.database}.bookings 
+      UPDATE ${updates} 
+      WHERE id = {id:String}
+    `;
+    await this.ch.queryParams(updateQuery, { id });
+    
+    // Wait for update to process
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Retry mechanism to get the updated record
-    const maxRetries = 5;
-    let retries = 0;
-    let result;
-    
-    while (retries < maxRetries) {
-      const whereClause = userPhone 
-        ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'` 
-        : `id = '${escapedId}'`;
-      
-      result = await this.ch.query<Booking[]>(`
-        SELECT * FROM fitpreeti.bookings FINAL 
-        WHERE ${whereClause}
-      `);
-      
-      if (result && result.length > 0) {
-        const updatedBooking = result[0];
-        // Verify if the record was actually updated by checking one of the updated fields
-        const updatedField = Object.keys(updateBookingDto)[0];
-        if (updatedField && updatedBooking[updatedField] !== updateBookingDto[updatedField]) {
-          retries++;
-          await new Promise(resolve => setTimeout(resolve, 100));
-          continue;
-        }
-        return updatedBooking;
-      }
-      
-      retries++;
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    // If we got here, we couldn't verify the update after retries
-    // Return the record anyway, even if we can't verify the update
-    const whereClause = userPhone 
-      ? `id = '${escapedId}' AND user_phone = '${this.escapeSqlString(this.normalizePhone(userPhone))}'` 
-      : `id = '${escapedId}'`;
-    
-    result = await this.ch.query<Booking[]>(`
-      SELECT * FROM fitpreeti.bookings FINAL 
-      WHERE ${whereClause}
-    `);
-    
-    if (!result || result.length === 0) {
-      throw new NotFoundException(`Booking with ID ${id} not found after update`);
-    }
-    
-    return result[0];
+    // Return updated booking
+    return this.findOne(id, userPhone);
   }
 
   async remove(id: string, userPhone?: string): Promise<void> {
     await this.findOne(id, userPhone); // Check if exists and user has access
-    const escapedId = this.escapeSqlString(id);
-    await this.ch.query(`ALTER TABLE fitpreeti.bookings DELETE WHERE id = '${escapedId}'`);
+    const deleteQuery = `ALTER TABLE ${this.database}.bookings DELETE WHERE id = {id:String}`;
+    await this.ch.queryParams(deleteQuery, { id });
   }
 
   async getUserBookings(userPhone: string): Promise<Booking[]> {
@@ -187,12 +169,17 @@ export class BookingsService {
   }
 
   async getAvailableSlots(serviceId: string, date: string): Promise<string[]> {
-    // service_id is UUID, must be quoted
-    const escapedServiceId = this.escapeSqlString(serviceId);
-    const escapedDate = this.escapeSqlString(date);
-    const result = await this.ch.query<Array<{ booking_time: string }>>(
-      `SELECT booking_time FROM fitpreeti.bookings WHERE service_id = '${escapedServiceId}' AND booking_date = '${escapedDate}' AND status != 'cancelled'`
-    );
+    const query = `
+      SELECT booking_time 
+      FROM ${this.database}.bookings 
+      WHERE service_id = {serviceId:String} 
+        AND booking_date = {date:String} 
+        AND status != 'cancelled'
+    `;
+    const result = await this.ch.queryParams<Array<{ booking_time: string }>>(query, {
+      serviceId: sanitizeText(serviceId),
+      date: sanitizeText(date),
+    });
     if (!Array.isArray(result)) {
       return [];
     }
@@ -200,14 +187,13 @@ export class BookingsService {
   }
 
   private async findOneByUser(id: string, userPhone: string): Promise<Booking> {
-    const normalizedPhone = this.normalizePhone(userPhone);
-    const escapedId = this.escapeSqlString(id);
-    const escapedPhone = this.escapeSqlString(normalizedPhone);
-    // Don't add FORMAT - ClickHouse service handles it automatically
-    const result = await this.ch.query<Booking[]>(`
-      SELECT * FROM fitpreeti.bookings 
-      WHERE id = '${escapedId}' AND user_phone = '${escapedPhone}'
-    `);
+    const normalizedPhone = normalizePhone(sanitizeText(userPhone));
+    const query = `
+      SELECT * FROM ${this.database}.bookings 
+      WHERE id = {id:String} AND user_phone = {phone:String}
+      LIMIT 1
+    `;
+    const result = await this.ch.queryParams<Booking[]>(query, { id, phone: normalizedPhone });
     
     if (!Array.isArray(result) || result.length === 0) {
       throw new NotFoundException('Booking not found');

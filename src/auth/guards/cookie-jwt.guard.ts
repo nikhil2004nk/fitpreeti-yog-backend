@@ -37,6 +37,7 @@ export class CookieJwtGuard implements CanActivate {
       }
 
       try {
+        // Validate refresh token from database
         const phone = await this.authService.validateRefreshToken(refreshToken);
         if (!phone) {
           throw new UnauthorizedException('Invalid refresh token');

@@ -13,31 +13,49 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ServicesService = void 0;
 const common_1 = require("@nestjs/common");
 const clickhouse_service_1 = require("../database/clickhouse.service");
+const config_1 = require("@nestjs/config");
+const sanitize_util_1 = require("../common/utils/sanitize.util");
 let ServicesService = ServicesService_1 = class ServicesService {
     ch;
-    tableName = 'fitpreeti.services';
+    configService;
+    database;
     logger = new common_1.Logger(ServicesService_1.name);
-    constructor(ch) {
+    constructor(ch, configService) {
         this.ch = ch;
+        this.configService = configService;
+        this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     }
     async create(createServiceDto) {
         try {
-            const existing = await this.ch.query(`SELECT id FROM ${this.tableName} WHERE service_name = '${createServiceDto.service_name.replace(/'/g, "''")}'`);
+            const sanitizedName = (0, sanitize_util_1.sanitizeText)(createServiceDto.service_name);
+            const checkQuery = `SELECT id FROM ${this.database}.services WHERE service_name = {name:String} LIMIT 1`;
+            const existing = await this.ch.queryParams(checkQuery, { name: sanitizedName });
             if (Array.isArray(existing) && existing.length > 0) {
                 throw new common_1.ConflictException('Service with this name already exists');
             }
+            const serviceId = require('uuid').v4();
+            const now = new Date().toISOString();
             const serviceData = {
-                ...createServiceDto,
+                id: serviceId,
+                service_name: sanitizedName,
+                description: (0, sanitize_util_1.sanitizeText)(createServiceDto.description || ''),
+                price: createServiceDto.price,
+                type: (0, sanitize_util_1.sanitizeText)(createServiceDto.type || ''),
+                duration_minutes: createServiceDto.duration_minutes,
+                trainer_id: createServiceDto.trainer_id,
+                category: (0, sanitize_util_1.sanitizeText)(createServiceDto.category || ''),
+                image_url: createServiceDto.image_url ? (0, sanitize_util_1.sanitizeText)(createServiceDto.image_url) : null,
                 is_active: createServiceDto.is_active ?? true,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                created_at: now,
+                updated_at: now
             };
             await this.ch.insert('services', serviceData);
-            const [newService] = await this.ch.query(`SELECT * FROM ${this.tableName} WHERE service_name = '${createServiceDto.service_name.replace(/'/g, "''")}' LIMIT 1`);
-            if (!newService) {
+            const selectQuery = `SELECT * FROM ${this.database}.services WHERE id = {id:String} LIMIT 1`;
+            const result = await this.ch.queryParams(selectQuery, { id: serviceId });
+            if (!Array.isArray(result) || result.length === 0) {
                 throw new common_1.InternalServerErrorException('Failed to retrieve the created service');
             }
-            return newService;
+            return result[0];
         }
         catch (error) {
             this.logger.error('Create service error:', error);
@@ -48,18 +66,27 @@ let ServicesService = ServicesService_1 = class ServicesService {
         }
     }
     async findAll(type) {
-        const whereClause = type ? `WHERE type = '${type.replace(/'/g, "''")}' AND is_active = true` : 'WHERE is_active = true';
-        const result = await this.ch.query(`
-      SELECT * FROM ${this.tableName} 
-      ${whereClause}
+        if (type) {
+            const sanitizedType = (0, sanitize_util_1.sanitizeText)(type);
+            const query = `
+        SELECT * FROM ${this.database}.services 
+        WHERE type = {type:String} AND is_active = true
+        ORDER BY created_at DESC
+      `;
+            const result = await this.ch.queryParams(query, { type: sanitizedType });
+            return Array.isArray(result) ? result : [];
+        }
+        const query = `
+      SELECT * FROM ${this.database}.services 
+      WHERE is_active = true
       ORDER BY created_at DESC
-    `);
+    `;
+        const result = await this.ch.queryParams(query, {});
         return Array.isArray(result) ? result : [];
     }
     async findOne(id) {
-        const result = await this.ch.query(`
-      SELECT * FROM ${this.tableName} WHERE id = '${id.replace(/'/g, "''")}'
-    `);
+        const query = `SELECT * FROM ${this.database}.services WHERE id = {id:String} LIMIT 1`;
+        const result = await this.ch.queryParams(query, { id });
         if (!Array.isArray(result) || result.length === 0) {
             throw new common_1.NotFoundException(`Service with ID ${id} not found`);
         }
@@ -69,19 +96,47 @@ let ServicesService = ServicesService_1 = class ServicesService {
         try {
             await this.findOne(id);
             if (updateServiceDto.service_name) {
-                const existing = await this.ch.query(`SELECT id FROM ${this.tableName} WHERE service_name = '${updateServiceDto.service_name.replace(/'/g, "''")}' AND id != '${id.replace(/'/g, "''")}'`);
+                const sanitizedName = (0, sanitize_util_1.sanitizeText)(updateServiceDto.service_name);
+                const checkQuery = `
+          SELECT id FROM ${this.database}.services 
+          WHERE service_name = {name:String} AND id != {id:String}
+          LIMIT 1
+        `;
+                const existing = await this.ch.queryParams(checkQuery, {
+                    name: sanitizedName,
+                    id
+                });
                 if (Array.isArray(existing) && existing.length > 0) {
                     throw new common_1.ConflictException('Service name already exists');
                 }
             }
+            const updates = [];
+            const updateData = {};
+            Object.entries(updateServiceDto).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    if (typeof value === 'string') {
+                        updates.push(`${key} = {${key}:String}`);
+                        updateData[key] = (0, sanitize_util_1.sanitizeText)(value);
+                    }
+                    else if (value === null) {
+                        updates.push(`${key} = NULL`);
+                    }
+                    else {
+                        updates.push(`${key} = {${key}:Any}`);
+                        updateData[key] = value;
+                    }
+                }
+            });
+            if (updates.length === 0) {
+                return this.findOne(id);
+            }
+            updates.push(`updated_at = {updated_at:String}`);
+            updateData.updated_at = new Date().toISOString();
             const setClause = Object.entries(updateServiceDto)
                 .filter(([_, value]) => value !== undefined)
                 .map(([key, value]) => {
                 if (typeof value === 'string') {
-                    return `${key} = '${value.replace(/'/g, "''")}'`;
-                }
-                else if (value instanceof Date) {
-                    return `${key} = '${value.toISOString()}'`;
+                    return `${key} = '${(0, sanitize_util_1.sanitizeText)(value).replace(/'/g, "''")}'`;
                 }
                 else if (value === null) {
                     return `${key} = NULL`;
@@ -90,33 +145,15 @@ let ServicesService = ServicesService_1 = class ServicesService {
                     return `${key} = ${value}`;
                 }
             })
-                .join(', ');
-            await this.ch.query(`ALTER TABLE ${this.tableName} 
-         UPDATE ${setClause}
-         WHERE id = '${id.replace(/'/g, "''")}'`);
+                .join(', ') + `, updated_at = '${new Date().toISOString()}'`;
+            const updateQuery = `
+        ALTER TABLE ${this.database}.services 
+        UPDATE ${setClause}
+        WHERE id = {id:String}
+      `;
+            await this.ch.queryParams(updateQuery, { id });
             await new Promise(resolve => setTimeout(resolve, 100));
-            const maxRetries = 5;
-            let retries = 0;
-            let result;
-            while (retries < maxRetries) {
-                result = await this.ch.query(`SELECT * FROM ${this.tableName} FINAL WHERE id = '${id.replace(/'/g, "''")}'`);
-                if (result && result.length > 0) {
-                    const updatedService = result[0];
-                    if (updateServiceDto.service_name && updatedService.service_name !== updateServiceDto.service_name) {
-                        retries++;
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                        continue;
-                    }
-                    return updatedService;
-                }
-                retries++;
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            result = await this.ch.query(`SELECT * FROM ${this.tableName} FINAL WHERE id = '${id.replace(/'/g, "''")}'`);
-            if (!result || result.length === 0) {
-                throw new common_1.NotFoundException(`Service with ID ${id} not found after update`);
-            }
-            return result[0];
+            return this.findOne(id);
         }
         catch (error) {
             if (error instanceof common_1.ConflictException || error instanceof common_1.NotFoundException) {
@@ -128,28 +165,40 @@ let ServicesService = ServicesService_1 = class ServicesService {
     }
     async remove(id) {
         try {
-            await this.ch.query(`ALTER TABLE ${this.tableName} 
-         UPDATE is_active = false, updated_at = '${new Date().toISOString()}'
-         WHERE id = '${id.replace(/'/g, "''")}'`);
+            await this.findOne(id);
+            const updateQuery = `
+        ALTER TABLE ${this.database}.services 
+        UPDATE is_active = false, updated_at = {updated_at:String}
+        WHERE id = {id:String}
+      `;
+            await this.ch.queryParams(updateQuery, {
+                id,
+                updated_at: new Date().toISOString()
+            });
         }
         catch (error) {
+            if (error instanceof common_1.NotFoundException) {
+                throw error;
+            }
             this.logger.error('Deactivate service error:', error);
             throw new common_1.InternalServerErrorException('Failed to deactivate service');
         }
     }
     async getPopularServices(limit = 5) {
         try {
-            const result = await this.ch.query(`
+            const safeLimit = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 5));
+            const query = `
         SELECT s.*, COUNT(b.id) as booking_count 
-        FROM ${this.tableName} s
-        LEFT JOIN fitpreeti.bookings b ON s.id = b.service_id
+        FROM ${this.database}.services s
+        LEFT JOIN ${this.database}.bookings b ON s.id = b.service_id
         WHERE s.is_active = true
         GROUP BY s.id, s.service_name, s.description, s.price, s.type, 
                  s.duration_minutes, s.trainer_id, s.category, s.image_url, 
                  s.is_active, s.created_at, s.updated_at
         ORDER BY booking_count DESC
-        LIMIT ${limit}
-      `);
+        LIMIT ${safeLimit}
+      `;
+            const result = await this.ch.query(query);
             return Array.isArray(result) ? result : [];
         }
         catch (error) {
@@ -164,6 +213,7 @@ let ServicesService = ServicesService_1 = class ServicesService {
 exports.ServicesService = ServicesService;
 exports.ServicesService = ServicesService = ServicesService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService])
+    __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService,
+        config_1.ConfigService])
 ], ServicesService);
 //# sourceMappingURL=services.service.js.map

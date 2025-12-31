@@ -4,8 +4,10 @@ import {
   NotFoundException, 
   ConflictException, 
   BadRequestException,
-  InternalServerErrorException
+  InternalServerErrorException,
+  Logger
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ClickhouseService } from '../database/clickhouse.service';
 import { 
   ClassSchedule, 
@@ -18,6 +20,7 @@ import { ClassScheduleResponseDto } from './dto/class-schedule-response.dto';
 import { TrainersService } from '../trainers/trainers.service';
 import { ServicesService } from '../services/services.service';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizeText } from '../common/utils/sanitize.util';
 // Using native Date methods instead of date-fns to avoid additional dependency
 // You can install date-fns later if needed: npm install date-fns @types/date-fns
 
@@ -30,13 +33,19 @@ export interface FindAllFilters {
 
 @Injectable()
 export class ClassScheduleService {
-  private readonly table = CLASS_SCHEDULE_TABLE;
+  private readonly database: string;
+  private readonly table: string;
+  private readonly logger = new Logger(ClassScheduleService.name);
 
   constructor(
     private readonly clickhouse: ClickhouseService,
     private readonly trainersService: TrainersService,
     private readonly servicesService: ServicesService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
+    this.table = `${this.database}.${CLASS_SCHEDULE_TABLE}`;
+  }
 
   private toClassScheduleResponse(classSchedule: any): ClassScheduleResponseDto {
     // Ensure all required fields have proper defaults
@@ -119,13 +128,8 @@ export class ClassScheduleService {
       // Check for scheduling conflicts
       await this.checkForSchedulingConflicts(classData);
 
-      const columns = Object.keys(classData);
-      const values = Object.values(classData).map(v => 
-        typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v === null ? 'NULL' : v
-      );
-
-      const query = `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
-      await this.clickhouse.query(query);
+      // Use insert() method instead of raw query
+      await this.clickhouse.insert(CLASS_SCHEDULE_TABLE, classData);
 
       const createdClass = await this.findById(classId);
       if (!createdClass) {
@@ -151,25 +155,24 @@ export class ClassScheduleService {
       let query = `SELECT * FROM ${this.table}`;
       const conditions: string[] = [];
       const params: Record<string, any> = {};
-      let paramIndex = 1;
 
       if (filters.start_time) {
-        conditions.push(`start_time >= {start_time: String}`);
+        conditions.push(`start_time >= {start_time:String}`);
         params.start_time = filters.start_time;
       }
 
       if (filters.end_time) {
-        conditions.push(`end_time <= {end_time: String}`);
+        conditions.push(`end_time <= {end_time:String}`);
         params.end_time = filters.end_time;
       }
 
       if (filters.trainer_id) {
-        conditions.push(`trainer_id = {trainer_id: String}`);
+        conditions.push(`trainer_id = {trainer_id:String}`);
         params.trainer_id = filters.trainer_id;
       }
 
       if (filters.service_id) {
-        conditions.push(`service_id = {service_id: String}`);
+        conditions.push(`service_id = {service_id:String}`);
         params.service_id = filters.service_id;
       }
 
@@ -179,10 +182,10 @@ export class ClassScheduleService {
 
       query += ' ORDER BY start_time ASC';
 
-      const result = await this.clickhouse.query(query);
-      return result.map((item: any) => this.toClassScheduleResponse(item));
+      const result = await this.clickhouse.queryParams<any[]>(query, params);
+      return Array.isArray(result) ? result.map((item: any) => this.toClassScheduleResponse(item)) : [];
     } catch (error) {
-      console.error('Error in findAll:', error);
+      this.logger.error('Error in findAll:', error);
       throw new InternalServerErrorException('Failed to fetch class schedules');
     }
   }
@@ -190,11 +193,11 @@ export class ClassScheduleService {
   // Find a class schedule by ID (internal use)
   private async findById(id: string): Promise<ClassSchedule | null> {
     try {
-      const query = `SELECT * FROM ${this.table} FINAL WHERE id = {id: String}`;
-      const result = await this.clickhouse.query<ClassSchedule[]>(query.replace('{id: String}', `'${id}'`));
-      return result && result.length > 0 ? result[0] : null;
+      const query = `SELECT * FROM ${this.table} FINAL WHERE id = {id:String} LIMIT 1`;
+      const result = await this.clickhouse.queryParams<ClassSchedule[]>(query, { id });
+      return Array.isArray(result) && result.length > 0 ? result[0] : null;
     } catch (error) {
-      console.error('Error in findById:', error);
+      this.logger.error('Error in findById:', error);
       return null;
     }
   }
@@ -239,9 +242,12 @@ export class ClassScheduleService {
       for (const [key, value] of Object.entries(updateClassScheduleDto)) {
         if (value !== undefined) {
           const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-          const escapedValue = typeof value === 'string' 
-            ? `'${value.replace(/'/g, "''")}'` 
-            : value === null ? 'NULL' : value;
+          const sanitizedValue = typeof value === 'string' 
+            ? sanitizeText(value).replace(/'/g, "''")
+            : value;
+          const escapedValue = typeof sanitizedValue === 'string' 
+            ? `'${sanitizedValue}'` 
+            : sanitizedValue === null ? 'NULL' : sanitizedValue;
           updates.push(`${dbKey} = ${escapedValue}`);
         }
       }
@@ -250,58 +256,23 @@ export class ClassScheduleService {
         return this.toClassScheduleResponse(existingClass);
       }
 
+      // Add updated_at
+      updates.push(`updated_at = '${new Date().toISOString()}'`);
+      
       const setClause = updates.join(', ');
-      const query = `
+      const updateQuery = `
         ALTER TABLE ${this.table}
         UPDATE ${setClause}
-        WHERE id = '${id}'
+        WHERE id = {id:String}
       `;
 
-      await this.clickhouse.query(query);
+      await this.clickhouse.queryParams(updateQuery, { id });
       
-      // Add a small delay to ensure the update is processed
+      // Wait for update to process
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Retry mechanism to get the updated record
-      const maxRetries = 5;
-      let retries = 0;
-      let result;
-      
-      while (retries < maxRetries) {
-        result = await this.clickhouse.query<ClassSchedule[]>(`
-          SELECT * FROM ${this.table} FINAL WHERE id = '${id}'
-        `);
-        
-        if (result && result.length > 0) {
-          const updatedClass = result[0];
-          // Verify if the record was actually updated by checking one of the updated fields
-          const updatedField = Object.keys(updateClassScheduleDto)[0];
-          if (updatedField) {
-            const dbKey = updatedField.replace(/([A-Z])/g, '_$1').toLowerCase();
-            if (updatedClass[dbKey] !== updateClassScheduleDto[updatedField]) {
-              retries++;
-              await new Promise(resolve => setTimeout(resolve, 100));
-              continue;
-            }
-          }
-          return this.toClassScheduleResponse(updatedClass);
-        }
-        
-        retries++;
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      
-      // If we got here, we couldn't verify the update after retries
-      // Return the record anyway, even if we can't verify the update
-      result = await this.clickhouse.query<ClassSchedule[]>(`
-        SELECT * FROM ${this.table} FINAL WHERE id = '${id}'
-      `);
-      
-      if (!result || result.length === 0) {
-        throw new NotFoundException(`Class schedule with ID ${id} not found after update`);
-      }
-      
-      return this.toClassScheduleResponse(result[0]);
+      // Return updated class
+      return this.findOne(id);
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
@@ -315,13 +286,14 @@ export class ClassScheduleService {
       // Check if class exists
       await this.findOne(id);
       
-      const query = `DELETE FROM ${this.table} WHERE id = {id: String}`;
-      await this.clickhouse.query(query.replace('{id: String}', `'${id}'`));
+      // Use ALTER TABLE DELETE for ClickHouse
+      const deleteQuery = `ALTER TABLE ${this.table} DELETE WHERE id = {id:String}`;
+      await this.clickhouse.queryParams(deleteQuery, { id });
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      console.error('Error in remove:', error);
+      this.logger.error('Error in remove:', error);
       throw new InternalServerErrorException('Failed to delete class schedule');
     }
   }
@@ -339,22 +311,28 @@ export class ClassScheduleService {
       let query = `
         SELECT id, start_time, end_time 
         FROM ${this.table}
-        WHERE trainer_id = '${trainer_id}'
-        AND status != 'cancelled'
-        AND (
-          (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
-          OR (start_time < '${end.toISOString()}' AND end_time > '${start.toISOString()}')
-          OR (start_time <= '${start.toISOString()}' AND end_time >= '${end.toISOString()}')
-        )
+        WHERE trainer_id = {trainer_id:String}
+          AND status != 'cancelled'
+          AND (
+            (start_time < {end_time:String} AND end_time > {start_time:String})
+            OR (start_time <= {start_time:String} AND end_time >= {end_time:String})
+          )
       `;
 
+      const params: Record<string, any> = {
+        trainer_id,
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+      };
+
       if (excludeClassId) {
-        query += ` AND id != '${excludeClassId}'`;
+        query += ` AND id != {excludeClassId:String}`;
+        params.excludeClassId = excludeClassId;
       }
 
       query += ' LIMIT 1';
 
-      const result = await this.clickhouse.query<Array<{ id: string; start_time: string; end_time: string }>>(query);
+      const result = await this.clickhouse.queryParams<Array<{ id: string; start_time: string; end_time: string }>>(query, params);
       const conflictingClasses = Array.isArray(result) ? result : [];
 
       if (conflictingClasses.length > 0) {
@@ -367,6 +345,7 @@ export class ClassScheduleService {
 
       return { available: true };
     } catch (error) {
+      this.logger.error('Failed to check trainer availability:', error);
       throw new InternalServerErrorException('Failed to check trainer availability');
     }
   }
@@ -403,13 +382,17 @@ export class ClassScheduleService {
         newCount -= change;
       }
 
-      const query = `
+      const updateQuery = `
         ALTER TABLE ${this.table}
-        UPDATE current_participants = ${newCount}
-        WHERE id = '${classId}'
+        UPDATE current_participants = {newCount:UInt32}, updated_at = {updated_at:String}
+        WHERE id = {classId:String}
       `;
 
-      await this.clickhouse.query(query);
+      await this.clickhouse.queryParams(updateQuery, { 
+        classId, 
+        newCount, 
+        updated_at: new Date().toISOString() 
+      });
 
       return { currentParticipants: newCount, maxParticipants };
     } catch (error) {
@@ -512,42 +495,49 @@ export class ClassScheduleService {
       }
 
       // Format dates for SQL query
-      const formatDate = (date: Date) => date.toISOString().replace('T', ' ').replace('Z', '');
-      const startTimeStr = formatDate(startDate);
-      const endTimeStr = formatDate(endDate);
+      const startTimeStr = startDate.toISOString();
+      const endTimeStr = endDate.toISOString();
 
-      // Build the query with proper parameter handling
+      // Build the query with parameterized values
       let query = `
         SELECT id, start_time, end_time, trainer_id, service_id 
         FROM ${this.table}
         WHERE 
           (
-            (start_time <= '${endTimeStr}' AND end_time >= '${startTimeStr}') OR
-            (start_time <= '${endTimeStr}' AND end_time >= '${startTimeStr}') OR
-            (start_time >= '${startTimeStr}' AND end_time <= '${endTimeStr}')
+            (start_time <= {end_time:String} AND end_time >= {start_time:String}) OR
+            (start_time >= {start_time:String} AND end_time <= {end_time:String})
           )
-          AND (trainer_id = '${trainer_id}' OR service_id = '${service_id}')
+          AND (trainer_id = {trainer_id:String} OR service_id = {service_id:String})
       `;
+
+      const params: Record<string, any> = {
+        start_time: startTimeStr,
+        end_time: endTimeStr,
+        trainer_id,
+        service_id,
+      };
 
       // Add ID exclusion if provided
       if (id) {
-        query += ` AND id != '${id}'`;
+        query += ` AND id != {exclude_id:String}`;
+        params.exclude_id = id;
       }
       
       // Add excludeId if provided (for update operations)
       if (excludeId) {
-        query += ` AND id != '${excludeId}'`;
+        query += ` AND id != {excludeId:String}`;
+        params.excludeId = excludeId;
       }
 
       query += ' LIMIT 1';
 
-      const result = await this.clickhouse.query<Array<{ 
+      const result = await this.clickhouse.queryParams<Array<{ 
         id: string; 
         start_time: string; 
         end_time: string;
         trainer_id: string;
         service_id: string;
-      }>>(query);
+      }>>(query, params);
       
       const existingClasses = Array.isArray(result) ? result : [];
 
@@ -563,7 +553,7 @@ export class ClassScheduleService {
       if (error instanceof ConflictException || error instanceof BadRequestException) {
         throw error;
       }
-      console.error('Error in checkForSchedulingConflicts:', error);
+      this.logger.error('Error in checkForSchedulingConflicts:', error);
       throw new InternalServerErrorException('Error checking for scheduling conflicts');
     }
   }

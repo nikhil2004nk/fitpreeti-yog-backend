@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -6,7 +6,8 @@ export class LoginDto {
   phone: string;
 
   @IsString()
-  @MinLength(4)
+  @MinLength(6)
   @IsNotEmpty()
+  @Matches(/^\d{6,8}$/, { message: 'PIN must be 6-8 digits' })
   pin: string;
 }

@@ -16,8 +16,6 @@ export declare class AuthService {
     private readonly saltRounds;
     private readonly database;
     constructor(ch: ClickhouseService, jwtService: JwtService, configService: ConfigService, sessionService: SessionService, request: Request);
-    private normalizePhone;
-    private escapeSqlString;
     private checkPhoneExists;
     private checkEmailExists;
     register(dto: RegisterDto): Promise<{
@@ -42,6 +40,6 @@ export declare class AuthService {
     findUserByPhonePublic(phone: string): Promise<UserLite | null>;
     private validateUserCredentials;
     validateRefreshToken(token: string): Promise<string | null>;
-    private createRefreshToken;
-    private revokeUserTokens;
+    private updateUserRefreshToken;
+    private clearUserRefreshToken;
 }
