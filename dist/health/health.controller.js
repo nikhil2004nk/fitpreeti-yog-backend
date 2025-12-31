@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HealthController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const throttler_1 = require("@nestjs/throttler");
 const clickhouse_service_1 = require("../database/clickhouse.service");
 let HealthController = class HealthController {
     ch;
@@ -52,6 +53,7 @@ __decorate([
 exports.HealthController = HealthController = __decorate([
     (0, swagger_1.ApiTags)('Health'),
     (0, common_1.Controller)('health'),
+    (0, throttler_1.SkipThrottle)(),
     __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService])
 ], HealthController);
 //# sourceMappingURL=health.controller.js.map

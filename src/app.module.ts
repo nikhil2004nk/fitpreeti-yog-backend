@@ -1,6 +1,6 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard, ThrottlerStorage, ThrottlerModuleOptions } from '@nestjs/throttler';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -24,17 +24,27 @@ import { validate } from './config/env.validation';
       validate,
       cache: true,
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const nodeEnv = configService.get<string>('NODE_ENV', 'development');
+        const isDevelopment = nodeEnv === 'development';
+        
+        // Higher limits for development, stricter for production
+        return [
+          {
+            ttl: 60000, // 1 minute
+            limit: isDevelopment ? 1000 : 100, // 1000 requests per minute in dev, 100 in prod
+          },
+          {
+            name: 'auth',
+            ttl: 900000, // 15 minutes
+            limit: isDevelopment ? 20 : 5, // 20 requests per 15 minutes in dev, 5 in prod
+          },
+        ];
       },
-      {
-        name: 'auth',
-        ttl: 900000, // 15 minutes
-        limit: 5, // 5 requests per 15 minutes for auth endpoints
-      },
-    ]),
+    }),
     ClickhouseModule,
     AuthModule,
     ServicesModule,

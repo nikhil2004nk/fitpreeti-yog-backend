@@ -254,9 +254,48 @@ export class ClassScheduleService {
       // Check for scheduling conflicts, excluding the current class
       await this.checkForSchedulingConflicts(updatedClass, id);
 
+      // Key columns that cannot be updated directly in ClickHouse (part of ORDER BY clause)
+      // ORDER BY (start_time, status) means both are key columns
+      const keyColumns = ['start_time', 'status'];
+      
+      // If trying to update key columns, we need to delete and recreate
+      const needsRecreate = keyColumns.some(key => 
+        updateClassScheduleDto[key as keyof UpdateClassScheduleDto] !== undefined
+      );
+      
+      if (needsRecreate) {
+        // For key column updates, delete old and create new
+        const newClassData: CreateClassScheduleDto = {
+          title: (updateClassScheduleDto.title ?? existingClass.title) as string,
+          description: updateClassScheduleDto.description ?? existingClass.description,
+          start_time: (updateClassScheduleDto.start_time ?? existingClass.start_time) as string,
+          end_time: (updateClassScheduleDto.end_time ?? existingClass.end_time) as string,
+          status: (updateClassScheduleDto.status ?? existingClass.status) as any,
+          max_participants: updateClassScheduleDto.max_participants ?? existingClass.max_participants,
+          current_participants: updateClassScheduleDto.current_participants ?? existingClass.current_participants,
+          trainer_id: (updateClassScheduleDto.trainer_id ?? existingClass.trainer_id) as string,
+          service_id: (updateClassScheduleDto.service_id ?? existingClass.service_id) as string,
+          is_recurring: updateClassScheduleDto.is_recurring ?? existingClass.is_recurring,
+          recurrence_pattern: updateClassScheduleDto.recurrence_pattern ?? existingClass.recurrence_pattern,
+          recurrence_end_date: updateClassScheduleDto.recurrence_end_date ?? existingClass.recurrence_end_date,
+        };
+        
+        // Delete the old class
+        await this.remove(id);
+        
+        // Create the new class with updated values (will get a new ID)
+        const newClass = await this.create(newClassData);
+        
+        // Note: The new class will have a different ID, but we return it anyway
+        // The client should handle the ID change if needed
+        return newClass;
+      }
+
+      // For non-key columns, proceed with normal update
       const updates: string[] = [];
       for (const [key, value] of Object.entries(updateClassScheduleDto)) {
-        if (value !== undefined) {
+        // Skip key columns and undefined values
+        if (value !== undefined && !keyColumns.includes(key)) {
           const dbKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
           const sanitizedValue = typeof value === 'string' 
             ? sanitizeText(value).replace(/'/g, "''")

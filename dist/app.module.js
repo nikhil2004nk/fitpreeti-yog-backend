@@ -35,17 +35,25 @@ exports.AppModule = AppModule = __decorate([
                 validate: env_validation_1.validate,
                 cache: true,
             }),
-            throttler_1.ThrottlerModule.forRoot([
-                {
-                    ttl: 60000,
-                    limit: 100,
+            throttler_1.ThrottlerModule.forRootAsync({
+                imports: [config_1.ConfigModule],
+                inject: [config_1.ConfigService],
+                useFactory: (configService) => {
+                    const nodeEnv = configService.get('NODE_ENV', 'development');
+                    const isDevelopment = nodeEnv === 'development';
+                    return [
+                        {
+                            ttl: 60000,
+                            limit: isDevelopment ? 1000 : 100,
+                        },
+                        {
+                            name: 'auth',
+                            ttl: 900000,
+                            limit: isDevelopment ? 20 : 5,
+                        },
+                    ];
                 },
-                {
-                    name: 'auth',
-                    ttl: 900000,
-                    limit: 5,
-                },
-            ]),
+            }),
             clickhouse_module_1.ClickhouseModule,
             auth_module_1.AuthModule,
             services_module_1.ServicesModule,

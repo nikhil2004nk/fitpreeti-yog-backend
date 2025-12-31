@@ -12,12 +12,14 @@ const bookings_controller_1 = require("./bookings.controller");
 const bookings_service_1 = require("./bookings.service");
 const clickhouse_module_1 = require("../database/clickhouse.module");
 const auth_module_1 = require("../auth/auth.module");
+const services_module_1 = require("../services/services.module");
+const class_schedule_module_1 = require("../class-schedule/class-schedule.module");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
 exports.BookingsModule = BookingsModule = __decorate([
     (0, common_1.Module)({
-        imports: [clickhouse_module_1.ClickhouseModule, auth_module_1.AuthModule],
+        imports: [clickhouse_module_1.ClickhouseModule, auth_module_1.AuthModule, services_module_1.ServicesModule, class_schedule_module_1.ClassScheduleModule],
         controllers: [bookings_controller_1.BookingsController],
         providers: [bookings_service_1.BookingsService],
         exports: [bookings_service_1.BookingsService]

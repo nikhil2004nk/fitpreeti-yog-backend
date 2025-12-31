@@ -16,13 +16,20 @@ const uuid_1 = require("uuid");
 const phone_util_1 = require("../common/utils/phone.util");
 const sanitize_util_1 = require("../common/utils/sanitize.util");
 const config_1 = require("@nestjs/config");
+const services_service_1 = require("../services/services.service");
+const class_schedule_service_1 = require("../class-schedule/class-schedule.service");
+const class_schedule_entity_1 = require("../class-schedule/entities/class-schedule.entity");
 let BookingsService = class BookingsService {
     ch;
     configService;
+    servicesService;
+    classScheduleService;
     database;
-    constructor(ch, configService) {
+    constructor(ch, configService, servicesService, classScheduleService) {
         this.ch = ch;
         this.configService = configService;
+        this.servicesService = servicesService;
+        this.classScheduleService = classScheduleService;
         this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     }
     async create(createBookingDto, userPhone) {
@@ -144,21 +151,132 @@ let BookingsService = class BookingsService {
         return this.findAll(userPhone);
     }
     async getAvailableSlots(serviceId, date) {
-        const query = `
-      SELECT booking_time 
-      FROM ${this.database}.bookings 
-      WHERE service_id = {serviceId:String} 
-        AND booking_date = {date:String} 
-        AND status != 'cancelled'
-    `;
-        const result = await this.ch.queryParams(query, {
-            serviceId: (0, sanitize_util_1.sanitizeText)(serviceId),
-            date: (0, sanitize_util_1.sanitizeText)(date),
-        });
-        if (!Array.isArray(result)) {
-            return [];
+        let normalizedDate = date.trim();
+        let dateObj;
+        if (/^\d{2}-\d{2}-\d{4}$/.test(normalizedDate)) {
+            const [day, month, year] = normalizedDate.split('-');
+            normalizedDate = `${year}-${month}-${day}`;
+            dateObj = new Date(normalizedDate + 'T00:00:00.000Z');
         }
-        return result.map((slot) => slot.booking_time);
+        else if (/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+            dateObj = new Date(normalizedDate + 'T00:00:00.000Z');
+        }
+        else {
+            dateObj = new Date(normalizedDate);
+        }
+        if (isNaN(dateObj.getTime())) {
+            throw new common_1.BadRequestException(`Invalid date format: ${date}. Expected YYYY-MM-DD or DD-MM-YYYY`);
+        }
+        normalizedDate = dateObj.toISOString().split('T')[0];
+        const allSchedules = await this.classScheduleService.findAll({
+            service_id: serviceId,
+        });
+        const classSchedules = allSchedules.filter(schedule => {
+            if (schedule.status !== class_schedule_entity_1.ClassStatus.SCHEDULED || schedule.current_participants >= schedule.max_participants) {
+                return false;
+            }
+            const scheduleStart = new Date(schedule.start_time);
+            const scheduleDate = scheduleStart.toISOString().split('T')[0];
+            const requestedDate = new Date(normalizedDate + 'T00:00:00.000Z');
+            const startDate = new Date(schedule.start_time);
+            const startDateOnly = startDate.toISOString().split('T')[0];
+            if (schedule.is_recurring && schedule.recurrence_pattern) {
+                if (schedule.recurrence_end_date) {
+                    const endDate = new Date(schedule.recurrence_end_date);
+                    const endDateOnly = endDate.toISOString().split('T')[0];
+                    if (normalizedDate < startDateOnly || normalizedDate > endDateOnly) {
+                        return false;
+                    }
+                }
+                else {
+                    if (normalizedDate < startDateOnly) {
+                        return false;
+                    }
+                }
+                if (schedule.recurrence_pattern.toLowerCase() === 'daily') {
+                    return true;
+                }
+                else if (schedule.recurrence_pattern.toLowerCase() === 'weekly') {
+                    const startDayOfWeek = startDate.getUTCDay();
+                    const requestedDayOfWeek = requestedDate.getUTCDay();
+                    return startDayOfWeek === requestedDayOfWeek;
+                }
+                else if (schedule.recurrence_pattern.toLowerCase() === 'monthly') {
+                    return startDate.getUTCDate() === requestedDate.getUTCDate();
+                }
+            }
+            return scheduleDate === normalizedDate;
+        });
+        const availableSlots = [];
+        for (const schedule of classSchedules) {
+            const startTime = new Date(schedule.start_time);
+            const isoString = startTime.toISOString();
+            const timeMatch = isoString.match(/T(\d{2}):(\d{2})/);
+            let hours;
+            let minutes;
+            if (timeMatch) {
+                hours = parseInt(timeMatch[1], 10);
+                minutes = parseInt(timeMatch[2], 10);
+            }
+            else {
+                hours = startTime.getUTCHours();
+                minutes = startTime.getUTCMinutes();
+            }
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            const bookedQuery = `
+        SELECT COUNT(*) as count
+        FROM ${this.database}.bookings 
+        WHERE service_id = {serviceId:String} 
+          AND booking_date = {date:String} 
+          AND booking_time = {time:String}
+          AND status != 'cancelled'
+      `;
+            const bookedResult = await this.ch.queryParams(bookedQuery, {
+                serviceId: (0, sanitize_util_1.sanitizeText)(serviceId),
+                date: (0, sanitize_util_1.sanitizeText)(normalizedDate),
+                time: timeString,
+            });
+            const isBooked = Array.isArray(bookedResult) && bookedResult.length > 0 && (bookedResult[0]?.count || 0) > 0;
+            if (!isBooked && !availableSlots.includes(timeString)) {
+                availableSlots.push(timeString);
+            }
+        }
+        if (availableSlots.length === 0) {
+            const service = await this.servicesService.findOne(serviceId);
+            const durationMinutes = service.duration_minutes || 60;
+            const startHour = 9;
+            const endHour = 18;
+            const slotInterval = durationMinutes;
+            const allSlots = [];
+            for (let hour = startHour; hour < endHour; hour++) {
+                for (let minute = 0; minute < 60; minute += slotInterval) {
+                    const endMinute = minute + slotInterval;
+                    const endHourForSlot = hour + Math.floor(endMinute / 60);
+                    const endMinuteForSlot = endMinute % 60;
+                    if (endHourForSlot > endHour || (endHourForSlot === endHour && endMinuteForSlot > 0)) {
+                        break;
+                    }
+                    const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                    allSlots.push(timeString);
+                }
+            }
+            const bookedQuery = `
+        SELECT booking_time 
+        FROM ${this.database}.bookings 
+        WHERE service_id = {serviceId:String} 
+          AND booking_date = {date:String} 
+          AND status != 'cancelled'
+      `;
+            const bookedResult = await this.ch.queryParams(bookedQuery, {
+                serviceId: (0, sanitize_util_1.sanitizeText)(serviceId),
+                date: (0, sanitize_util_1.sanitizeText)(normalizedDate),
+            });
+            const bookedSlots = Array.isArray(bookedResult)
+                ? bookedResult.map((slot) => slot.booking_time)
+                : [];
+            return allSlots.filter(slot => !bookedSlots.includes(slot));
+        }
+        return availableSlots.sort();
     }
     async findOneByUser(id, userPhone) {
         const normalizedPhone = (0, phone_util_1.normalizePhone)((0, sanitize_util_1.sanitizeText)(userPhone));
@@ -178,6 +296,8 @@ exports.BookingsService = BookingsService;
 exports.BookingsService = BookingsService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [clickhouse_service_1.ClickhouseService,
-        config_1.ConfigService])
+        config_1.ConfigService,
+        services_service_1.ServicesService,
+        class_schedule_service_1.ClassScheduleService])
 ], BookingsService);
 //# sourceMappingURL=bookings.service.js.map
