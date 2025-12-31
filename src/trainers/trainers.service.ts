@@ -41,6 +41,7 @@ export class TrainersService {
     return {
       id: trainer.id,
       name: trainer.name,
+      title: trainer.title || null,
       bio: trainer.bio || null,
       specializations: typeof trainer.specializations === 'string' ? JSON.parse(trainer.specializations) : (trainer.specializations || []),
       profileImage: trainer.profile_image || null,
@@ -65,6 +66,7 @@ export class TrainersService {
       const trainerData = {
         id,
         name: sanitizeText(createTrainerDto.name),
+        title: createTrainerDto.title ? sanitizeText(createTrainerDto.title) : null,
         bio: createTrainerDto.bio ? sanitizeText(createTrainerDto.bio) : null,
         specializations: JSON.stringify(createTrainerDto.specializations || []),
         profile_image: createTrainerDto.profileImage ? sanitizeText(createTrainerDto.profileImage) : null,
@@ -130,6 +132,9 @@ export class TrainersService {
     if (updateTrainerDto.name) {
       updates.push(`name = '${sanitizeText(updateTrainerDto.name).replace(/'/g, "''")}'`);
     }
+    if (updateTrainerDto.title !== undefined) {
+      updates.push(`title = ${updateTrainerDto.title ? `'${sanitizeText(updateTrainerDto.title).replace(/'/g, "''")}'` : 'NULL'}`);
+    }
     if (updateTrainerDto.bio !== undefined) {
       updates.push(`bio = ${updateTrainerDto.bio ? `'${sanitizeText(updateTrainerDto.bio).replace(/'/g, "''")}'` : 'NULL'}`);
     }
@@ -183,5 +188,66 @@ export class TrainersService {
     // Delete using parameterized query
     const deleteQuery = `ALTER TABLE ${this.database}.trainers DELETE WHERE id = {id:String}`;
     await this.clickhouse.queryParams(deleteQuery, { id });
+  }
+
+  /**
+   * Recalculate and update trainer rating and total reviews based on approved reviews
+   * Reviews are linked to trainers through: reviews -> bookings -> services -> trainers
+   */
+  async updateTrainerRating(trainerId: string): Promise<void> {
+    try {
+      // Get all approved reviews for this trainer through bookings and services
+      const query = `
+        SELECT 
+          AVG(r.rating) as avg_rating,
+          COUNT(*) as total_reviews
+        FROM ${this.database}.reviews r
+        INNER JOIN ${this.database}.bookings b ON r.booking_id = b.id
+        INNER JOIN ${this.database}.services s ON b.service_id = s.id
+        WHERE s.trainer_id = {trainerId:String}
+          AND r.is_approved = true
+      `;
+      
+      const result = await this.clickhouse.queryParams<any[]>(query, { trainerId });
+      
+      if (Array.isArray(result) && result.length > 0) {
+        const stats = result[0];
+        const avgRating = stats.avg_rating ? parseFloat(stats.avg_rating) : 0;
+        const totalReviews = stats.total_reviews ? parseInt(stats.total_reviews, 10) : 0;
+        
+        // Update trainer with new rating and review count
+        const updateQuery = `
+          ALTER TABLE ${this.database}.trainers 
+          UPDATE 
+            rating = ${avgRating},
+            total_reviews = ${totalReviews},
+            updated_at = '${new Date().toISOString()}'
+          WHERE id = {trainerId:String}
+        `;
+        
+        await this.clickhouse.queryParams(updateQuery, { trainerId });
+        
+        // Wait for update to process
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        this.logger.log(`Updated trainer ${trainerId} rating: ${avgRating.toFixed(2)}, reviews: ${totalReviews}`);
+      } else {
+        // No approved reviews, set to 0
+        const updateQuery = `
+          ALTER TABLE ${this.database}.trainers 
+          UPDATE 
+            rating = 0,
+            total_reviews = 0,
+            updated_at = '${new Date().toISOString()}'
+          WHERE id = {trainerId:String}
+        `;
+        
+        await this.clickhouse.queryParams(updateQuery, { trainerId });
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } catch (error) {
+      this.logger.error(`Error updating trainer rating for ${trainerId}:`, error);
+      // Don't throw - this is a background update
+    }
   }
 }

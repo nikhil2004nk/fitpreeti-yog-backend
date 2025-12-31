@@ -2,6 +2,7 @@
 export class Trainer {
   id: string;
   name: string;
+  title?: string;
   bio?: string;
   specializations: string[];
   profile_image?: string;

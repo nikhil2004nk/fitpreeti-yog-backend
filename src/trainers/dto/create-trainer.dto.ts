@@ -21,6 +21,11 @@ export class CreateTrainerDto {
   @IsString()
   name: string;
 
+  @ApiProperty({ example: 'Founder & Head Trainer', required: false })
+  @IsString()
+  @IsOptional()
+  title?: string;
+
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()

@@ -73,6 +73,7 @@ export class SchemaService implements OnModuleInit {
 `CREATE TABLE IF NOT EXISTS ${this.database}.trainers (
   id UUID DEFAULT generateUUIDv4(),
   name String,
+  title Nullable(String),
   bio Nullable(String),
   specializations String,  // Changed from Array(String) to String to store JSON
   profile_image Nullable(String),
@@ -201,6 +202,24 @@ SETTINGS index_granularity = 8192`,
         this.logger.error(`❌ Failed to create table ${index + 1}: ${error.message}`);
         throw error;
       }
+    }
+
+    // Add title column to trainers table if it doesn't exist (for existing databases)
+    try {
+      // Check if column exists by querying table structure
+      const checkQuery = `SELECT name FROM system.columns WHERE database = '${this.database}' AND table = 'trainers' AND name = 'title'`;
+      const columnExists = await this.ch.query(checkQuery);
+      
+      // If column doesn't exist, add it
+      if (!columnExists || (Array.isArray(columnExists) && columnExists.length === 0)) {
+        await this.ch.query(`ALTER TABLE ${this.database}.trainers ADD COLUMN title Nullable(String)`);
+        this.logger.log(`✅ Added title column to trainers table`);
+      } else {
+        this.logger.log(`✅ Title column already exists in trainers table`);
+      }
+    } catch (error: any) {
+      // Column might already exist or table might not exist yet, which is fine
+      this.logger.warn(`⚠️ Could not add title column to trainers: ${error.message}`);
     }
   }
 }

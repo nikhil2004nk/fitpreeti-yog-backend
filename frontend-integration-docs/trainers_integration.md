@@ -7,6 +7,20 @@ Complete guide for integrating trainer management endpoints with the Fitpreeti Y
 /api/v1/trainers
 ```
 
+## ⭐ Trainer Ratings & Reviews
+
+Trainer `rating` and `total_reviews` are **automatically calculated** from approved reviews:
+
+- **Rating**: Average rating (0-5) from all approved reviews linked through bookings
+- **Total Reviews**: Count of all approved reviews for the trainer
+- **Initial State**: New trainers start with `rating: 0` and `total_reviews: 0`
+- **Automatic Updates**: Ratings are recalculated when:
+  - A review is approved
+  - An approved review's rating is updated
+  - An approved review is deleted/unapproved
+
+**Note:** Only approved reviews count towards trainer ratings. Pending reviews do not affect ratings.
+
 ## Endpoints Overview
 
 | Method | Endpoint | Description | Auth Required | Role Required |
@@ -40,12 +54,13 @@ POST /api/v1/trainers
 ### Request Body
 ```json
 {
-  "name": "John Doe",
-  "bio": "Certified yoga instructor with 10 years of experience",
-  "specializations": ["yoga", "pilates", "meditation"],
+  "name": "Preeti",
+  "title": "Founder & Head Trainer",
+  "bio": "With over 15 years of experience in yoga and fitness, Preeti has dedicated her life to helping others achieve their wellness goals through holistic practices.",
+  "specializations": ["Hatha Yoga", "Vinyasa Flow", "Meditation", "Prenatal Yoga"],
   "profileImage": "https://example.com/profile.jpg",
-  "certifications": ["RYT 200", "Yoga Alliance", "Pilates Certified"],
-  "experienceYears": 10,
+  "certifications": ["RYT 500 Yoga Alliance Certified", "Prenatal & Postnatal Yoga Specialist", "Yoga Therapy Certification", "Certified Nutritionist"],
+  "experienceYears": 15,
   "availability": {
     "monday": [
       { "start": "09:00", "end": "17:00" }
@@ -69,6 +84,7 @@ POST /api/v1/trainers
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | name | string | Yes | Trainer's full name |
+| title | string | No | Trainer's title/position (e.g., "Founder & Head Trainer") |
 | bio | string | No | Trainer's biography |
 | specializations | string[] | No | Array of specialization strings |
 | profileImage | string | No | URL to trainer's profile image |
@@ -95,12 +111,13 @@ POST /api/v1/trainers
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "name": "John Doe",
-  "bio": "Certified yoga instructor with 10 years of experience",
-  "specializations": ["yoga", "pilates", "meditation"],
+  "name": "Preeti",
+  "title": "Founder & Head Trainer",
+  "bio": "With over 15 years of experience in yoga and fitness, Preeti has dedicated her life to helping others achieve their wellness goals through holistic practices.",
+  "specializations": ["Hatha Yoga", "Vinyasa Flow", "Meditation", "Prenatal Yoga"],
   "profileImage": "https://example.com/profile.jpg",
-  "certifications": ["RYT 200", "Yoga Alliance", "Pilates Certified"],
-  "experienceYears": 10,
+  "certifications": ["RYT 500 Yoga Alliance Certified", "Prenatal & Postnatal Yoga Specialist", "Yoga Therapy Certification", "Certified Nutritionist"],
+  "experienceYears": 15,
   "rating": 0,
   "totalReviews": 0,
   "isActive": true,
@@ -186,10 +203,12 @@ const createTrainer = async (trainerData) => {
 
 // Usage
 createTrainer({
-  name: 'John Doe',
-  bio: 'Certified yoga instructor',
-  specializations: ['yoga', 'pilates'],
-  experienceYears: 10,
+  name: 'Preeti',
+  title: 'Founder & Head Trainer',
+  bio: 'With over 15 years of experience in yoga and fitness',
+  specializations: ['Hatha Yoga', 'Vinyasa Flow', 'Meditation', 'Prenatal Yoga'],
+  certifications: ['RYT 500 Yoga Alliance Certified', 'Prenatal & Postnatal Yoga Specialist'],
+  experienceYears: 15,
   isActive: true
 });
 ```
@@ -225,12 +244,13 @@ None
 [
   {
     "id": "123e4567-e89b-12d3-a456-426614174000",
-    "name": "John Doe",
-    "bio": "Certified yoga instructor with 10 years of experience",
-    "specializations": ["yoga", "pilates", "meditation"],
+    "name": "Preeti",
+    "title": "Founder & Head Trainer",
+    "bio": "With over 15 years of experience in yoga and fitness, Preeti has dedicated her life to helping others achieve their wellness goals through holistic practices.",
+    "specializations": ["Hatha Yoga", "Vinyasa Flow", "Meditation", "Prenatal Yoga"],
     "profileImage": "https://example.com/profile.jpg",
-    "certifications": ["RYT 200", "Yoga Alliance"],
-    "experienceYears": 10,
+    "certifications": ["RYT 500 Yoga Alliance Certified", "Prenatal & Postnatal Yoga Specialist"],
+    "experienceYears": 15,
     "rating": 4.5,
     "totalReviews": 10,
     "isActive": true,
@@ -252,6 +272,7 @@ None
 |-------|------|-------------|
 | id | string | Trainer UUID |
 | name | string | Trainer's full name |
+| title | string \| null | Trainer's title/position (e.g., "Founder & Head Trainer") |
 | bio | string | Trainer's biography |
 | specializations | string[] | Array of specializations |
 | profileImage | string | Profile image URL |
@@ -343,12 +364,13 @@ None required
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "name": "John Doe",
-  "bio": "Certified yoga instructor with 10 years of experience",
-  "specializations": ["yoga", "pilates", "meditation"],
+  "name": "Preeti",
+  "title": "Founder & Head Trainer",
+  "bio": "With over 15 years of experience in yoga and fitness, Preeti has dedicated her life to helping others achieve their wellness goals through holistic practices.",
+  "specializations": ["Hatha Yoga", "Vinyasa Flow", "Meditation", "Prenatal Yoga"],
   "profileImage": "https://example.com/profile.jpg",
-  "certifications": ["RYT 200", "Yoga Alliance"],
-  "experienceYears": 10,
+  "certifications": ["RYT 500 Yoga Alliance Certified", "Prenatal & Postnatal Yoga Specialist"],
+  "experienceYears": 15,
   "rating": 4.5,
   "totalReviews": 10,
   "isActive": true,
@@ -452,9 +474,10 @@ PUT /api/v1/trainers/:id
 All fields are optional (partial update):
 ```json
 {
-  "name": "Jane Doe",
+  "name": "Preeti",
+  "title": "Founder & Head Trainer",
   "bio": "Updated bio",
-  "specializations": ["yoga"],
+  "specializations": ["Hatha Yoga"],
   "isActive": false
 }
 ```
@@ -466,12 +489,13 @@ Same as Create Trainer, but all fields are optional.
 ```json
 {
   "id": "123e4567-e89b-12d3-a456-426614174000",
-  "name": "Jane Doe",
+  "name": "Preeti",
+  "title": "Founder & Head Trainer",
   "bio": "Updated bio",
-  "specializations": ["yoga"],
+  "specializations": ["Hatha Yoga"],
   "profileImage": "https://example.com/profile.jpg",
-  "certifications": ["RYT 200"],
-  "experienceYears": 10,
+  "certifications": ["RYT 500 Yoga Alliance Certified"],
+  "experienceYears": 15,
   "rating": 4.5,
   "totalReviews": 10,
   "isActive": false,
@@ -715,9 +739,12 @@ const trainer = await trainerService.getById('123e4567-e89b-12d3-a456-4266141740
 
 // Create trainer (admin only)
 await trainerService.create({
-  name: 'John Doe',
-  bio: 'Certified instructor',
-  specializations: ['yoga']
+  name: 'Preeti',
+  title: 'Founder & Head Trainer',
+  bio: 'With over 15 years of experience in yoga and fitness',
+  specializations: ['Hatha Yoga', 'Vinyasa Flow', 'Meditation', 'Prenatal Yoga'],
+  certifications: ['RYT 500 Yoga Alliance Certified', 'Prenatal & Postnatal Yoga Specialist'],
+  experienceYears: 15
 });
 
 // Update trainer (admin only)

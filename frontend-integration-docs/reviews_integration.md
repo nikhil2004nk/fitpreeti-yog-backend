@@ -7,6 +7,18 @@ Complete guide for integrating review management endpoints with the Fitpreeti Yo
 /api/v1/reviews
 ```
 
+## ⚡ Automatic Trainer Rating Updates
+
+**Important:** The system automatically calculates and updates trainer ratings based on approved reviews:
+
+- **When a review is approved**: The trainer's `rating` (average) and `total_reviews` count are automatically recalculated
+- **When a review's rating is updated**: If the review is already approved, the trainer's rating is recalculated
+- **When a review is deleted/unapproved**: The trainer's rating is recalculated to exclude that review
+
+Trainer ratings are linked through: `reviews → bookings → services → trainers`
+
+**Note:** Only **approved** reviews count towards trainer ratings. Pending reviews do not affect ratings until they are approved by an admin.
+
 ## Endpoints Overview
 
 | Method | Endpoint | Description | Auth Required | Role Required |
@@ -39,6 +51,8 @@ POST /api/v1/reviews
 ```
 
 **Note:** Requires authentication (cookies are automatically sent). User is automatically associated with the review.
+
+**Important:** New reviews are created with `is_approved: false` by default and require admin approval. Trainer ratings are only updated when reviews are approved.
 
 ### Request Body
 ```json
@@ -569,6 +583,8 @@ getReviewById('123e4567-e89b-12d3-a456-426614174000').then(review => {
 
 Update a review. Users can only update their own reviews. Admins can update any review.
 
+**Note:** When you update a review's `is_approved` status or `rating` (if already approved), the associated trainer's rating and review count are automatically recalculated.
+
 ### Endpoint
 ```
 PATCH /api/v1/reviews/:id
@@ -685,8 +701,15 @@ updateReview('123e4567-e89b-12d3-a456-426614174000', {
 });
 
 // Admin can approve reviews
+// When a review is approved, the trainer's rating is automatically updated
 updateReview('123e4567-e89b-12d3-a456-426614174000', {
   is_approved: true
+});
+
+// If updating rating of an already-approved review, trainer rating is recalculated
+updateReview('123e4567-e89b-12d3-a456-426614174000', {
+  rating: 4,
+  comment: 'Updated comment'
 });
 ```
 
@@ -695,6 +718,8 @@ updateReview('123e4567-e89b-12d3-a456-426614174000', {
 ## 8. Delete Review
 
 Delete a review. Users can only delete their own reviews. Admins can delete any review.
+
+**Note:** When a review is deleted (marked as unapproved), if it was previously approved, the associated trainer's rating and review count are automatically recalculated to exclude that review.
 
 ### Endpoint
 ```

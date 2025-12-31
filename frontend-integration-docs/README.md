@@ -5,12 +5,20 @@ This folder contains comprehensive API integration documentation for the Fitpree
 ## 📋 Table of Contents
 
 1. [Authentication Integration](./auth_integration.md) - User registration, login, logout, token management
-2. [Trainers Integration](./trainers_integration.md) - Trainer CRUD operations
+2. [Trainers Integration](./trainers_integration.md) - Trainer CRUD operations (with automatic rating calculation)
 3. [Services Integration](./services_integration.md) - Service management and queries
 4. [Bookings Integration](./bookings_integration.md) - Booking creation, management, and availability
-5. [Reviews Integration](./reviews_integration.md) - Review creation and management
+5. [Reviews Integration](./reviews_integration.md) - Review creation and management (auto-updates trainer ratings)
 6. [Class Schedule Integration](./class_schedule_integration.md) - Class scheduling and management
 7. [Users Integration](./users_integration.md) - User management (Admin only)
+
+## 🔄 Automatic Features
+
+### Trainer Rating System
+- Trainer ratings are **automatically calculated** from approved reviews
+- When a review is approved, the trainer's `rating` (average) and `total_reviews` count are updated
+- Ratings are linked through: `reviews → bookings → services → trainers`
+- Only approved reviews count towards ratings
 
 ## 🔧 Base Configuration
 

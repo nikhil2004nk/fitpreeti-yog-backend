@@ -26,15 +26,29 @@ async function bootstrap() {
     const frontendUrl = configService.get('FRONTEND_URL', 'http://localhost:3001');
     const allowedOrigins = nodeEnv === 'production'
         ? [frontendUrl]
-        : [frontendUrl, 'http://localhost:3001', 'http://localhost:3000'];
+        : [
+            frontendUrl,
+            'http://localhost:3001',
+            'http://localhost:3000',
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175',
+            'http://localhost:5176',
+            'http://localhost:5177',
+            'http://localhost:5178'
+        ];
     app.enableCors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
-                callback(null, true);
+            if (!origin) {
+                return callback(null, true);
             }
-            else {
-                callback(new Error('Not allowed by CORS'));
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
             }
+            if (nodeEnv !== 'production' && origin.startsWith('http://localhost:')) {
+                return callback(null, true);
+            }
+            callback(new Error('Not allowed by CORS'));
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

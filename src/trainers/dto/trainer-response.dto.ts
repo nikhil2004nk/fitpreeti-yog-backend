@@ -18,6 +18,9 @@ export class TrainerResponseDto {
   @ApiProperty({ example: 'John Doe' })
   name: string;
 
+  @ApiProperty({ example: 'Founder & Head Trainer', required: false })
+  title?: string;
+
   @ApiProperty({ example: 'Certified yoga instructor', required: false })
   bio?: string;
 

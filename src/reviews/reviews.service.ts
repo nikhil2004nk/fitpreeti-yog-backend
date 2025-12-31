@@ -1,10 +1,11 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
 import { ClickhouseService } from '../database/clickhouse.service';
 import { ConfigService } from '@nestjs/config';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewWithUser } from './interfaces/review.interface';
 import { sanitizeText } from '../common/utils/sanitize.util';
+import { TrainersService } from '../trainers/trainers.service';
 
 @Injectable()
 export class ReviewsService {
@@ -14,6 +15,8 @@ export class ReviewsService {
   constructor(
     private ch: ClickhouseService,
     private configService: ConfigService,
+    @Inject(forwardRef(() => TrainersService))
+    private trainersService: TrainersService,
   ) {
     this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
   }
@@ -180,8 +183,23 @@ export class ReviewsService {
         }
       }
       
+      // Track if we need to update trainer rating
+      let shouldUpdateTrainerRating = false;
+      
+      // Check if rating changed (only if review is approved)
+      if (updateReviewDto.rating !== undefined && existingReview.is_approved) {
+        shouldUpdateTrainerRating = true;
+      }
+      
+      // Track if approval status changed
+      let approvalChanged = false;
+      
       // Only admins can update is_approved
       if (updateReviewDto.is_approved !== undefined && isAdmin) {
+        approvalChanged = existingReview.is_approved !== updateReviewDto.is_approved;
+        if (approvalChanged) {
+          shouldUpdateTrainerRating = true;
+        }
         updates.push(`is_approved = ${updateReviewDto.is_approved}`);
       }
       
@@ -204,6 +222,27 @@ export class ReviewsService {
       
       // Wait for update to process
       await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Update trainer ratings if needed
+      if (shouldUpdateTrainerRating && existingReview.booking_id) {
+        try {
+          // Get trainer ID from booking -> service
+          const bookingQuery = `
+            SELECT s.trainer_id
+            FROM ${this.database}.bookings b
+            INNER JOIN ${this.database}.services s ON b.service_id = s.id
+            WHERE b.id = {bookingId:String}
+            LIMIT 1
+          `;
+          const bookingResult = await this.ch.queryParams<any[]>(bookingQuery, { bookingId: existingReview.booking_id });
+          
+          if (Array.isArray(bookingResult) && bookingResult.length > 0 && bookingResult[0].trainer_id) {
+            await this.trainersService.updateTrainerRating(bookingResult[0].trainer_id);
+          }
+        } catch (error) {
+          this.logger.warn('Failed to update trainer rating after review update:', error);
+        }
+      }
       
       // Return updated review
       return this.findOne(id);
@@ -234,6 +273,30 @@ export class ReviewsService {
         WHERE id = {id:String}
       `;
       await this.ch.queryParams(updateQuery, { id });
+      
+      // Wait for update to process
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Update trainer rating if review was approved and has a booking
+      if (existingReview.is_approved && existingReview.booking_id) {
+        try {
+          // Get trainer ID from booking -> service
+          const bookingQuery = `
+            SELECT s.trainer_id
+            FROM ${this.database}.bookings b
+            INNER JOIN ${this.database}.services s ON b.service_id = s.id
+            WHERE b.id = {bookingId:String}
+            LIMIT 1
+          `;
+          const bookingResult = await this.ch.queryParams<any[]>(bookingQuery, { bookingId: existingReview.booking_id });
+          
+          if (Array.isArray(bookingResult) && bookingResult.length > 0 && bookingResult[0].trainer_id) {
+            await this.trainersService.updateTrainerRating(bookingResult[0].trainer_id);
+          }
+        } catch (error) {
+          this.logger.warn('Failed to update trainer rating after review deletion:', error);
+        }
+      }
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;
