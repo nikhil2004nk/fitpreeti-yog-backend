@@ -27,9 +27,13 @@ async function bootstrap() {
   // CORS configuration
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
   const allowedOrigins = nodeEnv === 'production' 
-    ? [frontendUrl] 
+    ? [
+        frontendUrl,
+        'https://nikhil2004nk.github.io', // GitHub Pages frontend
+      ] 
     : [
         frontendUrl,
+        'https://nikhil2004nk.github.io', // GitHub Pages frontend
         'http://localhost:3001',
         'http://localhost:3000',
         'http://localhost:5173',
@@ -44,6 +48,11 @@ async function bootstrap() {
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Allow GitHub Pages URLs
+      if (origin.includes('.github.io')) {
         return callback(null, true);
       }
       

@@ -48,6 +48,7 @@ async function createApp(): Promise<express.Application> {
       // In production, allow frontend URL and Vercel preview URLs
       const allowedOrigins = [
         frontendUrl,
+        'https://nikhil2004nk.github.io', // GitHub Pages frontend
         ...(nodeEnv === 'production' ? [] : [
           'http://localhost:3001',
           'http://localhost:3000',
@@ -62,6 +63,11 @@ async function createApp(): Promise<express.Application> {
 
       // Allow Vercel preview URLs
       if (origin.includes('.vercel.app') || origin.includes('.vercel.dev')) {
+        return callback(null, true);
+      }
+
+      // Allow GitHub Pages URLs
+      if (origin.includes('.github.io')) {
         return callback(null, true);
       }
 
