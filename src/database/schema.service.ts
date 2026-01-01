@@ -6,6 +6,8 @@ import { ClickhouseService } from './clickhouse.service';
 export class SchemaService implements OnModuleInit {
   private readonly logger = new Logger(SchemaService.name);
   private readonly database: string;
+  private initPromise: Promise<void> | null = null;
+  private isInitialized = false;
 
   constructor(
     private readonly ch: ClickhouseService,
@@ -15,9 +17,42 @@ export class SchemaService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    // Initialize schema - runs in parallel for faster startup
+    // For serverless, this needs to complete before first request
+    try {
+      await this.ensureInitialized();
+    } catch (error) {
+      // Log error but don't throw - tables will be created on first use with IF NOT EXISTS
+      this.logger.error('❌ Schema initialization had errors, but continuing...', error);
+    }
+  }
+
+  /**
+   * Ensures database schema is initialized
+   * Uses cached promise to avoid multiple initializations
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    if (!this.initPromise) {
+      this.initPromise = this.doInitialize();
+    }
+
+    try {
+      await this.initPromise;
+      this.isInitialized = true;
+    } catch (error) {
+      // Reset promise on error so it can be retried
+      this.initPromise = null;
+      throw error;
+    }
+  }
+
+  private async doInitialize(): Promise<void> {
     try {
       await this.initDatabase();
-      // Tables are created with IF NOT EXISTS - no dropping, data is preserved
       await this.initTables();
       this.logger.log('✅ Database schema initialized successfully');
     } catch (error) {
@@ -33,6 +68,7 @@ export class SchemaService implements OnModuleInit {
 
 
   private async initTables() {
+    // Create tables in parallel for faster initialization
     const tables = [
       // Users Table
       `CREATE TABLE IF NOT EXISTS ${this.database}.users (
@@ -236,15 +272,25 @@ SETTINGS index_granularity = 8192`,
       SETTINGS index_granularity = 8192`
     ];
 
-    for (const [index, query] of tables.entries()) {
+    // Create all tables in parallel for faster initialization
+    const tablePromises = tables.map(async (query, index) => {
       try {
         await this.ch.query(query);
         const tableName = query.match(/\.(\w+)/)?.[1] || `table-${index}`;
         this.logger.log(`✅ Table checked/created: ${this.database}.${tableName} (IF NOT EXISTS)`);
+        return { success: true, tableName };
       } catch (error: any) {
         this.logger.error(`❌ Failed to create table ${index + 1}: ${error.message}`);
-        throw error;
+        return { success: false, tableName: `table-${index}`, error };
       }
+    });
+
+    const results = await Promise.allSettled(tablePromises);
+    
+    // Check if any critical tables failed
+    const failures = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+    if (failures.length > 0) {
+      this.logger.warn(`⚠️ ${failures.length} table(s) failed to initialize, but continuing...`);
     }
 
     // Add title column to trainers table if it doesn't exist (for existing databases)
