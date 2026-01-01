@@ -119,6 +119,22 @@ async function createApp(): Promise<express.Application> {
 }
 
 export default async function handler(req: express.Request, res: express.Response) {
+  // Handle root path with helpful information
+  const path = req.url?.split('?')[0] || req.path || '/';
+  if (path === '/' || path === '') {
+    return res.status(200).json({
+      success: true,
+      message: 'Fitpreeti Yog Institute API',
+      version: '1.0',
+      endpoints: {
+        health: '/api/v1/health',
+        api: '/api/v1',
+        docs: '/api',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   const app = await createApp();
   return app(req, res);
 }
