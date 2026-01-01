@@ -1,29 +1,32 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClickhouseService } from './clickhouse.service';
 
 @Injectable()
-export class SchemaService implements OnModuleInit {
+export class SchemaService {
   private readonly logger = new Logger(SchemaService.name);
   private readonly database: string;
   private initPromise: Promise<void> | null = null;
   private isInitialized = false;
+  private initStarted = false;
 
   constructor(
     private readonly ch: ClickhouseService,
     private readonly configService: ConfigService,
   ) {
     this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
-  }
-
-  async onModuleInit() {
-    // Initialize schema - runs in parallel for faster startup
-    // For serverless, this needs to complete before first request
-    try {
-      await this.ensureInitialized();
-    } catch (error) {
-      // Log error but don't throw - tables will be created on first use with IF NOT EXISTS
-      this.logger.error('❌ Schema initialization had errors, but continuing...', error);
+    
+    // Start initialization in background without blocking
+    // This is critical for serverless functions where cold starts must be fast
+    if (!this.initStarted) {
+      this.initStarted = true;
+      // Use setImmediate to defer execution to next event loop tick
+      // This allows the app to start immediately
+      setImmediate(() => {
+        this.ensureInitialized().catch((error) => {
+          this.logger.warn('⚠️ Schema initialization failed, tables will be created on first use', error);
+        });
+      });
     }
   }
 
@@ -44,20 +47,33 @@ export class SchemaService implements OnModuleInit {
       await this.initPromise;
       this.isInitialized = true;
     } catch (error) {
-      // Reset promise on error so it can be retried
+      // Don't throw - mark as initialized anyway since tables use IF NOT EXISTS
+      // This prevents blocking on retries
+      this.logger.warn('⚠️ Initialization had errors, but marking as initialized', error);
+      this.isInitialized = true;
       this.initPromise = null;
-      throw error;
     }
   }
 
   private async doInitialize(): Promise<void> {
     try {
-      await this.initDatabase();
-      await this.initTables();
-      this.logger.log('✅ Database schema initialized successfully');
+      // Initialize database - non-blocking, errors are logged but don't fail
+      try {
+        await this.initDatabase();
+      } catch (error) {
+        this.logger.warn('⚠️ Database initialization had issues, continuing...', error);
+      }
+      
+      // Initialize tables - runs in parallel, errors are handled per table
+      try {
+        await this.initTables();
+        this.logger.log('✅ Database schema initialization completed');
+      } catch (error) {
+        this.logger.warn('⚠️ Some tables may not have been initialized, but continuing...', error);
+      }
     } catch (error) {
-      this.logger.error('❌ Failed to initialize database schema', error);
-      throw error;
+      // Never throw - let tables be created on first use with IF NOT EXISTS
+      this.logger.warn('⚠️ Schema initialization had errors, tables will be created on first use', error);
     }
   }
 
