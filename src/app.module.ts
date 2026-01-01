@@ -35,16 +35,16 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
         imports: [ConfigModule],
         inject: [ConfigService],
         useFactory: (configService: ConfigService) => {
-          // Strict limits for production
+          // Increased limits for better user experience
           return [
             {
               ttl: 60000, // 1 minute
-              limit: 100, // 100 requests per minute in prod
+              limit: 1000, // 1000 requests per minute (increased from 100)
             },
             {
               name: 'auth',
               ttl: 900000, // 15 minutes
-              limit: 5, // 5 requests per 15 minutes in prod
+              limit: 30, // 30 requests per 15 minutes (increased from 5)
             },
           ];
         },

@@ -28,7 +28,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 requests per 15 minutes
+  @Throttle({ default: { limit: 30, ttl: 900000 } }) // 30 requests per 15 minutes (increased from 5)
   @ApiOperation({ summary: 'Register new user with full profile' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
@@ -40,7 +40,7 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 900000 } }) // 5 requests per 15 minutes
+  @Throttle({ default: { limit: 30, ttl: 900000 } }) // 30 requests per 15 minutes (increased from 5)
   @ApiOperation({ summary: 'Login with phone and PIN' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
