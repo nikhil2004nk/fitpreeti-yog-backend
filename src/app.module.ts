@@ -15,6 +15,7 @@ import { ClassScheduleModule } from './class-schedule/class-schedule.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { InstituteInfoModule } from './institute-info/institute-info.module';
 import { ContentSectionsModule } from './content-sections/content-sections.module';
+import { AttendanceModule } from './attendance/attendance.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 import { validate } from './config/env.validation';
 
@@ -60,6 +61,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     ReviewsModule,
     InstituteInfoModule,
     ContentSectionsModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [

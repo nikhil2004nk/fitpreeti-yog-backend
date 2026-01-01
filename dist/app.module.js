@@ -23,6 +23,7 @@ const class_schedule_module_1 = require("./class-schedule/class-schedule.module"
 const reviews_module_1 = require("./reviews/reviews.module");
 const institute_info_module_1 = require("./institute-info/institute-info.module");
 const content_sections_module_1 = require("./content-sections/content-sections.module");
+const attendance_module_1 = require("./attendance/attendance.module");
 const clickhouse_module_1 = require("./database/clickhouse.module");
 const env_validation_1 = require("./config/env.validation");
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -68,6 +69,7 @@ exports.AppModule = AppModule = __decorate([
             reviews_module_1.ReviewsModule,
             institute_info_module_1.InstituteInfoModule,
             content_sections_module_1.ContentSectionsModule,
+            attendance_module_1.AttendanceModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

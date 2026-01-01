@@ -206,6 +206,19 @@ SETTINGS index_granularity = 8192`,
       ) ENGINE = MergeTree()
       PARTITION BY toYYYYMM(created_at)
       ORDER BY (section_key, created_at)
+      SETTINGS index_granularity = 8192`,
+            `CREATE TABLE IF NOT EXISTS ${this.database}.attendance (
+        id UUID DEFAULT generateUUIDv4(),
+        user_id UUID NOT NULL,
+        date Date NOT NULL,
+        status LowCardinality(String) NOT NULL,
+        marked_by Nullable(UUID),
+        notes Nullable(String),
+        created_at DateTime64(3) DEFAULT now64(),
+        updated_at DateTime64(3) DEFAULT now64()
+      ) ENGINE = ReplacingMergeTree(updated_at)
+      PARTITION BY toYYYYMM(created_at)
+      ORDER BY (user_id, date)
       SETTINGS index_granularity = 8192`
         ];
         for (const [index, query] of tables.entries()) {
