@@ -13,6 +13,8 @@ import { HealthModule } from './health/health.module';
 import { TrainersModule } from './trainers/trainers.module';
 import { ClassScheduleModule } from './class-schedule/class-schedule.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { InstituteInfoModule } from './institute-info/institute-info.module';
+import { ContentSectionsModule } from './content-sections/content-sections.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 import { validate } from './config/env.validation';
 
@@ -56,6 +58,8 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     TrainersModule,
     ClassScheduleModule,
     ReviewsModule,
+    InstituteInfoModule,
+    ContentSectionsModule,
   ],
   controllers: [AppController],
   providers: [

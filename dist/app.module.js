@@ -21,6 +21,8 @@ const health_module_1 = require("./health/health.module");
 const trainers_module_1 = require("./trainers/trainers.module");
 const class_schedule_module_1 = require("./class-schedule/class-schedule.module");
 const reviews_module_1 = require("./reviews/reviews.module");
+const institute_info_module_1 = require("./institute-info/institute-info.module");
+const content_sections_module_1 = require("./content-sections/content-sections.module");
 const clickhouse_module_1 = require("./database/clickhouse.module");
 const env_validation_1 = require("./config/env.validation");
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -64,6 +66,8 @@ exports.AppModule = AppModule = __decorate([
             trainers_module_1.TrainersModule,
             class_schedule_module_1.ClassScheduleModule,
             reviews_module_1.ReviewsModule,
+            institute_info_module_1.InstituteInfoModule,
+            content_sections_module_1.ContentSectionsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [
