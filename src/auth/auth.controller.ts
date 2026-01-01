@@ -52,18 +52,24 @@ export class AuthController {
   ) {
     const { access_token, refresh_token, user } = await this.authService.login(loginDto);
     
+    // Cookie options for cross-origin support (GitHub Pages to Vercel)
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction, // Required for SameSite=None
+      sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+      path: '/',
+      // Do NOT set domain - let it default to backend domain
+    };
+    
     // Set secure httpOnly cookies
     res.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      ...cookieOptions,
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
@@ -88,18 +94,24 @@ export class AuthController {
 
     const { access_token, refresh_token } = await this.authService.refresh(refreshToken);
     
+    // Cookie options for cross-origin support (GitHub Pages to Vercel)
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction, // Required for SameSite=None
+      sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+      path: '/',
+      // Do NOT set domain - let it default to backend domain
+    };
+    
     // Update cookies with new tokens
     res.cookie('access_token', access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      ...cookieOptions,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie('refresh_token', refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -123,18 +135,18 @@ export class AuthController {
     // Invalidate tokens
     await this.authService.logout(refreshToken || '', accessToken);
     
-    // Clear cookies
-    res.clearCookie('access_token', {
+    // Cookie options for clearing cookies (must match original cookie settings)
+    const isProduction = process.env.NODE_ENV === 'production';
+    const clearCookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    });
+      secure: isProduction,
+      sameSite: isProduction ? ('none' as const) : ('strict' as const),
+      path: '/',
+    };
     
-    res.clearCookie('refresh_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-    });
+    // Clear cookies
+    res.clearCookie('access_token', clearCookieOptions);
+    res.clearCookie('refresh_token', clearCookieOptions);
 
     return {
       message: 'Logged out successfully',

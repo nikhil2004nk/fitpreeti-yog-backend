@@ -80,6 +80,7 @@ async function createApp(): Promise<express.Application> {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Set-Cookie'], // Expose Set-Cookie header for cross-origin cookies
   });
 
   // Global API prefix

@@ -62,11 +62,15 @@ export class CookieJwtGuard implements CanActivate {
         });
 
         request.user = newPayload;
+        // Cookie options for cross-origin support (GitHub Pages to Vercel)
+        const isProduction = process.env.NODE_ENV === 'production';
         response.cookie('access_token', newAccessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: isProduction, // Required for SameSite=None
+          sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+          path: '/',
           maxAge: 15 * 60 * 1000,
+          // Do NOT set domain - let it default to backend domain
         });
         return true;
       } catch {
