@@ -29,9 +29,7 @@ export class TrainersController {
   }
 
   @Get()
-  @UseGuards(CookieJwtGuard)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Get all trainers' })
+  @ApiOperation({ summary: 'Get all trainers (Public)' })
   @ApiResponse({ status: 200, description: 'Returns all trainers', type: [TrainerResponseDto] })
   async findAll(): Promise<TrainerResponseDto[]> {
     return this.trainersService.findAll();

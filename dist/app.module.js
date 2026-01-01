@@ -23,6 +23,7 @@ const class_schedule_module_1 = require("./class-schedule/class-schedule.module"
 const reviews_module_1 = require("./reviews/reviews.module");
 const clickhouse_module_1 = require("./database/clickhouse.module");
 const env_validation_1 = require("./config/env.validation");
+const isDevelopment = process.env.NODE_ENV !== 'production';
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -35,25 +36,25 @@ exports.AppModule = AppModule = __decorate([
                 validate: env_validation_1.validate,
                 cache: true,
             }),
-            throttler_1.ThrottlerModule.forRootAsync({
-                imports: [config_1.ConfigModule],
-                inject: [config_1.ConfigService],
-                useFactory: (configService) => {
-                    const nodeEnv = configService.get('NODE_ENV', 'development');
-                    const isDevelopment = nodeEnv === 'development';
-                    return [
-                        {
-                            ttl: 60000,
-                            limit: isDevelopment ? 1000 : 100,
-                        },
-                        {
-                            name: 'auth',
-                            ttl: 900000,
-                            limit: isDevelopment ? 20 : 5,
-                        },
-                    ];
-                },
-            }),
+            ...(isDevelopment ? [] : [
+                throttler_1.ThrottlerModule.forRootAsync({
+                    imports: [config_1.ConfigModule],
+                    inject: [config_1.ConfigService],
+                    useFactory: (configService) => {
+                        return [
+                            {
+                                ttl: 60000,
+                                limit: 100,
+                            },
+                            {
+                                name: 'auth',
+                                ttl: 900000,
+                                limit: 5,
+                            },
+                        ];
+                    },
+                }),
+            ]),
             clickhouse_module_1.ClickhouseModule,
             auth_module_1.AuthModule,
             services_module_1.ServicesModule,
@@ -67,13 +68,15 @@ exports.AppModule = AppModule = __decorate([
         controllers: [app_controller_1.AppController],
         providers: [
             app_service_1.AppService,
-            {
-                provide: core_1.APP_GUARD,
-                useFactory: (options, storageService, reflector) => {
-                    return new throttler_1.ThrottlerGuard(options, storageService, reflector);
+            ...(isDevelopment ? [] : [
+                {
+                    provide: core_1.APP_GUARD,
+                    useFactory: (options, storageService, reflector) => {
+                        return new throttler_1.ThrottlerGuard(options, storageService, reflector);
+                    },
+                    inject: ['THROTTLER:MODULE_OPTIONS', throttler_1.ThrottlerStorage, core_1.Reflector],
                 },
-                inject: ['THROTTLER:MODULE_OPTIONS', throttler_1.ThrottlerStorage, core_1.Reflector],
-            },
+            ]),
         ],
     })
 ], AppModule);

@@ -41,7 +41,7 @@ export class ServicesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all services' })
+  @ApiOperation({ summary: 'Get all services (Public)' })
   @ApiQuery({ name: 'type', required: false, type: String, description: 'Filter by service type' })
   @ApiResponse({ status: 200, description: 'Returns all services' })
   findAll(@Query('type') type?: string) {

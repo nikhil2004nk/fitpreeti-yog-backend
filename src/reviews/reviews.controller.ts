@@ -45,7 +45,7 @@ export class ReviewsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all approved reviews' })
+  @ApiOperation({ summary: 'Get all approved reviews (Public)' })
   @ApiQuery({ name: 'approved', required: false, type: Boolean, description: 'Filter by approval status (default: true)' })
   @ApiResponse({ status: 200, description: 'Returns all approved reviews' })
   findAll(@Query('approved') approved?: string) {

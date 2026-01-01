@@ -16,6 +16,8 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { ClickhouseModule } from './database/clickhouse.module';
 import { validate } from './config/env.validation';
 
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,27 +26,27 @@ import { validate } from './config/env.validation';
       validate,
       cache: true,
     }),
-    ThrottlerModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const nodeEnv = configService.get<string>('NODE_ENV', 'development');
-        const isDevelopment = nodeEnv === 'development';
-        
-        // Higher limits for development, stricter for production
-        return [
-          {
-            ttl: 60000, // 1 minute
-            limit: isDevelopment ? 1000 : 100, // 1000 requests per minute in dev, 100 in prod
-          },
-          {
-            name: 'auth',
-            ttl: 900000, // 15 minutes
-            limit: isDevelopment ? 20 : 5, // 20 requests per 15 minutes in dev, 5 in prod
-          },
-        ];
-      },
-    }),
+    // Only import ThrottlerModule in production
+    ...(isDevelopment ? [] : [
+      ThrottlerModule.forRootAsync({
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => {
+          // Strict limits for production
+          return [
+            {
+              ttl: 60000, // 1 minute
+              limit: 100, // 100 requests per minute in prod
+            },
+            {
+              name: 'auth',
+              ttl: 900000, // 15 minutes
+              limit: 5, // 5 requests per 15 minutes in prod
+            },
+          ];
+        },
+      }),
+    ]),
     ClickhouseModule,
     AuthModule,
     ServicesModule,
@@ -58,13 +60,16 @@ import { validate } from './config/env.validation';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useFactory: (options: ThrottlerModuleOptions, storageService: ThrottlerStorage, reflector: Reflector) => {
-        return new ThrottlerGuard(options, storageService, reflector);
+    // Only register ThrottlerGuard in production
+    ...(isDevelopment ? [] : [
+      {
+        provide: APP_GUARD,
+        useFactory: (options: ThrottlerModuleOptions, storageService: ThrottlerStorage, reflector: Reflector) => {
+          return new ThrottlerGuard(options, storageService, reflector);
+        },
+        inject: ['THROTTLER:MODULE_OPTIONS', ThrottlerStorage, Reflector],
       },
-      inject: ['THROTTLER:MODULE_OPTIONS', ThrottlerStorage, Reflector],
-    },
+    ]),
   ],
 })
 export class AppModule {}
