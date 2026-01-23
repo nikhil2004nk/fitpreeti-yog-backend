@@ -1,13 +1,14 @@
 // src/trainers/trainers.module.ts
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Trainer } from './entities/trainer.entity';
 import { TrainersService } from './trainers.service';
 import { TrainersController } from './trainers.controller';
-import { ClickhouseModule } from '../database/clickhouse.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    ClickhouseModule,
+    TypeOrmModule.forFeature([Trainer]),
     AuthModule, // Add AuthModule to use guards
   ],
   controllers: [TrainersController],

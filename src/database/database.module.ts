@@ -10,6 +10,7 @@ import { Review } from '../reviews/entities/review.entity';
 import { Attendance } from '../attendance/entities/attendance.entity';
 import { InstituteInfo } from '../institute-info/entities/institute-info.entity';
 import { ContentSection } from '../content-sections/entities/content-section.entity';
+import { UserSession } from '../auth/entities/user-session.entity';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ContentSection } from '../content-sections/entities/content-section.ent
           Attendance,
           InstituteInfo,
           ContentSection,
+          UserSession,
         ],
         synchronize: true, // Auto-create tables (starting from scratch)
         logging: configService.get('NODE_ENV') === 'development',

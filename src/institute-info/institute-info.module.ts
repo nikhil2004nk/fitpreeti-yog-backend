@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { InstituteInfo } from './entities/institute-info.entity';
 import { InstituteInfoController } from './institute-info.controller';
 import { InstituteInfoService } from './institute-info.service';
-import { ClickhouseModule } from '../database/clickhouse.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    ClickhouseModule,
+    TypeOrmModule.forFeature([InstituteInfo]),
     AuthModule,
   ],
   controllers: [InstituteInfoController],

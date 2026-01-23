@@ -1,19 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ClickhouseService } from '../database/clickhouse.service';
-import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, MoreThan } from 'typeorm';
+import { UserSession } from './entities/user-session.entity';
 import { sanitizeText } from '../common/utils/sanitize.util';
 
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
-  private readonly database: string;
 
   constructor(
-    private readonly ch: ClickhouseService,
-    private readonly configService: ConfigService,
-  ) {
-    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
-  }
+    @InjectRepository(UserSession)
+    private readonly sessionRepository: Repository<UserSession>,
+  ) {}
 
   async createSession(
     userId: string,
@@ -23,15 +21,15 @@ export class SessionService {
     expiresAt: Date,
   ): Promise<void> {
     try {
-      const sessionData = {
+      const session = this.sessionRepository.create({
         user_id: userId,
         token: sanitizeText(token),
         user_agent: sanitizeText(userAgent),
         ip_address: sanitizeText(ipAddress),
-        expires_at: expiresAt.toISOString(),
-      };
+        expires_at: expiresAt,
+      });
 
-      await this.ch.insert('user_sessions', sessionData);
+      await this.sessionRepository.save(session);
     } catch (error) {
       this.logger.error('Failed to create session', error instanceof Error ? error.stack : String(error));
       throw error;
@@ -40,19 +38,15 @@ export class SessionService {
 
   async validateSession(userId: string, token: string): Promise<boolean> {
     try {
-      const query = `
-        SELECT COUNT(*) as count 
-        FROM ${this.database}.user_sessions 
-        WHERE user_id = {userId:String} 
-          AND token = {token:String}
-          AND expires_at > now()
-      `;
-      const result = await this.ch.queryParams<Array<{ count: number }>>(query, { 
-        userId, 
-        token: sanitizeText(token) 
+      const count = await this.sessionRepository.count({
+        where: {
+          user_id: userId,
+          token: sanitizeText(token),
+          expires_at: MoreThan(new Date()),
+        },
       });
       
-      return result?.[0]?.count > 0;
+      return count > 0;
     } catch (error) {
       this.logger.error('Failed to validate session', error instanceof Error ? error.stack : String(error));
       return false;
@@ -61,11 +55,7 @@ export class SessionService {
 
   async invalidateSession(token: string): Promise<void> {
     try {
-      const deleteQuery = `
-        ALTER TABLE ${this.database}.user_sessions 
-        DELETE WHERE token = {token:String}
-      `;
-      await this.ch.queryParams(deleteQuery, { token: sanitizeText(token) });
+      await this.sessionRepository.delete({ token: sanitizeText(token) });
     } catch (error) {
       this.logger.error('Failed to invalidate session', error instanceof Error ? error.stack : String(error));
       throw error;
@@ -75,20 +65,14 @@ export class SessionService {
   async invalidateAllUserSessions(userId: string, excludeToken?: string): Promise<void> {
     try {
       if (excludeToken) {
-        const deleteQuery = `
-          ALTER TABLE ${this.database}.user_sessions 
-          DELETE WHERE user_id = {userId:String} AND token != {excludeToken:String}
-        `;
-        await this.ch.queryParams(deleteQuery, { 
-          userId, 
-          excludeToken: sanitizeText(excludeToken) 
-        });
+        await this.sessionRepository
+          .createQueryBuilder()
+          .delete()
+          .where('user_id = :userId', { userId })
+          .andWhere('token != :excludeToken', { excludeToken: sanitizeText(excludeToken) })
+          .execute();
       } else {
-        const deleteQuery = `
-          ALTER TABLE ${this.database}.user_sessions 
-          DELETE WHERE user_id = {userId:String}
-        `;
-        await this.ch.queryParams(deleteQuery, { userId });
+        await this.sessionRepository.delete({ user_id: userId });
       }
     } catch (error) {
       this.logger.error('Failed to invalidate user sessions', error instanceof Error ? error.stack : String(error));

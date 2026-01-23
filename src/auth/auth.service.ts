@@ -1,7 +1,9 @@
 import { Injectable, UnauthorizedException, ConflictException, Logger, BadRequestException, Inject } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ClickhouseService } from '../database/clickhouse.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../users/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
 import type { Request } from 'express';
@@ -9,7 +11,7 @@ import { REQUEST } from '@nestjs/core';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
-import type { User, UserLite, UserRole } from '../common/interfaces/user.interface';
+import type { UserLite, UserRole } from '../common/interfaces/user.interface';
 import { SessionService } from './session.service';
 import { normalizePhone, isValidPhone } from '../common/utils/phone.util';
 import { sanitizeText } from '../common/utils/sanitize.util';
@@ -18,31 +20,25 @@ import { sanitizeText } from '../common/utils/sanitize.util';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly saltRounds: number;
-  private readonly database: string;
 
   constructor(
-    private readonly ch: ClickhouseService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly sessionService: SessionService,
     @Inject(REQUEST) private readonly request: Request,
   ) {
-    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
     this.saltRounds = this.configService.get<number>('BCRYPT_SALT_ROUNDS', 12);
   }
 
   /**
-   * Check if phone number already exists using parameterized query
+   * Check if phone number already exists
    */
   private async checkPhoneExists(phone: string): Promise<boolean> {
     try {
-      const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE phone = {phone:String}`;
-      const result = await this.ch.queryParams<Array<{ cnt: number }>>(query, { phone });
-      
-      if (Array.isArray(result) && result.length > 0) {
-        return result[0].cnt > 0;
-      }
-      return false;
+      const count = await this.userRepository.count({ where: { phone } });
+      return count > 0;
     } catch (error) {
       this.logger.error(`Error checking phone existence: ${phone}`, error);
       throw error;
@@ -50,18 +46,15 @@ export class AuthService {
   }
 
   /**
-   * Check if email already exists using parameterized query
+   * Check if email already exists
    */
   private async checkEmailExists(email: string): Promise<boolean> {
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const query = `SELECT COUNT(*) as cnt FROM ${this.database}.users WHERE lower(trim(email)) = {email:String}`;
-      const result = await this.ch.queryParams<Array<{ cnt: number }>>(query, { email: normalizedEmail });
-      
-      if (Array.isArray(result) && result.length > 0) {
-        return result[0].cnt > 0;
-      }
-      return false;
+      const count = await this.userRepository.count({ 
+        where: { email: normalizedEmail } 
+      });
+      return count > 0;
     } catch (error) {
       this.logger.error(`Error checking email existence: ${email}`, error);
       throw error;
@@ -103,32 +96,28 @@ export class AuthService {
       // HASH PIN before storing
       const hashedPin = await bcrypt.hash(dto.pin, this.saltRounds);
 
-      // CREATE USER with UUID
+      // CREATE USER
       const role: UserRole = (dto.role as UserRole) || 'customer';
-      const userId = uuidv4();
 
-      const userData = {
-        id: userId,
+      const user = this.userRepository.create({
         name: sanitizeText(dto.name).trim(),
-        email: dto.email ? sanitizeText(dto.email).trim().toLowerCase() : '',
+        email: dto.email ? sanitizeText(dto.email).trim().toLowerCase() : null,
         phone: normalizedPhone,
         pin: hashedPin,
-        role,
+        role: role as any,
         profile_image: null,
         is_active: false,
         last_login: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      });
 
-      await this.ch.insert('users', userData);
+      const savedUser = await this.userRepository.save(user);
 
-      this.logger.log(`✅ User registered: ${normalizedPhone} (${role}) with ID: ${userId}`);
+      this.logger.log(`✅ User registered: ${normalizedPhone} (${role}) with ID: ${savedUser.id}`);
       
       return {
         success: true,
         message: 'User registered successfully',
-        data: { id: userId, name: userData.name, email: userData.email, phone: normalizedPhone, role },
+        data: { id: savedUser.id, name: savedUser.name, email: savedUser.email || '', phone: normalizedPhone, role: role as any },
       };
     } catch (error) {
       if (error instanceof ConflictException || error instanceof BadRequestException) {
@@ -152,7 +141,7 @@ export class AuthService {
 
     const payload: JwtPayload = {
       sub: user.id?.toString() || '',
-      phone: user.phone,
+      phone: user.phone || '',
       email: user.email || '',
       name: user.name,
       role: user.role as UserRole,
@@ -168,7 +157,9 @@ export class AuthService {
     refreshTokenExpiresAt.setDate(refreshTokenExpiresAt.getDate() + 7); // 7 days
 
     // Store refresh token in users table
-    await this.updateUserRefreshToken(user.phone, refreshToken, refreshTokenExpiresAt);
+    if (user.phone) {
+      await this.updateUserRefreshToken(user.phone, refreshToken, refreshTokenExpiresAt);
+    }
 
     // Create session
     const expiresAt = new Date();
@@ -189,7 +180,7 @@ export class AuthService {
         id: user.id || '',
         name: user.name,
         email: user.email || '',
-        phone: user.phone,
+        phone: user.phone || '',
         role: user.role as UserRole,
       },
     };
@@ -208,8 +199,8 @@ export class AuthService {
     }
 
     const payload: JwtPayload = {
-      sub: user.id?.toString(),
-      phone: user.phone,
+      sub: user.id?.toString() || '',
+      phone: user.phone || '',
       email: user.email || '',
       name: user.name,
       role: user.role as UserRole,
@@ -254,15 +245,17 @@ export class AuthService {
 
   public async findUserById(id: string): Promise<UserLite | null> {
     try {
-      const query = `
-        SELECT id, name, email, phone as phone, role, created_at
-        FROM ${this.database}.users 
-        WHERE id = {id:String}
-        LIMIT 1
-      `;
-      
-      const result = await this.ch.queryParams<UserLite[]>(query, { id });
-      return result?.[0] || null;
+      const user = await this.userRepository.findOne({ 
+        where: { id },
+        select: ['id', 'name', 'email', 'phone', 'role', 'created_at']
+      });
+      return user ? {
+        id: user.id,
+        name: user.name,
+        email: user.email || '',
+        phone: user.phone || '',
+        role: user.role,
+      } : null;
     } catch (error) {
       this.logger.error(`Error finding user by ID: ${id}`, error);
       return null;
@@ -271,22 +264,10 @@ export class AuthService {
 
   private async findUserByPhone(phone: string): Promise<User | null> {
     try {
-      const query = `
-        SELECT 
-          id,
-          name,
-          email,
-          phone,
-          pin,
-          role,
-          created_at
-        FROM ${this.database}.users 
-        WHERE phone = {phone:String}
-        LIMIT 1
-      `;
-      
-      const result = await this.ch.queryParams<User[]>(query, { phone });
-      return result?.[0] || null;
+      return await this.userRepository.findOne({ 
+        where: { phone },
+        select: ['id', 'name', 'email', 'phone', 'pin', 'role', 'created_at', 'is_active', 'last_login']
+      });
     } catch (error) {
       this.logger.error(`Error finding user by phone: ${phone}`, error);
       return null;
@@ -295,15 +276,17 @@ export class AuthService {
 
   public async findUserByPhonePublic(phone: string): Promise<UserLite | null> {
     try {
-      const query = `
-        SELECT id, name, email, phone, role, created_at 
-        FROM ${this.database}.users 
-        WHERE phone = {phone:String}
-        LIMIT 1
-      `;
-      
-      const result = await this.ch.queryParams<UserLite[]>(query, { phone });
-      return result?.[0] || null;
+      const user = await this.userRepository.findOne({ 
+        where: { phone },
+        select: ['id', 'name', 'email', 'phone', 'role', 'created_at']
+      });
+      return user ? {
+        id: user.id,
+        name: user.name,
+        email: user.email || '',
+        phone: user.phone || '',
+        role: user.role,
+      } : null;
     } catch (error) {
       this.logger.error(`Error finding user by phone (public): ${phone}`, error);
       return null;
@@ -330,27 +313,12 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
       return null;
     }
 
-    // Get current timestamp in correct format for ClickHouse
-    const now = new Date();
-    const formattedDate = now.toISOString().replace('T', ' ').replace('Z', '');
-    
-    // Update is_active and last_login using parameterized query
-    // Note: ClickHouse parameterized queries don't support all functions, so we use a hybrid approach
-    const updateQuery = `
-      ALTER TABLE ${this.database}.users 
-      UPDATE 
-        is_active = true, 
-        last_login = parseDateTime64BestEffort({date:String})
-      WHERE phone = {phone:String}
-    `;
-    await this.ch.queryParams(updateQuery, { phone, date: formattedDate });
+    // Update is_active and last_login
+    user.is_active = true;
+    user.last_login = new Date();
+    await this.userRepository.save(user);
 
-    // Return updated user data
-    return {
-      ...user,
-      is_active: true,
-      last_login: now.toISOString()
-    };
+    return user;
   } catch (error) {
     this.logger.error(`Error validating user credentials for phone: ${phone}`, error);
     return null;
@@ -359,17 +327,23 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
 
   public async validateRefreshToken(token: string): Promise<string | null> {
     try {
-      const query = `
-        SELECT phone 
-        FROM ${this.database}.users 
-        WHERE refresh_token = {token:String}
-          AND refresh_token_expires_at > now()
-          AND is_active = true
-        LIMIT 1
-      `;
-      
-      const result = await this.ch.queryParams<Array<{ phone: string }>>(query, { token });
-      return result?.[0]?.phone || null;
+      const user = await this.userRepository.findOne({
+        where: {
+          refresh_token: token,
+          is_active: true,
+        },
+        select: ['phone', 'refresh_token_expires_at'],
+      });
+
+      if (!user || !user.refresh_token_expires_at) {
+        return null;
+      }
+
+      if (user.refresh_token_expires_at < new Date()) {
+        return null;
+      }
+
+      return user.phone || null;
     } catch (error) {
       this.logger.error('Error validating refresh token', error);
       return null;
@@ -379,21 +353,13 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
   private async updateUserRefreshToken(phone: string, refreshToken: string, expiresAt: Date): Promise<void> {
     try {
       const normalizedPhone = normalizePhone(phone);
-      const expiresAtStr = expiresAt.toISOString();
-      
-      const updateQuery = `
-        ALTER TABLE ${this.database}.users 
-        UPDATE 
-          refresh_token = {token:String},
-          refresh_token_expires_at = parseDateTime64BestEffort({expiresAt:String})
-        WHERE phone = {phone:String}
-      `;
-      
-      await this.ch.queryParams(updateQuery, { 
-        phone: normalizedPhone, 
-        token: refreshToken,
-        expiresAt: expiresAtStr
-      });
+      await this.userRepository.update(
+        { phone: normalizedPhone },
+        {
+          refresh_token: refreshToken,
+          refresh_token_expires_at: expiresAt,
+        }
+      );
     } catch (error) {
       this.logger.error(`Error updating refresh token for phone: ${phone}`, error);
       throw error;
@@ -403,16 +369,13 @@ private async validateUserCredentials(phone: string, pin: string): Promise<User 
   private async clearUserRefreshToken(phone: string): Promise<void> {
     try {
       const normalizedPhone = normalizePhone(phone);
-      
-      const updateQuery = `
-        ALTER TABLE ${this.database}.users 
-        UPDATE 
-          refresh_token = NULL,
-          refresh_token_expires_at = NULL
-        WHERE phone = {phone:String}
-      `;
-      
-      await this.ch.queryParams(updateQuery, { phone: normalizedPhone });
+      await this.userRepository.update(
+        { phone: normalizedPhone },
+        {
+          refresh_token: null,
+          refresh_token_expires_at: null,
+        }
+      );
     } catch (error) {
       this.logger.error(`Error clearing refresh token for phone: ${phone}`, error);
     }

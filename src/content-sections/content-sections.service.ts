@@ -1,75 +1,62 @@
 import { Injectable, Logger, NotFoundException, InternalServerErrorException } from '@nestjs/common';
-import { ClickhouseService } from '../database/clickhouse.service';
-import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ContentSection as ContentSectionEntity } from './entities/content-section.entity';
 import { CreateContentSectionDto } from './dto/create-content-section.dto';
 import { UpdateContentSectionDto } from './dto/update-content-section.dto';
 import { ContentSection } from './interfaces/content-section.interface';
 
 @Injectable()
 export class ContentSectionsService {
-  private readonly database: string;
   private readonly logger = new Logger(ContentSectionsService.name);
 
   constructor(
-    private ch: ClickhouseService,
-    private configService: ConfigService,
-  ) {
-    this.database = this.configService.get('CLICKHOUSE_DATABASE', 'fitpreeti');
+    @InjectRepository(ContentSectionEntity)
+    private readonly contentSectionRepository: Repository<ContentSectionEntity>,
+  ) {}
+
+  private toContentSection(entity: ContentSectionEntity): ContentSection {
+    return {
+      id: entity.id,
+      section_key: entity.section_key,
+      content: entity.content || {},
+      order: entity.order,
+      is_active: entity.is_active,
+      created_at: entity.created_at.toISOString(),
+      updated_at: entity.updated_at.toISOString(),
+    };
   }
 
   async create(createContentSectionDto: CreateContentSectionDto): Promise<ContentSection> {
     try {
-      const sectionId = require('uuid').v4();
-      const now = new Date().toISOString();
-
-      const sectionData = {
-        id: sectionId,
+      const section = this.contentSectionRepository.create({
         section_key: createContentSectionDto.section_key,
-        content: JSON.stringify(createContentSectionDto.content),
+        content: createContentSectionDto.content,
         order: createContentSectionDto.order ?? 0,
         is_active: createContentSectionDto.is_active ?? true,
-        created_at: now,
-        updated_at: now,
-      };
+      });
 
-      await this.ch.insert('content_sections', sectionData);
-
-      const selectQuery = `SELECT * FROM ${this.database}.content_sections WHERE id = {id:String} LIMIT 1`;
-      const result = await this.ch.queryParams<ContentSection[]>(selectQuery, { id: sectionId });
-
-      if (!Array.isArray(result) || result.length === 0) {
-        throw new InternalServerErrorException('Failed to retrieve the created content section');
-      }
-
-      return this.parseContentSection(result[0]);
+      const savedSection = await this.contentSectionRepository.save(section);
+      return this.toContentSection(savedSection);
     } catch (error) {
       this.logger.error('Create content section error:', error);
-      if (error instanceof InternalServerErrorException) {
-        throw error;
-      }
       throw new InternalServerErrorException('Failed to create content section');
     }
   }
 
   async findAll(includeInactive: boolean = false): Promise<ContentSection[]> {
     try {
-      let query = `
-        SELECT * FROM ${this.database}.content_sections
-      `;
-      
+      const where: any = {};
       if (!includeInactive) {
-        query += ` WHERE is_active = true`;
-      }
-      
-      query += ` ORDER BY section_key, order, created_at`;
-
-      const result = await this.ch.queryParams<ContentSection[]>(query, {});
-
-      if (!Array.isArray(result)) {
-        return [];
+        where.is_active = true;
       }
 
-      return result.map(section => this.parseContentSection(section));
+      const sections = await this.contentSectionRepository.find({
+        where,
+        order: { section_key: 'ASC', order: 'ASC', created_at: 'ASC' },
+      });
+
+      return sections.map(section => this.toContentSection(section));
     } catch (error) {
       this.logger.error('Find all content sections error:', error);
       throw new InternalServerErrorException('Failed to retrieve content sections');
@@ -97,19 +84,15 @@ export class ContentSectionsService {
 
   async findByKey(key: string): Promise<ContentSection[]> {
     try {
-      const query = `
-        SELECT * FROM ${this.database}.content_sections
-        WHERE section_key = {key:String} AND is_active = true
-        ORDER BY order, created_at
-      `;
-      
-      const result = await this.ch.queryParams<ContentSection[]>(query, { key });
+      const sections = await this.contentSectionRepository.find({
+        where: {
+          section_key: key,
+          is_active: true,
+        },
+        order: { order: 'ASC', created_at: 'ASC' },
+      });
 
-      if (!Array.isArray(result)) {
-        return [];
-      }
-
-      return result.map(section => this.parseContentSection(section));
+      return sections.map(section => this.toContentSection(section));
     } catch (error) {
       this.logger.error('Find content sections by key error:', error);
       throw new InternalServerErrorException('Failed to retrieve content sections by key');
@@ -118,14 +101,13 @@ export class ContentSectionsService {
 
   async findOne(id: string): Promise<ContentSection> {
     try {
-      const query = `SELECT * FROM ${this.database}.content_sections WHERE id = {id:String} LIMIT 1`;
-      const result = await this.ch.queryParams<ContentSection[]>(query, { id });
+      const section = await this.contentSectionRepository.findOne({ where: { id } });
 
-      if (!Array.isArray(result) || result.length === 0) {
+      if (!section) {
         throw new NotFoundException(`Content section with ID ${id} not found`);
       }
 
-      return this.parseContentSection(result[0]);
+      return this.toContentSection(section);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -137,64 +119,30 @@ export class ContentSectionsService {
 
   async update(id: string, updateContentSectionDto: UpdateContentSectionDto): Promise<ContentSection> {
     try {
-      await this.findOne(id);
-
-      const updates: string[] = [];
-      const updateData: Record<string, any> = {};
-
-      if (updateContentSectionDto.content !== undefined) {
-        updates.push('content = {content:String}');
-        updateData.content = JSON.stringify(updateContentSectionDto.content);
+      const section = await this.contentSectionRepository.findOne({ where: { id } });
+      if (!section) {
+        throw new NotFoundException(`Content section with ID ${id} not found`);
       }
 
-      // Note: section_key is in ORDER BY clause, cannot be updated directly
-      // If section_key needs to change, delete and recreate the section instead
-      if (updateContentSectionDto.section_key !== undefined) {
-        this.logger.warn('section_key cannot be updated (it is a key column). Delete and recreate the section instead.');
-        // Skip section_key updates - it's in the ORDER BY clause
+      // Note: section_key is part of the index, but TypeORM allows updates
+      // If you need to change section_key, consider deleting and recreating
+      if (updateContentSectionDto.section_key !== undefined && updateContentSectionDto.section_key !== section.section_key) {
+        this.logger.warn('section_key change requested. Consider deleting and recreating the section instead.');
       }
 
-      if (updateContentSectionDto.order !== undefined) {
-        updates.push('order = {order:UInt32}');
-        updateData.order = updateContentSectionDto.order;
-      }
+      Object.assign(section, {
+        ...(updateContentSectionDto.content !== undefined && { content: updateContentSectionDto.content }),
+        ...(updateContentSectionDto.section_key !== undefined && { section_key: updateContentSectionDto.section_key }),
+        ...(updateContentSectionDto.order !== undefined && { order: updateContentSectionDto.order }),
+        ...(updateContentSectionDto.is_active !== undefined && { is_active: updateContentSectionDto.is_active }),
+      });
 
-      if (updateContentSectionDto.is_active !== undefined) {
-        updates.push('is_active = {is_active:Bool}');
-        updateData.is_active = updateContentSectionDto.is_active;
-      }
-
-      if (updates.length === 0) {
-        return this.findOne(id);
-      }
-
-      updates.push('updated_at = now64()');
-      updateData.id = id;
-
-      const setClause = updates.join(', ');
-      const updateQuery = `
-        ALTER TABLE ${this.database}.content_sections
-        UPDATE ${setClause}
-        WHERE id = {id:String}
-      `;
-
-      await this.ch.queryParams(updateQuery, updateData);
-
-      // Wait a bit for eventual consistency, then retrieve
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      return this.findOne(id);
+      const savedSection = await this.contentSectionRepository.save(section);
+      return this.toContentSection(savedSection);
     } catch (error: any) {
       this.logger.error('Update content section error:', error);
       if (error instanceof NotFoundException || error instanceof InternalServerErrorException) {
         throw error;
-      }
-      // Check if it's a ClickHouse key column update error
-      if (error?.code === '420' && error?.type === 'CANNOT_UPDATE_COLUMN') {
-        throw new InternalServerErrorException(
-          'Cannot update key column. If the table was created with an older schema, ' +
-          'you may need to recreate it. Contact the backend team for assistance.'
-        );
       }
       throw new InternalServerErrorException('Failed to update content section');
     }
@@ -202,16 +150,14 @@ export class ContentSectionsService {
 
   async remove(id: string): Promise<{ id: string; is_active: boolean }> {
     try {
-      await this.findOne(id);
+      const section = await this.contentSectionRepository.findOne({ where: { id } });
+      if (!section) {
+        throw new NotFoundException(`Content section with ID ${id} not found`);
+      }
 
       // Soft delete by setting is_active = false
-      const updateQuery = `
-        ALTER TABLE ${this.database}.content_sections
-        UPDATE is_active = false, updated_at = now64()
-        WHERE id = {id:String}
-      `;
-
-      await this.ch.queryParams(updateQuery, { id });
+      section.is_active = false;
+      await this.contentSectionRepository.save(section);
 
       return { id, is_active: false };
     } catch (error) {
@@ -222,14 +168,4 @@ export class ContentSectionsService {
       throw new InternalServerErrorException('Failed to remove content section');
     }
   }
-
-  private parseContentSection(section: any): ContentSection {
-    return {
-      ...section,
-      content: typeof section.content === 'string' 
-        ? JSON.parse(section.content) 
-        : (section.content || {}),
-    };
-  }
 }
-

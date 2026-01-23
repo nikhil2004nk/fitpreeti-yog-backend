@@ -25,7 +25,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import type { Request } from 'express';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import type { AttendanceStatus, UserRole } from './interfaces/attendance.interface';
-import { AttendanceStatusEnum, UserRoleEnum } from './interfaces/attendance.interface';
+import { AttendanceStatusEnumValues, UserRoleEnum } from './interfaces/attendance.interface';
 
 @ApiTags('Attendance')
 @Controller('attendance')
@@ -126,7 +126,7 @@ export class AttendanceController {
   @ApiQuery({ name: 'user_role', required: false, enum: UserRoleEnum, description: 'Filter by user role' })
   @ApiQuery({ name: 'start_date', required: false, description: 'Start date (YYYY-MM-DD)' })
   @ApiQuery({ name: 'end_date', required: false, description: 'End date (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'status', required: false, enum: AttendanceStatusEnum, description: 'Filter by status' })
+  @ApiQuery({ name: 'status', required: false, enum: AttendanceStatusEnumValues, description: 'Filter by status' })
   @ApiResponse({ status: 200, description: 'Returns attendance records' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
