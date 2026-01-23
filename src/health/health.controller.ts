@@ -1,13 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ClickhouseService } from '../database/clickhouse.service';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 @ApiTags('Health')
 @Controller('health')
 @SkipThrottle() // Health check should not be rate limited
 export class HealthController {
-  constructor(private ch: ClickhouseService) {}
+  constructor(
+    @InjectDataSource()
+    private dataSource: DataSource,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Health check endpoint' })
@@ -25,7 +29,14 @@ export class HealthController {
     }
   })
   async checkHealth() {
-    const dbStatus = await this.ch.checkConnection();
+    let dbStatus = false;
+    try {
+      await this.dataSource.query('SELECT 1');
+      dbStatus = true;
+    } catch (error) {
+      dbStatus = false;
+    }
+    
     return {
       status: dbStatus ? 'healthy' : 'unhealthy',
       timestamp: new Date().toISOString(),

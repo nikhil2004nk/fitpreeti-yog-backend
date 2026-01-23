@@ -1,32 +1,36 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-@Entity('reviews')
-export class Review {
+export enum AttendanceStatus {
+  PRESENT = 'present',
+  ABSENT = 'absent',
+  LATE = 'late',
+  EXCUSED = 'excused'
+}
+
+@Entity('attendance')
+export class Attendance {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'varchar', length: 36, name: 'user_id' })
   user_id: string;
 
-  @ManyToOne(() => User, user => user.reviews)
+  @ManyToOne(() => User, user => user.attendance)
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'varchar', length: 36, nullable: true, name: 'booking_id' })
-  booking_id: string | null;
+  @Column({ type: 'date' })
+  date: Date;
 
-  @Column({ type: 'tinyint' })
-  rating: number; // 1-5
+  @Column({ type: 'enum', enum: AttendanceStatus })
+  status: AttendanceStatus;
 
-  @Column({ type: 'text' })
-  comment: string;
+  @Column({ type: 'varchar', length: 36, nullable: true, name: 'marked_by' })
+  marked_by: string | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'reviewer_type' })
-  reviewer_type: string | null;
-
-  @Column({ type: 'boolean', default: false, name: 'is_approved' })
-  is_approved: boolean;
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
 
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   created_at: Date;
@@ -34,3 +38,4 @@ export class Review {
   @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
   updated_at: Date;
 }
+

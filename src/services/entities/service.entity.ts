@@ -1,13 +1,7 @@
-import type { User } from '../../users/entities/user.entity';
-import type { Trainer } from '../../trainers/entities/trainer.entity';
-
-export enum BookingStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  CANCELLED = 'cancelled',
-  COMPLETED = 'completed',
-  NO_SHOW = 'no_show'
-}
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Trainer } from '../../trainers/entities/trainer.entity';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { ClassSchedule } from '../../class-schedule/entities/class-schedule.entity';
 
 export enum ServiceType {
   YOGA = 'yoga',
@@ -16,37 +10,51 @@ export enum ServiceType {
   CLASS = 'class'
 }
 
-export interface Service {
+@Entity('services')
+export class Service {
+  @PrimaryGeneratedColumn('uuid')
   id: string;
-  name: string;
-  description: string;
-  price: number;
-  type: ServiceType;
-  duration_minutes: number;
-  trainer_id: string;
-  trainer?: Trainer;
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
-  category?: string;
-  image_url?: string | null;
-  bookings?: Booking[];
-}
 
-export interface Booking {
-  id: string;
-  user_id: string;
-  user?: User;
-  service_id: string;
-  service?: Service;
-  start_time: Date;
-  end_time: Date;
-  status: BookingStatus;
-  notes: string | null;
-  amount: number;
+  @Column({ type: 'varchar', length: 255, name: 'service_name' })
+  service_name: string;
+
+  @Column({ type: 'text' })
+  description: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  price: number;
+
+  @Column({ type: 'enum', enum: ServiceType })
+  type: ServiceType;
+
+  @Column({ type: 'int', name: 'duration_minutes' })
+  duration_minutes: number;
+
+  @Column({ type: 'varchar', length: 36, name: 'trainer_id' })
+  trainer_id: string;
+
+  @ManyToOne(() => Trainer, trainer => trainer.services)
+  @JoinColumn({ name: 'trainer_id' })
+  trainer: Trainer;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  category: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'image_url' })
+  image_url: string | null;
+
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  is_active: boolean;
+
+  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
   created_at: Date;
+
+  @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
   updated_at: Date;
-  payment_status: string;
-  payment_id: string | null;
-  cancellation_reason: string | null;
+
+  @OneToMany(() => Booking, booking => booking.service)
+  bookings: Booking[];
+
+  @OneToMany(() => ClassSchedule, classSchedule => classSchedule.service)
+  class_schedules: ClassSchedule[];
 }

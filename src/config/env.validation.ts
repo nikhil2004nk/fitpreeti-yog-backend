@@ -27,16 +27,21 @@ class EnvironmentVariables {
   ACCESS_TOKEN_EXPIRES_IN: string = '15m';
 
   @IsString()
-  CLICKHOUSE_URL: string;
+  DB_HOST: string = 'localhost';
+
+  @IsNumber()
+  @Min(1)
+  @Max(65535)
+  DB_PORT: number = 3306;
 
   @IsString()
-  CLICKHOUSE_USERNAME: string = 'default';
+  DB_USERNAME: string = 'root';
 
   @IsString()
-  CLICKHOUSE_PASSWORD: string;
+  DB_PASSWORD: string;
 
   @IsString()
-  CLICKHOUSE_DATABASE: string = 'fitpreeti';
+  DB_NAME: string = 'fitpreeti_dev';
 
   @IsString()
   FRONTEND_URL: string = 'http://localhost:3001';

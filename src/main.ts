@@ -117,10 +117,11 @@ async function bootstrap() {
   logger.log(`🔐 API endpoints: ${apiUrl}/*`);
   logger.log(`🌍 Environment: ${nodeEnv}`);
   
-  // ClickHouse connection info (masked password)
-  const clickhouseUrl = configService.get<string>('CLICKHOUSE_URL') || 
-    `https://${configService.get<string>('CLICKHOUSE_HOST', 'localhost')}:${configService.get<string>('CLICKHOUSE_PORT', '8443')}`;
-  logger.log(`🗄️  ClickHouse connected: ${clickhouseUrl.replace(/:([^@]+)@/, ':***@')}`);
+  // MySQL connection info
+  const dbHost = configService.get<string>('DB_HOST', 'localhost');
+  const dbPort = configService.get<number>('DB_PORT', 3306);
+  const dbName = configService.get<string>('DB_NAME', 'fitpreeti_dev');
+  logger.log(`🗄️  MySQL Database: ${dbHost}:${dbPort}/${dbName}`);
 }
 
 bootstrap().catch(err => {

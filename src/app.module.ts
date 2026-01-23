@@ -16,7 +16,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { InstituteInfoModule } from './institute-info/institute-info.module';
 import { ContentSectionsModule } from './content-sections/content-sections.module';
 import { AttendanceModule } from './attendance/attendance.module';
-import { ClickhouseModule } from './database/clickhouse.module';
+import { DatabaseModule } from './database/database.module';
 import { validate } from './config/env.validation';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -25,7 +25,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: isDevelopment ? '.env.development' : '.env',
       validate,
       cache: true,
     }),
@@ -50,7 +50,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
         },
       }),
     ]),
-    ClickhouseModule,
+    DatabaseModule,
     AuthModule,
     ServicesModule,
     BookingsModule,

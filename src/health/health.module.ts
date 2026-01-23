@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { HealthController } from './health.controller';
-import { ClickhouseModule } from '../database/clickhouse.module';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
-  imports: [ClickhouseModule],
+  imports: [DatabaseModule],
   controllers: [HealthController],
 })
 export class HealthModule {}

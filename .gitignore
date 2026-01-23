@@ -42,9 +42,8 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 
-# ClickHouse data
+# Database data
 data/
-clickhouse/
 
 # TypeScript
 *.tsbuildinfo
@@ -70,6 +69,9 @@ clickhouse/
 
 # dotenv files
 .env
+.env.development
+.env.local
+.env.development.local
 .env.test
 .env.production
 
@@ -97,5 +99,3 @@ dist/
 .yarn/install-state.gz
 .pnp.*
 
-# ClickHouse data directory
-/clickhouse_data/
