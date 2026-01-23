@@ -28,7 +28,7 @@ export class Trainer {
   @Column({ type: 'int', default: 0, name: 'total_reviews' })
   total_reviews: number;
 
-  @Column({ type: 'json', default: '{}' })
+  @Column({ type: 'json' })
   availability: Record<string, any>;
 
   @Column({ type: 'json' })
@@ -40,7 +40,7 @@ export class Trainer {
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   is_active: boolean;
 
-  @Column({ type: 'json', default: '{}', name: 'social_media' })
+  @Column({ type: 'json', name: 'social_media' })
   social_media: Record<string, any>;
 
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })

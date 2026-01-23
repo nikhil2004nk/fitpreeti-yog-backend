@@ -14,7 +14,7 @@ export class InstituteInfo {
   @Column({ type: 'varchar', length: 255 })
   email: string;
 
-  @Column({ type: 'json', default: '{}', name: 'social_media' })
+  @Column({ type: 'json', name: 'social_media' })
   social_media: Record<string, any>;
 
   @CreateDateColumn({ type: 'datetime', name: 'created_at' })

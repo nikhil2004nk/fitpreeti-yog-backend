@@ -37,7 +37,7 @@ import { UserSession } from '../auth/entities/user-session.entity';
         ],
         synchronize: true, // Auto-create tables (starting from scratch)
         logging: configService.get('NODE_ENV') === 'development',
-        timezone: configService.get('TZ', 'Asia/Kolkata'),
+        timezone: configService.get('TZ', '+05:30'), // IST (India Standard Time)
         charset: 'utf8mb4',
         extra: {
           connectionLimit: 10,
