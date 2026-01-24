@@ -46,16 +46,16 @@ export class ReviewsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all approved reviews (Public)' })
-  @ApiQuery({ name: 'approved', required: false, type: Boolean, description: 'Filter by approval status (default: true)' })
-  @ApiResponse({ status: 200, description: 'Returns all approved reviews' })
+  @ApiOperation({ summary: 'Get reviews (Public endpoint - No authentication required)' })
+  @ApiQuery({ name: 'approved', required: false, type: Boolean, description: 'Filter by approval status (default: true for approved only)' })
+  @ApiResponse({ status: 200, description: 'Returns reviews based on approval filter' })
   findAll(@Query('approved') approved?: string) {
     const approvedOnly = approved === undefined || approved === 'true';
     return this.reviewsService.findAll(approvedOnly);
   }
 
   @Get('approved')
-  @ApiOperation({ summary: 'Get all approved reviews' })
+  @ApiOperation({ summary: 'Get all approved reviews (Public endpoint - No authentication required)' })
   @ApiResponse({ status: 200, description: 'Returns all approved reviews' })
   getApprovedReviews() {
     return this.reviewsService.getApprovedReviews();

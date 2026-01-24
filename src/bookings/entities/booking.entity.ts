@@ -22,8 +22,8 @@ export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 36, name: 'user_id' })
-  user_id: string;
+  @Column({ type: 'int', name: 'user_id' })
+  user_id: number;
 
   @ManyToOne(() => User, user => user.bookings)
   @JoinColumn({ name: 'user_id' })
@@ -32,8 +32,8 @@ export class Booking {
   @Column({ type: 'varchar', length: 20, default: '', name: 'user_phone' })
   user_phone: string;
 
-  @Column({ type: 'varchar', length: 36, name: 'service_id' })
-  service_id: string;
+  @Column({ type: 'int', name: 'service_id' })
+  service_id: number;
 
   @ManyToOne(() => Service, service => service.bookings)
   @JoinColumn({ name: 'service_id' })

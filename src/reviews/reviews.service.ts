@@ -1,6 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException, Inject, forwardRef } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException, Inject, forwardRef, OnModuleInit } from '@nestjs/common';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, getRepository, DataSource } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -12,7 +12,7 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Service } from '../services/entities/service.entity';
 
 @Injectable()
-export class ReviewsService {
+export class ReviewsService implements OnModuleInit {
   private readonly logger = new Logger(ReviewsService.name);
 
   constructor(
@@ -22,11 +22,29 @@ export class ReviewsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Booking)
     private readonly bookingRepository: Repository<Booking>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     @Inject(forwardRef(() => TrainersService))
     private trainersService: TrainersService,
   ) {}
 
+  async onModuleInit() {
+    // Service initialization complete
+  }
+
   private toReviewWithUser(review: Review, user?: User): ReviewWithUser {
+    if (!review) {
+      throw new Error('Review is undefined');
+    }
+
+    let userName = '';
+    try {
+      userName = user?.email || '';
+    } catch (userError) {
+      this.logger.warn('Error accessing user email:', userError);
+      userName = '';
+    }
+
     return {
       id: review.id,
       user_id: review.user_id,
@@ -35,9 +53,9 @@ export class ReviewsService {
       comment: review.comment,
       reviewer_type: review.reviewer_type,
       is_approved: review.is_approved,
-      created_at: review.created_at.toISOString(),
-      updated_at: review.updated_at.toISOString(),
-      user_name: user?.email || '',
+      created_at: review.created_at ? review.created_at.toISOString() : new Date().toISOString(),
+      updated_at: review.updated_at ? review.updated_at.toISOString() : new Date().toISOString(),
+      user_name: userName,
       user_profile_image: null,
     };
   }
@@ -64,21 +82,40 @@ export class ReviewsService {
   }
 
   async findAll(approvedOnly: boolean = true): Promise<ReviewWithUser[]> {
-    try {
-      const where: any = {};
-      if (approvedOnly) {
-        where.is_approved = true;
-      }
+    // Use injected repository, or fallback to dataSource repository
+    const repository = this.reviewRepository || this.dataSource.getRepository(Review);
 
-      const reviews = await this.reviewRepository.find({
+    if (!repository) {
+      throw new InternalServerErrorException('Database repository not available');
+    }
+
+    const where: any = {};
+    if (approvedOnly) {
+      where.is_approved = true;
+    }
+
+    try {
+      const reviews = await repository.find({
         where,
-        relations: ['user'],
         order: { created_at: 'DESC' },
       });
 
-      return reviews.map(review => this.toReviewWithUser(review, review.user));
+      // Return basic review data without user info for public endpoint
+      return reviews.map(review => ({
+        id: review.id,
+        user_id: review.user_id,
+        booking_id: review.booking_id,
+        rating: review.rating,
+        comment: review.comment,
+        reviewer_type: review.reviewer_type,
+        is_approved: review.is_approved,
+        created_at: review.created_at ? review.created_at.toISOString() : new Date().toISOString(),
+        updated_at: review.updated_at ? review.updated_at.toISOString() : new Date().toISOString(),
+        user_name: 'Anonymous', // Default for public endpoint
+        user_profile_image: null,
+      }));
     } catch (error) {
-      this.logger.error('Find all reviews error:', error);
+      console.error('Error in findAll:', error);
       throw new InternalServerErrorException('Failed to fetch reviews');
     }
   }

@@ -39,8 +39,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         errorType = this.getErrorTypeName(status);
       } else if (typeof errorResponse === 'object' && errorResponse !== null) {
         const errorObj = errorResponse as any;
-        errorMessage = errorObj.message || errorResponse;
-        errorType = errorObj.error || this.getErrorTypeName(status);
+        errorMessage = errorObj?.message || errorResponse;
+        errorType = errorObj?.error || this.getErrorTypeName(status);
       } else {
         errorMessage = String(errorResponse);
         errorType = this.getErrorTypeName(status);
@@ -58,7 +58,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       errorMessage = 'An unexpected error occurred';
       errorType = 'Internal Server Error';
-      this.logger.error('Unknown error type', JSON.stringify(exception));
+      this.logger.error('Unknown error type', exception);
     }
 
     const errorResponse: ApiErrorResponse = {
