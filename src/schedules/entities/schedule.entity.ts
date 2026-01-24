@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { Service } from '../../services/entities/service.entity';
 import { Trainer } from '../../trainers/entities/trainer.entity';
-import { RecurrenceType } from '../../../common/enums/schedule.enums';
+import { RecurrenceType } from '../../common/enums/schedule.enums';
 
 @Entity('schedules')
 @Index('idx_effective_dates', ['effective_from', 'effective_until'])

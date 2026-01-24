@@ -1,12 +1,7 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { IsString, IsEmail, IsOptional, IsArray } from 'class-validator';
-import { UserRole } from '../../common/interfaces/user.interface';
+import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { UserRole } from '../../common/enums/user-role.enum';
 
 export class UpdateUserDto {
-  @IsString()
-  @IsOptional()
-  name?: string;
-
   @IsEmail()
   @IsOptional()
   email?: string;
@@ -15,10 +10,6 @@ export class UpdateUserDto {
   @IsOptional()
   password?: string;
 
-  @IsArray()
   @IsOptional()
-  roles?: UserRole[];
-
-  @IsOptional()
-  isEmailVerified?: boolean;
+  role?: UserRole;
 }

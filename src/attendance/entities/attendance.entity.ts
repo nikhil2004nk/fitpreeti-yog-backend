@@ -13,7 +13,7 @@ import { Customer } from '../../customers/entities/customer.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
 import { CustomerSubscription } from '../../subscriptions/entities/customer-subscription.entity';
 import { User } from '../../users/entities/user.entity';
-import { AttendanceStatus } from '../../../common/enums/attendance.enums';
+import { AttendanceStatus } from '../../common/enums/attendance.enums';
 
 @Entity('attendance')
 @Unique('unique_attendance', ['customer_id', 'schedule_id', 'attendance_date'])

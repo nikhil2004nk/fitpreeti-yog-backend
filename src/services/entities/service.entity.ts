@@ -9,8 +9,8 @@ import {
   Index,
 } from 'typeorm';
 import { ServiceCategory } from '../../service-categories/entities/service-category.entity';
-import { ServiceType, ServiceClassType } from '../../../common/enums/service.enums';
-import { YogaStyle } from '../../../common/enums/yoga-style.enum';
+import { ServiceType, ServiceClassType } from '../../common/enums/service.enums';
+import { YogaStyle } from '../../common/enums/yoga-style.enum';
 
 @Entity('services')
 export class Service {

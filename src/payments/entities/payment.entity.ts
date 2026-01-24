@@ -11,7 +11,7 @@ import {
 import { Customer } from '../../customers/entities/customer.entity';
 import { CustomerSubscription } from '../../subscriptions/entities/customer-subscription.entity';
 import { User } from '../../users/entities/user.entity';
-import { PaymentMethod, PaymentStatus } from '../../../common/enums/payment.enums';
+import { PaymentMethod, PaymentStatus } from '../../common/enums/payment.enums';
 
 @Entity('payments')
 export class Payment {

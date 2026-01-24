@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { Lead } from './lead.entity';
 import { User } from '../../users/entities/user.entity';
-import { LeadActivityType } from '../../../common/enums/lead.enums';
+import { LeadActivityType } from '../../common/enums/lead.enums';
 
 @Entity('lead_activities')
 export class LeadActivity {

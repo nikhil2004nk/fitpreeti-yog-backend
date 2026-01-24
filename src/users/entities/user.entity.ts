@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { UserRole } from '../../../common/enums/user-role.enum';
+import { UserRole } from '../../common/enums/user-role.enum';
 
 @Entity('users')
 export class User {

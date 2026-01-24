@@ -21,6 +21,9 @@ import { CustomersModule } from './customers/customers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TrainerPortalModule } from './trainer-portal/trainer-portal.module';
+import { CustomerPortalModule } from './customer-portal/customer-portal.module';
+import { SeedModule } from './seed/seed.module';
 import { validate } from './config/env.validation';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -70,6 +73,9 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     SubscriptionsModule,
     PaymentsModule,
     DashboardModule,
+    TrainerPortalModule,
+    CustomerPortalModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [

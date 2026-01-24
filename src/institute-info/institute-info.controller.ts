@@ -13,6 +13,7 @@ import { UpdateInstituteInfoDto } from './dto/update-institute-info.dto';
 import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/user-role.enum';
 
 @ApiTags('Institute Info')
 @Controller('institute-info')
@@ -29,7 +30,7 @@ export class InstituteInfoController {
 
   @Put()
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Create or update institute information (Admin only)' })

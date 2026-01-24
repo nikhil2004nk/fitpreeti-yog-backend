@@ -17,8 +17,8 @@ import {
   LeadPriority,
   LeadExperienceLevel,
   LeadPreferredTimeSlot,
-} from '../../../common/enums/lead.enums';
-import { YogaStyle } from '../../../common/enums/yoga-style.enum';
+} from '../../common/enums/lead.enums';
+import { YogaStyle } from '../../common/enums/yoga-style.enum';
 
 @Entity('leads')
 export class Lead {

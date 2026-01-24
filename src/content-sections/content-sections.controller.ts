@@ -19,6 +19,7 @@ import { UpdateContentSectionDto } from './dto/update-content-section.dto';
 import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/user-role.enum';
 
 @ApiTags('Content Sections')
 @Controller('content-sections')
@@ -27,7 +28,7 @@ export class ContentSectionsController {
 
   @Post()
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Create a new content section (Admin only)' })
@@ -69,7 +70,7 @@ export class ContentSectionsController {
 
   @Patch(':id')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Update a content section (Admin only)' })
   @ApiParam({ name: 'id', type: String, description: 'Content section UUID' })
@@ -88,7 +89,7 @@ export class ContentSectionsController {
 
   @Delete(':id')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Delete (deactivate) a content section (Admin only)' })

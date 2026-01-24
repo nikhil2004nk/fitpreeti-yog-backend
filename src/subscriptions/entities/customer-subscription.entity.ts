@@ -15,7 +15,7 @@ import { Service } from '../../services/entities/service.entity';
 import {
   SubscriptionPaymentStatus,
   SubscriptionStatus,
-} from '../../../common/enums/subscription.enums';
+} from '../../common/enums/subscription.enums';
 
 @Entity('customer_subscriptions')
 @Unique('unique_customer_schedule', ['customer_id', 'schedule_id'])

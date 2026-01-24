@@ -15,7 +15,7 @@ import {
   CustomerGender,
   MembershipStatus,
   YogaExperienceLevel,
-} from '../../../common/enums/customer.enums';
+} from '../../common/enums/customer.enums';
 
 @Entity('customers')
 export class Customer {

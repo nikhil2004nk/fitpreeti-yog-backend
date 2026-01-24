@@ -12,7 +12,7 @@ import {
   NotificationType,
   NotificationChannel,
   NotificationStatus,
-} from '../../../common/enums/notification.enums';
+} from '../../common/enums/notification.enums';
 
 @Entity('notifications')
 export class Notification {

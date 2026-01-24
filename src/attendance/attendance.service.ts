@@ -25,7 +25,16 @@ export class AttendanceService {
       },
       relations: ['customer', 'customer.user'],
     });
-    const result = [];
+    const result: {
+      customer_id: number;
+      full_name: string;
+      phone: string | null;
+      subscription_id: number;
+      sessions_completed: number;
+      sessions_remaining: number | null;
+      attendance_status: string;
+      attendance_id: number | null;
+    }[] = [];
     for (const sub of subs) {
       if (sub.starts_on && d < new Date(sub.starts_on)) continue;
       if (sub.ends_on && d > new Date(sub.ends_on)) continue;

@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { AppSettingType } from '../../../common/enums/app-settings.enums';
+import { AppSettingType } from '../../common/enums/app-settings.enums';
 
 @Entity('app_settings')
 export class AppSetting {

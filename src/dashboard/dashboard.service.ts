@@ -36,20 +36,21 @@ export class DashboardService {
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const { sum } = await this.paymentRepo
+    const row = await this.paymentRepo
       .createQueryBuilder('p')
       .select('COALESCE(SUM(p.amount), 0)', 'sum')
       .where('p.payment_status = :status', { status: PaymentStatus.COMPLETED })
       .andWhere('p.payment_date >= :start', { start: startOfMonth })
       .getRawOne<{ sum: string }>();
 
+    const monthlyRevenue = row?.sum ? parseFloat(row.sum) : 0;
     return {
       new_leads: newLeads,
       converted_leads: convertedLeads,
       active_customers: activeCustomers,
       active_trainers: activeTrainers,
       active_schedules: activeSchedules,
-      monthly_revenue: parseFloat(sum || '0'),
+      monthly_revenue: monthlyRevenue,
     };
   }
 
