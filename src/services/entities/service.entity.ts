@@ -7,10 +7,12 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 import { ServiceCategory } from '../../service-categories/entities/service-category.entity';
 import { ServiceType, ServiceClassType } from '../../common/enums/service.enums';
 import { YogaStyle } from '../../common/enums/yoga-style.enum';
+import { Booking } from '../../bookings/entities/booking.entity';
 
 @Entity('services')
 export class Service {
@@ -83,4 +85,7 @@ export class Service {
 
   @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
+
+  @OneToMany(() => Booking, booking => booking.service)
+  bookings: Booking[];
 }

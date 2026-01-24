@@ -12,6 +12,7 @@ import { HealthModule } from './health/health.module';
 import { TrainersModule } from './trainers/trainers.module';
 import { InstituteInfoModule } from './institute-info/institute-info.module';
 import { ContentSectionsModule } from './content-sections/content-sections.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { DatabaseModule } from './database/database.module';
 import { LeadsModule } from './leads/leads.module';
@@ -65,6 +66,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     TrainersModule,
     InstituteInfoModule,
     ContentSectionsModule,
+    ReviewsModule,
     AttendanceModule,
     LeadsModule,
     ServiceCategoriesModule,

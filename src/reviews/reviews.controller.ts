@@ -20,6 +20,7 @@ import { UpdateReviewDto } from './dto/update-review.dto';
 import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/user-role.enum';
 import type { Request } from 'express';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 
@@ -62,7 +63,7 @@ export class ReviewsController {
 
   @Get('pending')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Get all pending reviews (Admin only)' })
   @ApiResponse({ status: 200, description: 'Returns all pending reviews' })

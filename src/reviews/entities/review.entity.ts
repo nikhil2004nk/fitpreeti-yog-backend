@@ -6,10 +6,10 @@ export class Review {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 36, name: 'user_id' })
-  user_id: string;
+  @Column({ type: 'int', name: 'user_id' })
+  user_id: number;
 
-  @ManyToOne(() => User, user => user.reviews)
+  @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User;
 

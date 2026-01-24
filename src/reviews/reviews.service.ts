@@ -37,15 +37,15 @@ export class ReviewsService {
       is_approved: review.is_approved,
       created_at: review.created_at.toISOString(),
       updated_at: review.updated_at.toISOString(),
-      user_name: user?.name || '',
-      user_profile_image: user?.profile_image || null,
+      user_name: user?.email || '',
+      user_profile_image: null,
     };
   }
 
   async create(createReviewDto: CreateReviewDto, userId: string): Promise<ReviewWithUser> {
     try {
       const review = this.reviewRepository.create({
-        user_id: userId,
+        user_id: parseInt(userId),
         booking_id: createReviewDto.booking_id || null,
         rating: createReviewDto.rating,
         comment: sanitizeText(createReviewDto.comment),
@@ -54,7 +54,7 @@ export class ReviewsService {
       });
 
       const savedReview = await this.reviewRepository.save(review);
-      const user = await this.userRepository.findOne({ where: { id: userId } });
+      const user = await this.userRepository.findOne({ where: { id: parseInt(userId) } });
       
       return this.toReviewWithUser(savedReview, user || undefined);
     } catch (error) {
@@ -107,7 +107,7 @@ export class ReviewsService {
   async findByUser(userId: string): Promise<ReviewWithUser[]> {
     try {
       const reviews = await this.reviewRepository.find({
-        where: { user_id: userId },
+        where: { user_id: parseInt(userId) },
         relations: ['user'],
         order: { created_at: 'DESC' },
       });
@@ -130,7 +130,7 @@ export class ReviewsService {
         throw new NotFoundException(`Review with ID ${id} not found`);
       }
       
-      if (!isAdmin && userId && existingReview.user_id !== userId) {
+      if (!isAdmin && userId && existingReview.user_id !== parseInt(userId)) {
         throw new BadRequestException('You can only update your own reviews');
       }
 
@@ -170,9 +170,10 @@ export class ReviewsService {
             relations: ['service'],
           });
           
-          if (booking?.service?.trainer_id) {
-            await this.trainersService.updateTrainerRating(booking.service.trainer_id);
-          }
+          // TODO: Implement trainer rating update when trainer_id is added to Service entity
+          // if (booking?.service?.trainer_id) {
+          //   await this.trainersService.updateTrainerRating(booking.service.trainer_id);
+          // }
         } catch (error) {
           this.logger.warn('Failed to update trainer rating after review update:', error);
         }
@@ -199,7 +200,7 @@ export class ReviewsService {
         throw new NotFoundException(`Review with ID ${id} not found`);
       }
       
-      if (!isAdmin && userId && existingReview.user_id !== userId) {
+      if (!isAdmin && userId && existingReview.user_id !== parseInt(userId)) {
         throw new BadRequestException('You can only delete your own reviews');
       }
       
@@ -215,9 +216,10 @@ export class ReviewsService {
             relations: ['service'],
           });
           
-          if (booking?.service?.trainer_id) {
-            await this.trainersService.updateTrainerRating(booking.service.trainer_id);
-          }
+          // TODO: Implement trainer rating update when trainer_id is added to Service entity
+          // if (booking?.service?.trainer_id) {
+          //   await this.trainersService.updateTrainerRating(booking.service.trainer_id);
+          // }
         } catch (error) {
           this.logger.warn('Failed to update trainer rating after review deletion:', error);
         }

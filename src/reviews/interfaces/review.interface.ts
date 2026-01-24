@@ -1,6 +1,6 @@
 export interface Review {
   id: string;
-  user_id: string;
+  user_id: number;
   booking_id?: string | null;
   rating: number;
   comment: string;

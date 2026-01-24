@@ -6,6 +6,8 @@ import { User } from '../users/entities/user.entity';
 import { ServiceCategory } from '../service-categories/entities/service-category.entity';
 import { Service } from '../services/entities/service.entity';
 import { AppSetting } from '../app-settings/entities/app-setting.entity';
+import { InstituteInfo as InstituteInfoEntity } from '../institute-info/entities/institute-info.entity';
+import { Review } from '../reviews/entities/review.entity';
 import { UserRole } from '../common/enums/user-role.enum';
 import { ServiceType, ServiceClassType } from '../common/enums/service.enums';
 import { YogaStyle } from '../common/enums/yoga-style.enum';
@@ -25,6 +27,10 @@ export class SeedService {
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(AppSetting)
     private readonly settingRepo: Repository<AppSetting>,
+    @InjectRepository(InstituteInfoEntity)
+    private readonly instituteInfoRepo: Repository<InstituteInfoEntity>,
+    @InjectRepository(Review)
+    private readonly reviewRepo: Repository<Review>,
   ) {}
 
   async run() {
@@ -32,6 +38,8 @@ export class SeedService {
     await this.seedAdmin();
     await this.seedCategoriesAndServices();
     await this.seedAppSettings();
+    await this.seedInstituteInfo();
+    await this.seedApprovedReviews();
   }
 
   private async seedAdmin() {
@@ -156,5 +164,68 @@ export class SeedService {
       }),
     ]);
     this.logger.log('Seeded app settings');
+  }
+
+  private async seedInstituteInfo() {
+    const count = await this.instituteInfoRepo.count();
+    if (count > 0) return;
+
+    await this.instituteInfoRepo.save(
+      this.instituteInfoRepo.create({
+        location: '123 Yoga Street, Wellness City, YC 12345',
+        phone_numbers: ['+1-555-YOGA-123', '+1-555-YOGA-456'],
+        email: 'info@fitpreeti-yog.institute',
+        social_media: {
+          facebook: 'https://facebook.com/fitpreeti-yoga',
+          instagram: 'https://instagram.com/fitpreeti_yoga',
+          youtube: 'https://youtube.com/@fitpreeti-yoga'
+        },
+      }),
+    );
+    this.logger.log('Seeded institute contact information');
+  }
+
+  private async seedApprovedReviews() {
+    const count = await this.reviewRepo.count();
+    if (count > 0) return;
+
+    // Get the admin user for reviews (since reviews require a user_id)
+    const adminUser = await this.userRepo.findOne({ where: { role: UserRole.ADMIN } });
+    if (!adminUser) {
+      this.logger.warn('No admin user found for seeding reviews, skipping review seeding');
+      return;
+    }
+
+    await this.reviewRepo.save([
+      this.reviewRepo.create({
+        user_id: adminUser.id,
+        rating: 5,
+        comment: 'Excellent yoga classes! The instructors are very knowledgeable and the environment is peaceful. Highly recommend for anyone looking to improve their yoga practice.',
+        reviewer_type: 'customer',
+        is_approved: true,
+      }),
+      this.reviewRepo.create({
+        user_id: adminUser.id,
+        rating: 5,
+        comment: 'Amazing experience! The personalized attention and variety of classes make this the perfect place for both beginners and advanced practitioners.',
+        reviewer_type: 'customer',
+        is_approved: true,
+      }),
+      this.reviewRepo.create({
+        user_id: adminUser.id,
+        rating: 4,
+        comment: 'Great studio with wonderful teachers. The online classes are also very convenient. Would love to see more advanced workshops.',
+        reviewer_type: 'customer',
+        is_approved: true,
+      }),
+      this.reviewRepo.create({
+        user_id: adminUser.id,
+        rating: 5,
+        comment: 'Transformative yoga journey! The community here is supportive and the teaching quality is outstanding. Five stars!',
+        reviewer_type: 'customer',
+        is_approved: true,
+      }),
+    ]);
+    this.logger.log('Seeded sample approved reviews');
   }
 }
