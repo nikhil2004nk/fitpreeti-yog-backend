@@ -1,178 +1,167 @@
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  Get, 
-  Req, 
-  Res, 
-  UseGuards, 
-  HttpCode, 
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Req,
+  Res,
+  UseGuards,
+  HttpCode,
   HttpStatus,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { CookieJwtGuard } from './guards/cookie-jwt.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import type { UserRole } from '../common/interfaces/user.interface';
-import { ApiSuccessResponse } from '../common/interfaces/api-response.interface';
+import { Roles } from './decorators/roles.decorator';
+import { UserRole } from '../common/enums/user-role.enum';
+import type { RequestUser } from '../common/interfaces/request-user.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('register')
-  @Throttle({ default: { limit: 30, ttl: 900000 } }) // 30 requests per 15 minutes (increased from 5)
-  @ApiOperation({ summary: 'Register new user with full profile' })
-  @ApiBody({ type: RegisterDto })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  @ApiResponse({ status: 409, description: 'Phone or email already exists' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
-  @HttpCode(HttpStatus.CREATED)
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
-  }
-
   @Post('login')
-  @Throttle({ default: { limit: 30, ttl: 900000 } }) // 30 requests per 15 minutes (increased from 5)
-  @ApiOperation({ summary: 'Login with phone and PIN' })
+  @Throttle({ default: { limit: 30, ttl: 900000 } })
+  @ApiOperation({ summary: 'Login with email and password' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
-  async login(
-    @Body() loginDto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { access_token, refresh_token, user } = await this.authService.login(loginDto);
-    
-    // Cookie options for cross-origin support (GitHub Pages to Vercel)
+
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction, // Required for SameSite=None
-      sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+      secure: isProduction,
+      sameSite: (isProduction ? 'none' : 'strict') as 'none' | 'strict',
       path: '/',
-      // Do NOT set domain - let it default to backend domain
     };
-    
-    // Set secure httpOnly cookies
-    res.cookie('access_token', access_token, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
 
+    res.cookie('access_token', access_token, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
     res.cookie('refresh_token', refresh_token, {
       ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return {
-      message: 'Login successful',
-      user,
-    };
+    return { message: 'Login successful', user };
   }
 
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token cookie' })
   @ApiResponse({ status: 200, description: 'Tokens refreshed' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
-  async refresh(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.['refresh_token'];
     if (!refreshToken) {
       throw new BadRequestException('No refresh token found');
     }
 
     const { access_token, refresh_token } = await this.authService.refresh(refreshToken);
-    
-    // Cookie options for cross-origin support (GitHub Pages to Vercel)
+
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieOptions = {
       httpOnly: true,
-      secure: isProduction, // Required for SameSite=None
-      sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+      secure: isProduction,
+      sameSite: (isProduction ? 'none' : 'strict') as 'none' | 'strict',
       path: '/',
-      // Do NOT set domain - let it default to backend domain
     };
-    
-    // Update cookies with new tokens
-    res.cookie('access_token', access_token, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
 
+    res.cookie('access_token', access_token, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
     res.cookie('refresh_token', refresh_token, {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return {
-      message: 'Tokens refreshed successfully',
-    };
+    return { message: 'Tokens refreshed successfully' };
   }
 
   @Post('logout')
   @UseGuards(CookieJwtGuard)
   @ApiOperation({ summary: 'Logout user (clears cookies)' })
   @ApiResponse({ status: 200, description: 'Logged out successfully' })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    // Extract tokens from cookies
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refreshToken = req.cookies?.['refresh_token'];
     const accessToken = req.cookies?.['access_token'];
-    
-    // Invalidate tokens
     await this.authService.logout(refreshToken || '', accessToken);
-    
-    // Cookie options for clearing cookies (must match original cookie settings)
+
     const isProduction = process.env.NODE_ENV === 'production';
-    const clearCookieOptions = {
+    const opts = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? ('none' as const) : ('strict' as const),
+      sameSite: (isProduction ? 'none' : 'strict') as 'none' | 'strict',
       path: '/',
     };
-    
-    // Clear cookies
-    res.clearCookie('access_token', clearCookieOptions);
-    res.clearCookie('refresh_token', clearCookieOptions);
+    res.clearCookie('access_token', opts);
+    res.clearCookie('refresh_token', opts);
 
-    return {
-      message: 'Logged out successfully',
-    };
+    return { message: 'Logged out successfully' };
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @ApiOperation({ summary: 'Request password reset email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, description: 'Reset email sent if account exists' })
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Change password (authenticated)' })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Current password incorrect' })
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Req() req: Request & { user: RequestUser },
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(Number(req.user.sub), dto);
   }
 
   @Get('profile')
   @UseGuards(CookieJwtGuard)
   @ApiOperation({ summary: 'Get authenticated user profile' })
   @ApiResponse({ status: 200, description: 'User profile' })
-  profile(@Req() req: Request) {
-    return {
-      user: req.user,
-      message: 'Profile retrieved successfully',
-    };
+  profile(@Req() req: Request & { user: RequestUser }) {
+    return { user: req.user, message: 'Profile retrieved successfully' };
   }
 
   @Post('admin/create')
   @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Admin: Create admin user (internal)' })
   @ApiResponse({ status: 201, description: 'Admin user created' })
-  async createAdmin(
-    @Body() registerDto: RegisterDto,
-  ) {
-    registerDto.role = 'admin';
-    return this.authService.register(registerDto);
+  async createAdmin(@Body() dto: CreateUserDto) {
+    const user = await this.authService.createUser({ ...dto, role: UserRole.ADMIN });
+    return {
+      success: true,
+      message: 'Admin user created',
+      data: { id: user.id, email: user.email, role: user.role },
+    };
   }
 }

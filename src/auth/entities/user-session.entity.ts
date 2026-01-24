@@ -1,15 +1,22 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('user_sessions')
 export class UserSession {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ type: 'int' })
+  id: number;
 
-  @Column({ type: 'varchar', length: 36, name: 'user_id' })
-  user_id: string;
+  @Column({ type: 'int', name: 'user_id' })
+  user_id: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
@@ -22,9 +29,9 @@ export class UserSession {
   @Column({ type: 'varchar', length: 100, name: 'ip_address' })
   ip_address: string;
 
-  @Column({ type: 'datetime', name: 'expires_at' })
+  @Column({ type: 'timestamp', name: 'expires_at' })
   expires_at: Date;
 
-  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
   created_at: Date;
 }

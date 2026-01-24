@@ -1,56 +1,39 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { UserRole } from '../enums/user-role.enum';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { Review } from '../../reviews/entities/review.entity';
-import { Attendance } from '../../attendance/entities/attendance.entity';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
+import { UserRole } from '../../../common/enums/user-role.enum';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ type: 'int' })
+  id: number;
 
-  @Column({ type: 'varchar', length: 255 })
-  name: string;
+  @Column({ type: 'varchar', length: 255, unique: true })
+  @Index('idx_email')
+  email: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
-  email: string | null;
+  @Column({ type: 'varchar', length: 255, name: 'password_hash' })
+  password_hash: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  phone: string | null;
-
-  @Column({ type: 'varchar', length: 255, name: 'pin' })
-  pin: string;
-
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.CUSTOMER })
+  @Column({ type: 'enum', enum: UserRole })
+  @Index('idx_role')
   role: UserRole;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'profile_image' })
-  profile_image: string | null;
-
   @Column({ type: 'boolean', default: true, name: 'is_active' })
+  @Index('idx_is_active')
   is_active: boolean;
 
-  @Column({ type: 'datetime', nullable: true, name: 'last_login' })
+  @Column({ type: 'timestamp', nullable: true, name: 'last_login' })
   last_login: Date | null;
 
-  @Column({ type: 'text', nullable: true, name: 'refresh_token' })
-  refresh_token: string | null;
-
-  @Column({ type: 'datetime', nullable: true, name: 'refresh_token_expires_at' })
-  refresh_token_expires_at: Date | null;
-
-  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
+  @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
-
-  @OneToMany(() => Booking, booking => booking.user)
-  bookings: Booking[];
-
-  @OneToMany(() => Review, review => review.user)
-  reviews: Review[];
-
-  @OneToMany(() => Attendance, attendance => attendance.user)
-  attendance: Attendance[];
 }

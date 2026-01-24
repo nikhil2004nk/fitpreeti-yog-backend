@@ -1,39 +1,81 @@
-import { IsString, IsNumber, IsNotEmpty, MinLength, IsPositive, IsOptional, IsBoolean, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  Min,
+  MaxLength,
+} from 'class-validator';
+import { ServiceType, ServiceClassType } from '../../common/enums/service.enums';
+import { YogaStyle } from '../../common/enums/yoga-style.enum';
 
 export class CreateServiceDto {
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
-  service_name: string;
+  @IsInt()
+  category_id: number;
 
   @IsString()
   @IsNotEmpty()
-  description: string;
-
-  @IsNumber()
-  @IsPositive()
-  price: number;
+  @MaxLength(255)
+  name: string;
 
   @IsString()
-  @IsNotEmpty()
-  type: string;
+  @MaxLength(255)
+  slug: string;
 
-  @IsNumber()
-  @IsPositive()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  short_description?: string;
+
+  @IsEnum(ServiceType)
+  type: ServiceType;
+
+  @IsEnum(ServiceClassType)
+  class_type: ServiceClassType;
+
+  @IsEnum(YogaStyle)
+  @IsOptional()
+  yoga_style?: YogaStyle;
+
+  @IsInt()
+  @Min(1)
   duration_minutes: number;
 
-  @IsString()
-  @IsUUID()
+  @IsNumber()
+  price: number;
+
+  @IsInt()
+  @Min(1)
   @IsOptional()
-  trainer_id?: string;
+  max_capacity?: number;
 
   @IsString()
   @IsOptional()
-  category?: string;
+  requirements?: string;
 
   @IsString()
+  @IsOptional()
+  benefits?: string;
+
+  @IsString()
+  @MaxLength(500)
   @IsOptional()
   image_url?: string;
+
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  video_url?: string;
+
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 
   @IsBoolean()
   @IsOptional()

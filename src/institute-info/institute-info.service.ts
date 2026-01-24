@@ -29,15 +29,16 @@ export class InstituteInfoService {
   async findOne(): Promise<InstituteInfo> {
     try {
       // Get the most recent record (singleton pattern)
-      const info = await this.instituteInfoRepository.findOne({
+      const records = await this.instituteInfoRepository.find({
         order: { updated_at: 'DESC' },
+        take: 1,
       });
 
-      if (!info) {
+      if (!records || records.length === 0) {
         throw new NotFoundException('Institute info not found');
       }
 
-      return this.toInstituteInfo(info);
+      return this.toInstituteInfo(records[0]);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -50,9 +51,11 @@ export class InstituteInfoService {
   async createOrUpdate(updateInstituteInfoDto: UpdateInstituteInfoDto): Promise<InstituteInfo> {
     try {
       // Check if record exists
-      let existingRecord = await this.instituteInfoRepository.findOne({
+      const records = await this.instituteInfoRepository.find({
         order: { updated_at: 'DESC' },
+        take: 1,
       });
+      let existingRecord = records && records.length > 0 ? records[0] : null;
 
       if (existingRecord) {
         // Update existing record

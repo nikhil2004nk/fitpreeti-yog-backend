@@ -11,7 +11,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!secret) {
       throw new InternalServerErrorException('JWT_SECRET is not defined in configuration');
     }
-    
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -20,13 +20,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    if (!payload.phone || !payload.role) {
+    if (!payload.email || !payload.role) {
       throw new UnauthorizedException('Invalid token payload');
     }
-    
-    return { 
-      phone: payload.phone,
-      role: payload.role
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      role: payload.role,
     };
   }
 }

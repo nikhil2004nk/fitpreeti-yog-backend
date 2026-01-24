@@ -1,13 +1,12 @@
-import { IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, MinLength } from 'class-validator';
 
 export class LoginDto {
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
-  phone: string;
+  email: string;
 
   @IsString()
-  @MinLength(6)
   @IsNotEmpty()
-  @Matches(/^\d{6,8}$/, { message: 'PIN must be 6-8 digits' })
-  pin: string;
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  password: string;
 }

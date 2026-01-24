@@ -7,16 +7,20 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ServicesModule } from './services/services.module';
-import { BookingsModule } from './bookings/bookings.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
 import { TrainersModule } from './trainers/trainers.module';
-import { ClassScheduleModule } from './class-schedule/class-schedule.module';
-import { ReviewsModule } from './reviews/reviews.module';
 import { InstituteInfoModule } from './institute-info/institute-info.module';
 import { ContentSectionsModule } from './content-sections/content-sections.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { DatabaseModule } from './database/database.module';
+import { LeadsModule } from './leads/leads.module';
+import { ServiceCategoriesModule } from './service-categories/service-categories.module';
+import { SchedulesModule } from './schedules/schedules.module';
+import { CustomersModule } from './customers/customers.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { PaymentsModule } from './payments/payments.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { validate } from './config/env.validation';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -53,15 +57,19 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     DatabaseModule,
     AuthModule,
     ServicesModule,
-    BookingsModule,
     UsersModule,
     HealthModule,
     TrainersModule,
-    ClassScheduleModule,
-    ReviewsModule,
     InstituteInfoModule,
     ContentSectionsModule,
     AttendanceModule,
+    LeadsModule,
+    ServiceCategoriesModule,
+    SchedulesModule,
+    CustomersModule,
+    SubscriptionsModule,
+    PaymentsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,0 +1,986 @@
+### ============================================
+### Fitpreeti Yoga Institute - Complete API Test Suite
+### Base URL: http://localhost:3001/api/v1 (Development)
+### Authentication: Uses httpOnly cookies (set automatically on login)
+### 
+### IMPORTANT: Make sure the server is running!
+### Start server: npm run start:dev
+### ============================================
+
+@baseUrl = http://localhost:3001/api/v1
+@contentType = application/json
+
+### ============================================
+### 🩺 HEALTH CHECK & ROOT
+### ============================================
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Root Endpoint
+GET http://localhost:3001/
+
+### ============================================
+### 🔐 AUTHENTICATION - Customer Flow
+### ============================================
+
+### Register Customer - Valid
+# @name registerCustomer
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+911234567890",
+  "pin": "123456",
+  "role": "customer"
+}
+
+### Register Customer - Edge Case: Duplicate Phone
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Duplicate User",
+  "email": "duplicate@example.com",
+  "phone": "+911234567890",
+  "pin": "123456",
+  "role": "customer"
+}
+
+### Register Customer - Edge Case: Invalid Email Format
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Invalid Email",
+  "email": "invalid-email",
+  "phone": "+911234567891",
+  "pin": "123456",
+  "role": "customer"
+}
+
+### Register Customer - Edge Case: PIN Too Short
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Short PIN",
+  "email": "shortpin@example.com",
+  "phone": "+911234567892",
+  "pin": "12345",
+  "role": "customer"
+}
+
+### Register Customer - Edge Case: PIN Too Long
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Long PIN",
+  "email": "longpin@example.com",
+  "phone": "+911234567893",
+  "pin": "123456789",
+  "role": "customer"
+}
+
+### Register Customer - Edge Case: Missing Required Fields
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Missing Fields"
+}
+
+### Login Customer - Valid
+# @name loginCustomer
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+911234567890",
+  "pin": "123456"
+}
+
+### Login Customer - Edge Case: Wrong PIN
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+911234567890",
+  "pin": "999999"
+}
+
+### Login Customer - Edge Case: Non-existent Phone
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+999999999999",
+  "pin": "123456"
+}
+
+### Get Customer Profile (After Login)
+GET {{baseUrl}}/auth/profile
+
+### ============================================
+### 🔐 AUTHENTICATION - Admin Flow
+### ============================================
+
+### Register Admin User (First Admin - No Auth Required)
+# @name registerAdmin
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Admin User",
+  "email": "admin@fitpreeti.com",
+  "phone": "+919876543210",
+  "pin": "123456",
+  "role": "admin"
+}
+
+### Login Admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+919876543210",
+  "pin": "123456"
+}
+
+### Create Admin User (Admin Only - Requires Admin Auth)
+POST {{baseUrl}}/auth/admin/create
+Content-Type: {{contentType}}
+
+{
+  "name": "Second Admin",
+  "email": "admin2@fitpreeti.com",
+  "phone": "+919876543211",
+  "pin": "123456"
+}
+
+### Get Admin Profile
+GET {{baseUrl}}/auth/profile
+
+### Refresh Token (Uses refresh_token cookie)
+POST {{baseUrl}}/auth/refresh
+
+### Logout
+POST {{baseUrl}}/auth/logout
+
+### ============================================
+### 🏢 INSTITUTE INFO
+### ============================================
+
+### Get Institute Info (Public)
+GET {{baseUrl}}/institute-info
+
+### Update Institute Info (Admin Only)
+PUT {{baseUrl}}/institute-info
+Content-Type: {{contentType}}
+
+{
+  "location": "123 Yoga Street, Mumbai, Maharashtra 400001",
+  "phone_numbers": ["+911234567890", "+919876543210"],
+  "email": "info@fitpreeti.com",
+  "social_media": {
+    "instagram": "https://instagram.com/fitpreeti",
+    "facebook": "https://facebook.com/fitpreeti",
+    "youtube": "https://youtube.com/@fitpreeti",
+    "whatsapp": "https://wa.me/911234567890"
+  }
+}
+
+### Update Institute Info - Edge Case: Invalid Email
+PUT {{baseUrl}}/institute-info
+Content-Type: {{contentType}}
+
+{
+  "location": "123 Yoga Street",
+  "phone_numbers": ["+911234567890"],
+  "email": "invalid-email",
+  "social_media": {}
+}
+
+### Update Institute Info - Edge Case: Empty Phone Numbers
+PUT {{baseUrl}}/institute-info
+Content-Type: {{contentType}}
+
+{
+  "location": "123 Yoga Street",
+  "phone_numbers": [],
+  "email": "info@fitpreeti.com",
+  "social_media": {}
+}
+
+### ============================================
+### 🧑‍🏫 TRAINERS - Admin Operations
+### ============================================
+
+### Get All Trainers (Public)
+GET {{baseUrl}}/trainers
+
+### Create Trainer (Admin Only)
+# @name createTrainer
+POST {{baseUrl}}/trainers
+Content-Type: {{contentType}}
+
+{
+  "name": "Yoga Master",
+  "title": "Senior Yoga Instructor",
+  "bio": "Certified yoga instructor with 10+ years of experience in Hatha, Vinyasa, and Ashtanga yoga. Specialized in therapeutic yoga and meditation.",
+  "specializations": ["hatha", "vinyasa", "ashtanga", "therapeutic"],
+  "profileImage": "https://example.com/trainers/yoga-master.jpg",
+  "certifications": ["RYT 500", "Yoga Alliance Certified", "Therapeutic Yoga Specialist"],
+  "experienceYears": 10,
+  "isActive": true,
+  "availability": {
+    "monday": [{"start": "09:00", "end": "12:00"}, {"start": "14:00", "end": "17:00"}],
+    "tuesday": [{"start": "09:00", "end": "12:00"}, {"start": "14:00", "end": "17:00"}],
+    "wednesday": [{"start": "09:00", "end": "12:00"}],
+    "thursday": [{"start": "09:00", "end": "12:00"}, {"start": "14:00", "end": "17:00"}],
+    "friday": [{"start": "09:00", "end": "12:00"}]
+  },
+  "socialMedia": {
+    "instagram": "@yogamaster",
+    "youtube": "yogamaster"
+  }
+}
+
+### Create Trainer - Edge Case: Missing Required Fields
+POST {{baseUrl}}/trainers
+Content-Type: {{contentType}}
+
+{
+  "name": "Incomplete Trainer"
+}
+
+### Create Trainer - Edge Case: Invalid Experience Years
+POST {{baseUrl}}/trainers
+Content-Type: {{contentType}}
+
+{
+  "name": "Invalid Trainer",
+  "specializations": ["yoga"],
+  "certifications": ["RYT 200"],
+  "experienceYears": -5
+}
+
+### Get Trainer by ID
+# Replace {{trainerId}} with actual ID from createTrainer response
+GET {{baseUrl}}/trainers/8c3b1bd0-5564-454d-b538-9323be476b3e
+
+### Get Trainer - Edge Case: Invalid UUID
+GET {{baseUrl}}/trainers/invalid-uuid
+
+### Get Trainer - Edge Case: Non-existent ID
+GET {{baseUrl}}/trainers/00000000-0000-0000-0000-000000000000
+
+### Update Trainer (Admin Only)
+# Replace {{trainerId}} with actual ID
+PUT {{baseUrl}}/trainers/8c3b1bd0-5564-454d-b538-9323be476b3e
+Content-Type: {{contentType}}
+
+{
+  "name": "Nik Yoga Master",
+  "title": "Lead Yoga Instructor",
+  "bio": "Updated bio with more experience",
+  "specializations": ["hatha", "vinyasa", "ashtanga", "therapeutic", "yin"],
+  "experienceYears": 12,
+  "isActive": true
+}
+
+### Delete Trainer (Admin Only)
+# Replace {{trainerId}} with actual ID
+DELETE {{baseUrl}}/trainers/{{trainerId}}
+
+### ============================================
+### 🏋️ SERVICES - Admin Operations
+### ============================================
+
+### Get All Services (Public)
+GET {{baseUrl}}/services
+
+### Get Services by Type (Query Parameter)
+GET {{baseUrl}}/services?type=yoga
+
+### Get Services by Type (Path Parameter)
+GET {{baseUrl}}/services/type/yoga
+
+### Get Popular Services
+GET {{baseUrl}}/services/popular
+
+### Create Service (Admin Only)
+# @name createService
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+{
+  "service_name": "Hatha Yoga",
+  "type": "yoga",
+  "category": "traditional",
+  "description": "Traditional Hatha Yoga practice focusing on physical postures (asanas) and breathing techniques (pranayama). Perfect for beginners and those seeking a gentle practice.",
+  "price": 500,
+  "duration_minutes": 60,
+  "trainer_id": "{{trainerId}}",
+  "image_url": "https://example.com/services/hatha-yoga.jpg",
+  "is_active": true
+}
+
+### Create Service - Edge Case: Missing Required Fields
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+{
+  "service_name": "Incomplete Service"
+}
+
+### Create Service - Edge Case: Negative Price
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+{
+  "service_name": "Invalid Service",
+  "type": "yoga",
+  "description": "Test service",
+  "price": -100,
+  "duration_minutes": 60
+}
+
+### Create Service - Edge Case: Invalid Trainer ID
+POST {{baseUrl}}/services
+Content-Type: {{contentType}}
+
+{
+  "service_name": "Invalid Trainer Service",
+  "type": "yoga",
+  "description": "Test service",
+  "price": 500,
+  "duration_minutes": 60,
+  "trainer_id": "invalid-uuid"
+}
+
+### Get Service by ID
+# Replace {{serviceId}} with actual ID from createService response
+GET {{baseUrl}}/services/{{serviceId}}
+
+### Update Service (Admin Only)
+# Replace {{serviceId}} with actual ID
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: {{contentType}}
+
+{
+  "service_name": "Advanced Hatha Yoga",
+  "description": "Advanced level Hatha Yoga with focus on alignment, breath control, and meditation.",
+  "price": 600,
+  "duration_minutes": 75,
+  "category": "advanced"
+}
+
+### Delete Service (Admin Only - Deactivates)
+# Replace {{serviceId}} with actual ID
+DELETE {{baseUrl}}/services/{{serviceId}}
+
+### ============================================
+### 📅 CLASS SCHEDULE - Admin Operations
+### ============================================
+
+### Create Class Schedule (Admin Only)
+# @name createClassSchedule
+POST {{baseUrl}}/class-schedule
+Content-Type: {{contentType}}
+
+{
+  "title": "Morning Yoga Flow",
+  "description": "Energizing morning yoga session to start your day",
+  "start_time": "2025-02-01T08:00:00.000Z",
+  "end_time": "2025-02-01T09:00:00.000Z",
+  "max_participants": 15,
+  "trainer_id": "{{trainerId}}",
+  "service_id": "{{serviceId}}",
+  "is_recurring": false,
+  "status": "scheduled"
+}
+
+### Create Recurring Class Schedule
+POST {{baseUrl}}/class-schedule
+Content-Type: {{contentType}}
+
+{
+  "title": "Weekly Yoga Session",
+  "description": "Weekly recurring yoga class",
+  "start_time": "2025-02-01T10:00:00.000Z",
+  "end_time": "2025-02-01T11:00:00.000Z",
+  "max_participants": 20,
+  "trainer_id": "{{trainerId}}",
+  "service_id": "{{serviceId}}",
+  "is_recurring": true,
+  "recurrence_pattern": "weekly",
+  "recurrence_end_date": "2025-12-31T23:59:59.000Z"
+}
+
+### Create Class Schedule - Edge Case: End Time Before Start Time
+POST {{baseUrl}}/class-schedule
+Content-Type: {{contentType}}
+
+{
+  "title": "Invalid Time",
+  "start_time": "2025-02-01T10:00:00.000Z",
+  "end_time": "2025-02-01T09:00:00.000Z",
+  "max_participants": 15,
+  "trainer_id": "{{trainerId}}",
+  "service_id": "{{serviceId}}"
+}
+
+### Create Class Schedule - Edge Case: Invalid Date Format
+POST {{baseUrl}}/class-schedule
+Content-Type: {{contentType}}
+
+{
+  "title": "Invalid Date",
+  "start_time": "invalid-date",
+  "end_time": "2025-02-01T09:00:00.000Z",
+  "max_participants": 15,
+  "trainer_id": "{{trainerId}}",
+  "service_id": "{{serviceId}}"
+}
+
+### Get All Class Schedules
+GET {{baseUrl}}/class-schedule
+
+### Get Class Schedules with Filters
+GET {{baseUrl}}/class-schedule?start_time=2025-02-01T00:00:00.000Z&end_time=2025-02-28T23:59:59.000Z&trainer_id={{trainerId}}&service_id={{serviceId}}
+
+### Get Class Schedule by ID
+# Replace {{scheduleId}} with actual ID
+GET {{baseUrl}}/class-schedule/{{scheduleId}}
+
+### Check Trainer Availability
+GET {{baseUrl}}/class-schedule/trainer/{{trainerId}}/availability?date=2025-02-01T09:00:00.000Z&duration=60
+
+### Update Class Schedule (Admin Only)
+# Replace {{scheduleId}} with actual ID
+PUT {{baseUrl}}/class-schedule/{{scheduleId}}
+Content-Type: {{contentType}}
+
+{
+  "start_time": "2025-02-01T10:00:00.000Z",
+  "end_time": "2025-02-01T11:00:00.000Z",
+  "max_participants": 20,
+  "status": "scheduled"
+}
+
+### Delete Class Schedule (Admin Only)
+# Replace {{scheduleId}} with actual ID
+DELETE {{baseUrl}}/class-schedule/{{scheduleId}}
+
+### ============================================
+### 📅 BOOKINGS - Customer Flow
+### ============================================
+
+### Get Available Time Slots for Service
+GET {{baseUrl}}/bookings/available/{{serviceId}}/2025-02-01
+
+### Create Booking (Authenticated Customer)
+# @name createBooking
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "{{serviceId}}",
+  "booking_date": "2025-02-01",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+911234567890",
+  "special_requests": "First time booking, need beginner-friendly session"
+}
+
+### Create Booking - Edge Case: Past Date
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "{{serviceId}}",
+  "booking_date": "2020-01-01",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+911234567890"
+}
+
+### Create Booking - Edge Case: Invalid Service ID
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "invalid-uuid",
+  "booking_date": "2025-02-01",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "+911234567890"
+}
+
+### Create Booking - Edge Case: Invalid Email
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "{{serviceId}}",
+  "booking_date": "2025-02-01",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "invalid-email",
+  "phone": "+911234567890"
+}
+
+### Create Booking - Edge Case: Short Phone Number
+POST {{baseUrl}}/bookings
+Content-Type: {{contentType}}
+
+{
+  "service_id": "{{serviceId}}",
+  "booking_date": "2025-02-01",
+  "booking_time": "10:00",
+  "full_name": "John Doe",
+  "email": "john.doe@example.com",
+  "phone": "123"
+}
+
+### Get My Bookings (Authenticated Customer)
+GET {{baseUrl}}/bookings
+
+### Get Booking by ID
+# Replace {{bookingId}} with actual ID from createBooking response
+GET {{baseUrl}}/bookings/{{bookingId}}
+
+### Get Booking - Edge Case: Non-existent ID
+GET {{baseUrl}}/bookings/00000000-0000-0000-0000-000000000000
+
+### Update Booking Status (Admin Only)
+# Replace {{bookingId}} with actual ID
+PATCH {{baseUrl}}/bookings/{{bookingId}}
+Content-Type: {{contentType}}
+
+{
+  "status": "confirmed"
+}
+
+### Cancel Booking (Customer - Own Booking)
+# Replace {{bookingId}} with actual ID
+DELETE {{baseUrl}}/bookings/{{bookingId}}
+
+### Get All Bookings (Admin Only)
+GET {{baseUrl}}/bookings/admin/all
+
+### ============================================
+### ⭐ REVIEWS - Customer Flow
+### ============================================
+
+### Create Review (Authenticated Customer)
+# @name createReview
+POST {{baseUrl}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "booking_id": "{{bookingId}}",
+  "rating": 5,
+  "comment": "FitPreeti transformed my fitness journey! The instructors are amazing and the classes are so much fun. Highly recommended!",
+  "reviewer_type": "Zumba Regular"
+}
+
+### Create Review - Edge Case: Rating Out of Range
+POST {{baseUrl}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "booking_id": "{{bookingId}}",
+  "rating": 10,
+  "comment": "Great service"
+}
+
+### Create Review - Edge Case: Comment Too Long
+POST {{baseUrl}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "booking_id": "{{bookingId}}",
+  "rating": 5,
+  "comment": "A".repeat(1001)
+}
+
+### Create Review - Edge Case: Missing Required Fields
+POST {{baseUrl}}/reviews
+Content-Type: {{contentType}}
+
+{
+  "rating": 5
+}
+
+### Get All Approved Reviews (Public)
+GET {{baseUrl}}/reviews
+
+### Get All Approved Reviews (Explicit)
+GET {{baseUrl}}/reviews/approved
+
+### Get All Reviews Including Pending
+GET {{baseUrl}}/reviews?approved=false
+
+### Get My Reviews (Authenticated Customer)
+GET {{baseUrl}}/reviews/my-reviews
+
+### Get Pending Reviews (Admin Only)
+GET {{baseUrl}}/reviews/pending
+
+### Get Review by ID
+# Replace {{reviewId}} with actual ID from createReview response
+GET {{baseUrl}}/reviews/{{reviewId}}
+
+### Update Review (Owner or Admin)
+# Replace {{reviewId}} with actual ID
+PATCH {{baseUrl}}/reviews/{{reviewId}}
+Content-Type: {{contentType}}
+
+{
+  "rating": 4,
+  "comment": "Updated review comment - still great but room for improvement",
+  "reviewer_type": "Yoga Regular"
+}
+
+### Approve Review (Admin Only)
+# Replace {{reviewId}} with actual ID
+PATCH {{baseUrl}}/reviews/{{reviewId}}
+Content-Type: {{contentType}}
+
+{
+  "is_approved": true
+}
+
+### Delete Review (Owner or Admin)
+# Replace {{reviewId}} with actual ID
+DELETE {{baseUrl}}/reviews/{{reviewId}}
+
+### ============================================
+### 📊 ATTENDANCE - Customer/Trainer Operations
+### ============================================
+
+### Mark Own Attendance (Customer/Trainer)
+POST {{baseUrl}}/attendance/mark
+Content-Type: {{contentType}}
+
+{
+  "date": "2025-02-01",
+  "status": "present",
+  "notes": "Attended morning yoga class"
+}
+
+### Mark Own Attendance - Edge Case: Invalid Date Format
+POST {{baseUrl}}/attendance/mark
+Content-Type: {{contentType}}
+
+{
+  "date": "01-02-2025",
+  "status": "present"
+}
+
+### Mark Own Attendance - Edge Case: Invalid Status
+POST {{baseUrl}}/attendance/mark
+Content-Type: {{contentType}}
+
+{
+  "date": "2025-02-01",
+  "status": "invalid"
+}
+
+### Mark Own Attendance - Edge Case: Cannot Specify user_id
+POST {{baseUrl}}/attendance/mark
+Content-Type: {{contentType}}
+
+{
+  "user_id": "00000000-0000-0000-0000-000000000000",
+  "date": "2025-02-01",
+  "status": "present"
+}
+
+### Get Own Attendance Records (Customer/Trainer)
+GET {{baseUrl}}/attendance/own
+
+### Get Own Attendance with Date Range
+GET {{baseUrl}}/attendance/own?start_date=2025-01-01&end_date=2025-01-31
+
+### Get Attendance Statistics (Own Stats)
+GET {{baseUrl}}/attendance/stats
+
+### Get Attendance Statistics with Date Range
+GET {{baseUrl}}/attendance/stats?start_date=2025-01-01&end_date=2025-01-31
+
+### ============================================
+### 📊 ATTENDANCE - Admin Operations
+### ============================================
+
+### Mark Attendance for User (Admin Only)
+POST {{baseUrl}}/attendance
+Content-Type: {{contentType}}
+
+{
+  "user_id": "{{userId}}",
+  "date": "2025-02-01",
+  "status": "present",
+  "notes": "Attended class"
+}
+
+### Mark Attendance - Edge Case: Missing user_id (Admin)
+POST {{baseUrl}}/attendance
+Content-Type: {{contentType}}
+
+{
+  "date": "2025-02-01",
+  "status": "present"
+}
+
+### Bulk Mark Attendance (Admin Only)
+POST {{baseUrl}}/attendance/bulk
+Content-Type: {{contentType}}
+
+{
+  "attendance_records": [
+    {
+      "user_id": "{{userId}}",
+      "date": "2025-02-01",
+      "status": "present",
+      "notes": "Attended class"
+    },
+    {
+      "user_id": "{{userId2}}",
+      "date": "2025-02-01",
+      "status": "absent",
+      "notes": "No show"
+    }
+  ]
+}
+
+### Get All Attendance Records (Admin Only)
+GET {{baseUrl}}/attendance
+
+### Get Attendance with Filters (Admin Only)
+GET {{baseUrl}}/attendance?user_role=customer&start_date=2025-01-01&end_date=2025-01-31&status=present
+
+### Get Attendance by User ID (Admin Only)
+GET {{baseUrl}}/attendance/user/{{userId}}?start_date=2025-01-01&end_date=2025-01-31
+
+### Get Attendance Statistics for User (Admin Only)
+GET {{baseUrl}}/attendance/stats?user_id={{userId}}&start_date=2025-01-01&end_date=2025-01-31
+
+### Update Attendance Record (Admin Only)
+# Replace {{attendanceId}} with actual ID
+PATCH {{baseUrl}}/attendance/{{attendanceId}}
+Content-Type: {{contentType}}
+
+{
+  "status": "absent",
+  "notes": "Updated: Marked as absent"
+}
+
+### Delete Attendance Record (Admin Only)
+# Replace {{attendanceId}} with actual ID
+DELETE {{baseUrl}}/attendance/{{attendanceId}}
+
+### ============================================
+### 📝 CONTENT SECTIONS - Admin Operations
+### ============================================
+
+### Get All Content Sections (Public - Grouped)
+GET {{baseUrl}}/content-sections
+
+### Get All Content Sections (Ungrouped)
+GET {{baseUrl}}/content-sections?grouped=false
+
+### Get All Content Sections (Including Inactive)
+GET {{baseUrl}}/content-sections?include_inactive=true
+
+### Get Content Sections by Key (Public)
+GET {{baseUrl}}/content-sections/hero
+
+### Create Content Section (Admin Only)
+# @name createContentSection
+POST {{baseUrl}}/content-sections
+Content-Type: {{contentType}}
+
+{
+  "section_key": "hero",
+  "content": {
+    "title": "Welcome to FitPreeti Yoga Institute",
+    "subtitle": "Transform Your Mind, Body & Soul",
+    "description": "Join us for the best yoga and fitness classes",
+    "cta_text": "Book Your Class Now",
+    "cta_link": "/bookings",
+    "image_url": "https://example.com/hero-image.jpg"
+  },
+  "order": 1,
+  "is_active": true
+}
+
+### Create Content Section - Edge Case: Missing Required Fields
+POST {{baseUrl}}/content-sections
+Content-Type: {{contentType}}
+
+{
+  "section_key": "hero"
+}
+
+### Create Content Section - Edge Case: Negative Order
+POST {{baseUrl}}/content-sections
+Content-Type: {{contentType}}
+
+{
+  "section_key": "hero",
+  "content": {},
+  "order": -1
+}
+
+### Update Content Section (Admin Only)
+# Replace {{contentSectionId}} with actual ID
+PATCH {{baseUrl}}/content-sections/{{contentSectionId}}
+Content-Type: {{contentType}}
+
+{
+  "content": {
+    "title": "Updated Welcome Title",
+    "subtitle": "Updated Subtitle"
+  },
+  "is_active": false
+}
+
+### Delete Content Section (Admin Only - Deactivates)
+# Replace {{contentSectionId}} with actual ID
+DELETE {{baseUrl}}/content-sections/{{contentSectionId}}
+
+### ============================================
+### 👥 USERS - Admin Operations
+### ============================================
+
+### Get All Users (Admin Only)
+GET {{baseUrl}}/users
+
+### Get User by Phone (Admin Only)
+GET {{baseUrl}}/users/+911234567890
+
+### Get User - Edge Case: Invalid Phone Format
+GET {{baseUrl}}/users/invalid-phone
+
+### Update User Role (Admin Only)
+PATCH {{baseUrl}}/users/+911234567890/role
+Content-Type: {{contentType}}
+
+{
+  "role": "trainer"
+}
+
+### Update User Role - Edge Case: Invalid Role
+PATCH {{baseUrl}}/users/+911234567890/role
+Content-Type: {{contentType}}
+
+{
+  "role": "invalid_role"
+}
+
+### ============================================
+### 🚫 AUTHORIZATION EDGE CASES
+### ============================================
+
+### Try to Access Admin Endpoint Without Auth
+GET {{baseUrl}}/users
+
+### Try to Access Admin Endpoint as Customer
+# Login as customer first, then try admin endpoint
+GET {{baseUrl}}/bookings/admin/all
+
+### Try to Access Protected Endpoint After Logout
+# Logout first, then try
+GET {{baseUrl}}/bookings
+
+### Try to Update Another User's Review
+# Create review as customer1, try to update as customer2
+PATCH {{baseUrl}}/reviews/{{reviewId}}
+Content-Type: {{contentType}}
+
+{
+  "rating": 1,
+  "comment": "Hacked review"
+}
+
+### Try to Cancel Another User's Booking
+DELETE {{baseUrl}}/bookings/{{bookingId}}
+
+### ============================================
+### 🔧 TROUBLESHOOTING
+### ============================================
+### 
+### If you get "connection rejected" error:
+### 1. Make sure the server is running: npm run start:dev
+### 2. Check the server is on port 3001 (check .env.development)
+### 3. Verify server is running: Open http://localhost:3001/api/v1/health in browser
+### 4. Check VS Code REST Client settings:
+###    - File > Preferences > Settings > Search "rest-client"
+###    - Ensure "rest-client.enableTelemetry" is set if needed
+###    - Try disabling proxy: "rest-client.proxy": ""
+### 5. If using proxy, configure it in VS Code settings:
+###    "http.proxy": "http://your-proxy:port"
+### 6. Try restarting VS Code
+### 7. Check Windows Firewall isn't blocking localhost:3001
+### 8. Verify the server logs show it's listening on port 3001
+### 
+### ============================================
+### 📋 NOTES & BEST PRACTICES
+### ============================================
+### 
+### Authentication Flow:
+### 1. Register a user (customer/admin/trainer)
+### 2. Login to get httpOnly cookies set automatically
+### 3. All authenticated endpoints use cookies (no Bearer token needed)
+### 4. Use refresh endpoint to get new access token
+### 5. Logout clears cookies
+### 
+### Variable Substitution:
+### - Replace {{trainerId}}, {{serviceId}}, {{bookingId}}, etc. with actual IDs from responses
+### - Copy IDs from GET responses and use them in subsequent requests
+### - Use @name directive to capture response variables in REST Client
+### 
+### Response Format:
+### - Success: { success: true, message: string, data: any, timestamp: string }
+### - Error: { success: false, statusCode: number, error: string, message: string | string[], path: string, method: string, timestamp: string }
+### 
+### Validation Rules:
+### - PIN: 6-8 digits only
+### - Phone: Minimum 10 characters
+### - Email: Valid email format
+### - Rating: 1-5 (integer)
+### - Comment: Max 1000 characters
+### - Date: YYYY-MM-DD format
+### - UUID: Valid UUID format required
+### 
+### Rate Limits:
+### - Register: 30 requests per 15 minutes
+### - Login: 30 requests per 15 minutes
+### 
+### Role-Based Access:
+### - Public: Health, Institute Info (GET), Services (GET), Trainers (GET), Class Schedule (GET), Reviews (GET approved), Content Sections (GET)
+### - Customer: Bookings (own), Reviews (own), Attendance (own)
+### - Trainer: Attendance (own)
+### - Admin: All endpoints
+### 
+### Edge Cases Covered:
+### - Invalid input formats (email, phone, date, UUID)
+### - Missing required fields
+### - Out of range values (rating, negative prices)
+### - Duplicate entries (phone, email)
+### - Non-existent resources (404 errors)
+### - Unauthorized access (401 errors)
+### - Forbidden access (403 errors)
+### - Validation errors (400 errors)
+### 
+### ============================================

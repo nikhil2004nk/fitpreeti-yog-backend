@@ -1,82 +1,55 @@
-// src/trainers/dto/create-trainer.dto.ts
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsNumber, IsObject, IsBoolean } from 'class-validator';
-
-class SocialMediaDto {
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  instagram?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  @IsOptional()
-  youtube?: string;
-
-  [key: string]: any;
-}
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, MinLength, MaxLength } from 'class-validator';
 
 export class CreateTrainerDto {
-  @ApiProperty({ example: 'John Doe' })
   @IsString()
-  name: string;
+  @MaxLength(255)
+  email: string;
 
-  @ApiProperty({ example: 'Founder & Head Trainer', required: false })
+  @IsString()
+  @MinLength(8)
+  password: string;
+
+  @IsString()
+  @MaxLength(255)
+  full_name: string;
+
+  @IsString()
+  @MaxLength(20)
+  @IsOptional()
+  phone?: string;
+
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  specialization?: string;
+
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  yoga_styles?: string;
+
+  @IsInt()
+  @IsOptional()
+  experience_years?: number;
+
   @IsString()
   @IsOptional()
-  title?: string;
+  certifications?: string;
 
-  @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   bio?: string;
 
-  @ApiProperty({ example: ['yoga', 'pilates'], required: false })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  specializations?: string[];
-
-  @ApiProperty({ required: false })
   @IsString()
+  @MaxLength(500)
   @IsOptional()
-  profileImage?: string;
+  profile_image_url?: string;
 
-  @ApiProperty({ example: ['RYT 200', 'Yoga Alliance'], required: false })
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  certifications?: string[];
-
-  @ApiProperty({ example: 5, required: false })
   @IsNumber()
   @IsOptional()
-  experienceYears?: number;
+  hourly_rate?: number;
 
-  @ApiProperty({ 
-    example: { 
-      monday: [{ start: '09:00', end: '17:00' }],
-      tuesday: [{ start: '09:00', end: '17:00' }]
-    }, 
-    required: false 
-  })
-  @IsObject()
-  @IsOptional()
-  availability?: Record<string, Array<{ start: string; end: string }>>;
-
-  @ApiProperty({ example: true, default: true, required: false })
   @IsBoolean()
   @IsOptional()
-  isActive?: boolean;
-
-  @ApiProperty({
-    example: {
-      instagram: 'insta_handle',
-      youtube: 'youtube_handle'
-    },
-    required: false
-  })
-  @IsObject()
-  @IsOptional()
-  socialMedia?: SocialMediaDto;
+  is_available?: boolean;
 }

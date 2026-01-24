@@ -1,57 +1,63 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { Service } from '../../services/entities/service.entity';
-import { ClassSchedule } from '../../class-schedule/entities/class-schedule.entity';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToOne,
+  Index,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('trainers')
 export class Trainer {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ type: 'int' })
+  id: number;
 
-  @Column({ type: 'varchar', length: 255 })
-  name: string;
+  @Column({ type: 'int', name: 'user_id', unique: true })
+  @Index('idx_user_id')
+  user_id: number;
+
+  @OneToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @Column({ type: 'varchar', length: 255, name: 'full_name' })
+  full_name: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  title: string | null;
+  specialization: string | null;
+
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'yoga_styles' })
+  yoga_styles: string | null;
+
+  @Column({ type: 'int', nullable: true, name: 'experience_years' })
+  experience_years: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  certifications: string | null;
 
   @Column({ type: 'text', nullable: true })
   bio: string | null;
 
-  @Column({ type: 'json' })
-  specializations: string[];
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'profile_image_url' })
+  profile_image_url: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'profile_image' })
-  profile_image: string | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'hourly_rate' })
+  hourly_rate: number | null;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 0.0 })
-  rating: number;
+  @Column({ type: 'boolean', default: true, name: 'is_available' })
+  @Index('idx_is_available')
+  is_available: boolean;
 
-  @Column({ type: 'int', default: 0, name: 'total_reviews' })
-  total_reviews: number;
-
-  @Column({ type: 'json' })
-  availability: Record<string, any>;
-
-  @Column({ type: 'json' })
-  certifications: string[];
-
-  @Column({ type: 'tinyint', default: 0, name: 'experience_years' })
-  experience_years: number;
-
-  @Column({ type: 'boolean', default: true, name: 'is_active' })
-  is_active: boolean;
-
-  @Column({ type: 'json', name: 'social_media' })
-  social_media: Record<string, any>;
-
-  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamp', name: 'created_at' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
+  @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
-
-  @OneToMany(() => Service, service => service.trainer)
-  services: Service[];
-
-  @OneToMany(() => ClassSchedule, classSchedule => classSchedule.trainer)
-  class_schedules: ClassSchedule[];
 }

@@ -14,7 +14,7 @@ export class SessionService {
   ) {}
 
   async createSession(
-    userId: string,
+    userId: number,
     token: string,
     userAgent: string,
     ipAddress: string,
@@ -36,7 +36,23 @@ export class SessionService {
     }
   }
 
-  async validateSession(userId: string, token: string): Promise<boolean> {
+  async findSessionByToken(token: string): Promise<{ user_id: number } | null> {
+    try {
+      const session = await this.sessionRepository.findOne({
+        where: {
+          token: sanitizeText(token),
+          expires_at: MoreThan(new Date()),
+        },
+        select: ['user_id'],
+      });
+      return session ? { user_id: session.user_id } : null;
+    } catch (error) {
+      this.logger.error('Failed to find session by token', error instanceof Error ? error.stack : String(error));
+      return null;
+    }
+  }
+
+  async validateSession(userId: number, token: string): Promise<boolean> {
     try {
       const count = await this.sessionRepository.count({
         where: {
@@ -45,7 +61,7 @@ export class SessionService {
           expires_at: MoreThan(new Date()),
         },
       });
-      
+
       return count > 0;
     } catch (error) {
       this.logger.error('Failed to validate session', error instanceof Error ? error.stack : String(error));
@@ -62,18 +78,13 @@ export class SessionService {
     }
   }
 
-  async invalidateAllUserSessions(userId: string, excludeToken?: string): Promise<void> {
+  async invalidateAllUserSessions(userId: number, excludeToken?: string): Promise<void> {
     try {
+      const qb = this.sessionRepository.createQueryBuilder().delete().where('user_id = :userId', { userId });
       if (excludeToken) {
-        await this.sessionRepository
-          .createQueryBuilder()
-          .delete()
-          .where('user_id = :userId', { userId })
-          .andWhere('token != :excludeToken', { excludeToken: sanitizeText(excludeToken) })
-          .execute();
-      } else {
-        await this.sessionRepository.delete({ user_id: userId });
+        qb.andWhere('token != :excludeToken', { excludeToken: sanitizeText(excludeToken) });
       }
+      await qb.execute();
     } catch (error) {
       this.logger.error('Failed to invalidate user sessions', error instanceof Error ? error.stack : String(error));
       throw error;

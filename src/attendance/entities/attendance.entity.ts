@@ -1,41 +1,75 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Unique,
+  Index,
+} from 'typeorm';
+import { Customer } from '../../customers/entities/customer.entity';
+import { Schedule } from '../../schedules/entities/schedule.entity';
+import { CustomerSubscription } from '../../subscriptions/entities/customer-subscription.entity';
 import { User } from '../../users/entities/user.entity';
-
-export enum AttendanceStatus {
-  PRESENT = 'present',
-  ABSENT = 'absent',
-  LATE = 'late',
-  EXCUSED = 'excused'
-}
+import { AttendanceStatus } from '../../../common/enums/attendance.enums';
 
 @Entity('attendance')
+@Unique('unique_attendance', ['customer_id', 'schedule_id', 'attendance_date'])
+@Index('idx_customer_schedule', ['customer_id', 'schedule_id'])
 export class Attendance {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ type: 'int' })
+  id: number;
 
-  @Column({ type: 'varchar', length: 36, name: 'user_id' })
-  user_id: string;
+  @Column({ type: 'int', name: 'customer_id' })
+  customer_id: number;
 
-  @ManyToOne(() => User, user => user.attendance)
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'customer_id' })
+  customer: Customer;
 
-  @Column({ type: 'date' })
-  date: Date;
+  @Column({ type: 'int', name: 'schedule_id' })
+  schedule_id: number;
+
+  @ManyToOne(() => Schedule, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'schedule_id' })
+  schedule: Schedule;
+
+  @Column({ type: 'int', name: 'subscription_id' })
+  subscription_id: number;
+
+  @ManyToOne(() => CustomerSubscription, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'subscription_id' })
+  subscription: CustomerSubscription;
+
+  @Column({ type: 'date', name: 'attendance_date' })
+  @Index('idx_attendance_date')
+  attendance_date: Date;
 
   @Column({ type: 'enum', enum: AttendanceStatus })
+  @Index('idx_status')
   status: AttendanceStatus;
 
-  @Column({ type: 'varchar', length: 36, nullable: true, name: 'marked_by' })
-  marked_by: string | null;
+  @Column({ type: 'timestamp', nullable: true, name: 'check_in_time' })
+  check_in_time: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'check_out_time' })
+  check_out_time: Date | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @CreateDateColumn({ type: 'datetime', name: 'created_at' })
-  created_at: Date;
+  @Column({ type: 'int', name: 'marked_by' })
+  marked_by: number;
 
-  @UpdateDateColumn({ type: 'datetime', name: 'updated_at' })
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'marked_by' })
+  markedByUser: User;
+
+  @CreateDateColumn({ type: 'timestamp', name: 'marked_at' })
+  marked_at: Date;
+
+  @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
 }
-

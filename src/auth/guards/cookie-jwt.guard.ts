@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth.service';
 import type { JwtPayload } from '../interfaces/jwt-payload.interface';
-import type { UserRole } from '../../common/interfaces/user.interface';
 
 @Injectable()
 export class CookieJwtGuard implements CanActivate {
@@ -17,8 +16,8 @@ export class CookieJwtGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const response = context.switchToHttp().getResponse<Response>();
-    
-    let token = request.cookies?.['access_token'];
+
+    const token = request.cookies?.['access_token'];
     if (!token) {
       throw new UnauthorizedException('No access token provided');
     }
@@ -30,47 +29,35 @@ export class CookieJwtGuard implements CanActivate {
       request.user = payload;
       return true;
     } catch {
-      // Token expired - try refresh
       const refreshToken = request.cookies?.['refresh_token'];
       if (!refreshToken) {
         throw new UnauthorizedException('Session expired');
       }
 
       try {
-        // Validate refresh token from database
-        const phone = await this.authService.validateRefreshToken(refreshToken);
-        if (!phone) {
+        const user = await this.authService.validateRefreshToken(refreshToken);
+        if (!user) {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const user = await this.authService.findUserByPhonePublic(phone);
-        if (!user) {
-          throw new UnauthorizedException('User not found');
-        }
-
-        // ✅ FIXED: Proper UserRole casting
-        const newPayload: JwtPayload = { 
-          sub: user.id?.toString(),
-          phone: user.phone, 
+        const newPayload: JwtPayload = {
+          sub: String(user.id),
           email: user.email,
-          name: user.name,
-          role: (user.role as UserRole) // Type assertion fix
+          role: user.role,
         };
-        
-        const newAccessToken = this.jwtService.sign(newPayload, { 
-          expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN') || '15m'
+
+        const newAccessToken = this.jwtService.sign(newPayload, {
+          expiresIn: this.configService.get('ACCESS_TOKEN_EXPIRES_IN') || '15m',
         });
 
         request.user = newPayload;
-        // Cookie options for cross-origin support (GitHub Pages to Vercel)
         const isProduction = process.env.NODE_ENV === 'production';
         response.cookie('access_token', newAccessToken, {
           httpOnly: true,
-          secure: isProduction, // Required for SameSite=None
-          sameSite: isProduction ? ('none' as const) : ('strict' as const), // 'none' for cross-origin in production
+          secure: isProduction,
+          sameSite: isProduction ? ('none' as const) : ('strict' as const),
           path: '/',
           maxAge: 15 * 60 * 1000,
-          // Do NOT set domain - let it default to backend domain
         });
         return true;
       } catch {

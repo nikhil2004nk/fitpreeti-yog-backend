@@ -1,82 +1,61 @@
-// src/trainers/trainers.controller.ts
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, HttpCode, HttpStatus, Patch, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiCookieAuth, ApiParam } from '@nestjs/swagger';
-import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { TrainersService } from './trainers.service';
 import { CreateTrainerDto } from './dto/create-trainer.dto';
 import { UpdateTrainerDto } from './dto/update-trainer.dto';
-import { TrainerResponseDto } from './dto/trainer-response.dto';
+import { CookieJwtGuard } from '../auth/guards/cookie-jwt.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '../common/enums/user-role.enum';
 
-@ApiTags('Trainers')
-@Controller('trainers')
+@ApiTags('Trainers (Admin)')
+@Controller('admin/trainers')
+@UseGuards(CookieJwtGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class TrainersController {
-  constructor(private readonly trainersService: TrainersService) {}
+  constructor(private readonly service: TrainersService) {}
 
   @Post()
-  @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Create a new trainer (Admin only)' })
-  @ApiResponse({ status: 201, description: 'Trainer created successfully', type: TrainerResponseDto })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
-  async create(@Body() createTrainerDto: CreateTrainerDto): Promise<TrainerResponseDto> {
-    return this.trainersService.create(createTrainerDto);
+  @ApiOperation({ summary: 'Create trainer + user' })
+  @ApiResponse({ status: 201, description: 'Trainer created' })
+  create(@Body() dto: CreateTrainerDto) {
+    return this.service.create(dto);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all trainers (Public)' })
-  @ApiResponse({ status: 200, description: 'Returns all trainers', type: [TrainerResponseDto] })
-  async findAll(): Promise<TrainerResponseDto[]> {
-    return this.trainersService.findAll();
+  @ApiOperation({ summary: 'List all trainers' })
+  list() {
+    return this.service.findAll();
   }
 
   @Get(':id')
-  @UseGuards(CookieJwtGuard)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Get a trainer by ID' })
-  @ApiParam({ name: 'id', type: String, description: 'Trainer UUID' })
-  @ApiResponse({ status: 200, description: 'Returns the trainer', type: TrainerResponseDto })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Trainer not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<TrainerResponseDto> {
-    return this.trainersService.findOne(id);
+  @ApiOperation({ summary: 'Get trainer by ID' })
+  getOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @Put(':id')
-  @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Update a trainer (Admin only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Trainer UUID' })
-  @ApiResponse({ status: 200, description: 'Trainer updated', type: TrainerResponseDto })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
-  @ApiResponse({ status: 404, description: 'Trainer not found' })
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateTrainerDto: UpdateTrainerDto,
-  ): Promise<TrainerResponseDto> {
-    return this.trainersService.update(id, updateTrainerDto);
+  @ApiOperation({ summary: 'Update trainer' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTrainerDto) {
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Delete a trainer (Admin only)' })
-  @ApiParam({ name: 'id', type: String, description: 'Trainer UUID' })
-  @ApiResponse({ status: 204, description: 'Trainer deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
-  @ApiResponse({ status: 404, description: 'Trainer not found' })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    await this.trainersService.remove(id);
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Deactivate trainer' })
+  deactivate(@Param('id', ParseIntPipe) id: number) {
+    return this.service.deactivate(id);
   }
 }
