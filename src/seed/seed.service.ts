@@ -33,13 +33,26 @@ export class SeedService {
   ) {}
 
   async run() {
-    if (process.env.NODE_ENV === 'production') return;
+    // In production, only seed if database is empty (first run)
+    if (process.env.NODE_ENV === 'production') {
+      const userCount = await this.userRepo.count();
+      if (userCount > 0) {
+        this.logger.log('Production database already has data, skipping seed');
+        return;
+      }
+      this.logger.warn('⚠️  Production database is empty - performing one-time seed');
+    }
+    
     await this.seedAdmin();
     await this.seedServiceOptions();
     await this.seedServices();
     await this.seedAppSettings();
     await this.seedInstituteInfo();
     await this.seedApprovedReviews();
+    
+    if (process.env.NODE_ENV === 'production') {
+      this.logger.log('✅ Production database seeded successfully (one-time operation)');
+    }
   }
 
   private async seedAdmin() {
