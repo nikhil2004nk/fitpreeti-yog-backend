@@ -3,16 +3,23 @@ import {
   IsInt,
   IsOptional,
   IsEnum,
+  IsEmail,
   IsDateString,
   MaxLength,
 } from 'class-validator';
 import { CustomerGender, MembershipStatus, YogaExperienceLevel } from '../../common/enums/customer.enums';
+import { LeadPreferredClassType } from '../../common/enums/lead.enums';
 
 export class UpdateCustomerDto {
   @IsString()
   @MaxLength(255)
   @IsOptional()
   full_name?: string;
+
+  @IsEmail()
+  @MaxLength(255)
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @MaxLength(20)
@@ -91,6 +98,10 @@ export class UpdateCustomerDto {
   @IsEnum(YogaExperienceLevel)
   @IsOptional()
   yoga_experience_level?: YogaExperienceLevel;
+
+  @IsEnum(LeadPreferredClassType)
+  @IsOptional()
+  preferred_class_type?: LeadPreferredClassType;
 
   @IsString()
   @IsOptional()

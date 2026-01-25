@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Lead } from './entities/lead.entity';
 import { LeadActivity } from './entities/lead-activity.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { CreateLeadActivityDto } from './dto/create-lead-activity.dto';
 import { LeadStatus } from '../common/enums/lead.enums';
+import { CustomersService } from '../customers/customers.service';
 
 @Injectable()
 export class LeadsService {
@@ -15,6 +16,7 @@ export class LeadsService {
     private readonly leadRepo: Repository<Lead>,
     @InjectRepository(LeadActivity)
     private readonly activityRepo: Repository<LeadActivity>,
+    private readonly customersService: CustomersService,
   ) {}
 
   async create(dto: CreateLeadDto) {
@@ -68,10 +70,34 @@ export class LeadsService {
 
   async update(id: number, dto: UpdateLeadDto) {
     const lead = await this.findOne(id);
-    Object.assign(lead, dto);
+    const wasConverted = lead.status === LeadStatus.CONVERTED;
+    
+    // Prevent status changes for converted leads
+    if (wasConverted && dto.status && dto.status !== LeadStatus.CONVERTED) {
+      throw new BadRequestException('Cannot change status of a converted lead');
+    }
+    
+    // Filter out undefined values to avoid overwriting existing fields
+    const updates = Object.fromEntries(
+      Object.entries(dto).filter(([, v]) => v !== undefined),
+    ) as Partial<UpdateLeadDto>;
+    
+    // Remove status from updates if lead is already converted
+    if (wasConverted && 'status' in updates) {
+      delete updates.status;
+    }
+    
+    Object.assign(lead, updates);
     if (dto.last_contacted_at) lead.last_contacted_at = new Date(dto.last_contacted_at);
     if (dto.follow_up_date) lead.follow_up_date = new Date(dto.follow_up_date);
-    return this.leadRepo.save(lead);
+    
+    const saved = await this.leadRepo.save(lead);
+    if (!wasConverted && saved.status === LeadStatus.CONVERTED) {
+      // Reload the lead to ensure all fields are present before creating customer
+      const leadWithAllFields = await this.findOne(id);
+      await this.ensureCustomerForConvertedLead(leadWithAllFields);
+    }
+    return saved;
   }
 
   async addActivity(leadId: number, userId: number, dto: CreateLeadActivityDto) {
@@ -90,7 +116,16 @@ export class LeadsService {
       throw new BadRequestException('Lead already converted');
     }
     lead.status = LeadStatus.CONVERTED;
-    await this.leadRepo.save(lead);
-    return { lead, message: 'Lead marked as converted. Create customer with lead_id when onboarding.' };
+    const saved = await this.leadRepo.save(lead);
+    const customer = await this.ensureCustomerForConvertedLead(saved);
+    return {
+      lead: saved,
+      customer,
+      message: 'Lead marked as converted. Customer created with status onboarding.',
+    };
+  }
+
+  private async ensureCustomerForConvertedLead(lead: Lead) {
+    return this.customersService.createFromLead(lead);
   }
 }

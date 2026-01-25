@@ -3,22 +3,27 @@ import {
   IsInt,
   IsOptional,
   IsEnum,
+  IsEmail,
   IsDateString,
   MaxLength,
+  MinLength,
 } from 'class-validator';
-import { CustomerGender, YogaExperienceLevel } from '../../common/enums/customer.enums';
+import { CustomerGender, MembershipStatus, YogaExperienceLevel } from '../../common/enums/customer.enums';
+import { LeadPreferredClassType } from '../../common/enums/lead.enums';
 
 export class CreateCustomerDto {
   @IsInt()
-  user_id: number;
-
-  @IsInt()
   @IsOptional()
-  lead_id?: number;
+  user_id?: number;
 
   @IsString()
   @MaxLength(255)
   full_name: string;
+
+  @IsEmail()
+  @MaxLength(255)
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @MaxLength(20)
@@ -32,6 +37,26 @@ export class CreateCustomerDto {
   @IsEnum(CustomerGender)
   @IsOptional()
   gender?: CustomerGender;
+
+  @IsEnum(YogaExperienceLevel)
+  @IsOptional()
+  yoga_experience_level?: YogaExperienceLevel;
+
+  @IsEnum(LeadPreferredClassType)
+  @IsOptional()
+  preferred_class_type?: LeadPreferredClassType;
+
+  @IsEnum(MembershipStatus)
+  @IsOptional()
+  membership_status?: MembershipStatus;
+
+  @IsDateString()
+  @IsOptional()
+  membership_start_date?: string;
+
+  @IsDateString()
+  @IsOptional()
+  membership_end_date?: string;
 
   @IsString()
   @MaxLength(255)
@@ -94,10 +119,6 @@ export class CreateCustomerDto {
   @IsOptional()
   fitness_goals?: string;
 
-  @IsEnum(YogaExperienceLevel)
-  @IsOptional()
-  yoga_experience_level?: YogaExperienceLevel;
-
   @IsString()
   @IsOptional()
   previous_injuries?: string;
@@ -106,4 +127,10 @@ export class CreateCustomerDto {
   @MaxLength(500)
   @IsOptional()
   profile_image_url?: string;
+
+  // Optional fields for complete onboarding during creation
+  @IsString()
+  @IsOptional()
+  @MinLength(8, { message: 'Password must be at least 8 characters' })
+  password?: string; // If provided, creates customer with active status and credentials
 }

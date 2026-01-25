@@ -5,6 +5,11 @@ export enum CustomerGender {
   PREFER_NOT_TO_SAY = 'prefer_not_to_say',
 }
 
+export enum CustomerStatus {
+  ONBOARDING = 'onboarding',
+  ACTIVE = 'active',
+}
+
 export enum MembershipStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
