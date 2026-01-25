@@ -2,7 +2,7 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
+# package-lock.json - KEEP THIS for reproducible builds with npm ci
 yarn.lock
 
 # Build outputs

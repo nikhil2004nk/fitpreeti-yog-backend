@@ -37,7 +37,7 @@ COPY package*.json ./
 
 # Install ONLY production dependencies
 # Use --legacy-peer-deps to resolve @nestjs/config conflicts
-RUN npm ci --only=production --legacy-peer-deps && \
+RUN npm ci --omit=dev --legacy-peer-deps && \
     npm cache clean --force
 
 # Copy built application from builder stage
