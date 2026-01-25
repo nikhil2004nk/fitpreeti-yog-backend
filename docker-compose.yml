@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: fitpreeti_backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # Application
+      NODE_ENV: production
+      PORT: "3000"
+      TZ: Asia/Kolkata
+      API_PREFIX: /api/v1
+      
+      # Database Configuration
+      DB_HOST: fitpreeti_mysql_dev
+      DB_PORT: "3306"
+      DB_USERNAME: fitpreeti_user
+      DB_PASSWORD: SecureFitpreetiDB2026!X7kP9m
+      DB_NAME: fitpreeti_prod
+      
+      # JWT Configuration
+      JWT_SECRET: 8KjP2mN7qR5tY9uW3eZ6aB0cD4fG8hJ1kL
+      JWT_REFRESH_SECRET: vX2cM9nQ6rT0yU4iO7pA3sD5fG8hJ1kL2mN
+      JWT_EXPIRES_IN: 7d
+      ACCESS_TOKEN_EXPIRES_IN: 15m
+      
+      # Frontend/Backend URLs
+      FRONTEND_URL: https://fitpreetiyoginstitute.com
+      BACKEND_URL: https://fitpreetiyoginstitute.com/api
+      CORS_ORIGIN: https://fitpreetiyoginstitute.com,https://www.fitpreetiyoginstitute.com
+      
+      # Additional (for compatibility)
+      APP_ENV: production
+      APP_PORT: "3000"
+      BACKEND_PORT: "3000"
+      FRONTEND_PORT: "8080"
+      REACT_APP_API_URL: https://fitpreetiyoginstitute.com/api
+      DOCKER_DB_HOST: fitpreeti_mysql_dev
+      MYSQL_DATABASE: fitpreeti_prod
+      MYSQL_USER: fitpreeti_user
+      MYSQL_PASSWORD: SecureFitpreetiDB2026!X7kP9m
+      MYSQL_ROOT_PASSWORD: FitpreetiRoot2026!
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - fitpreeti_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+
+  mysql:
+    image: mysql:8.0
+    container_name: fitpreeti_mysql_dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: FitpreetiRoot2026!
+      MYSQL_DATABASE: fitpreeti_prod
+      MYSQL_USER: fitpreeti_user
+      MYSQL_PASSWORD: SecureFitpreetiDB2026!X7kP9m
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./backups/mysql:/backups
+    networks:
+      - fitpreeti_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  fitpreeti_network:
+    name: fitpreeti_fitpreeti_network
+    driver: bridge
+
+volumes:
+  mysql_dev_data:
+    name: fitpreeti_mysql_dev_data
