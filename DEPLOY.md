@@ -71,6 +71,27 @@ rsync -avz --exclude 'node_modules' --exclude '.git' \
 ```bash
 cd /home/fitpreeti/fitpreeti/fitpreeti-yog-backend
 
+# If you get "local changes would be overwritten" error:
+# Option A: Keep your local Dockerfile (recommended)
+git stash
+git pull origin main
+git stash pop  # Reapply your local changes
+
+# If you get a merge conflict in Dockerfile:
+# Use the remote version (production-ready) - RECOMMENDED
+git checkout --theirs Dockerfile
+git add Dockerfile
+git stash drop  # Remove the stash since we're using remote version
+
+# Option B: Use remote version (discard local changes)
+# git checkout -- Dockerfile
+# git pull origin main
+
+# Option C: Commit your local changes first
+# git add Dockerfile docker-compose.yml .dockerignore package.json api/index.ts
+# git commit -m "Fix Docker production deployment"
+# git pull origin main
+
 # Stop the old backend container
 docker compose stop backend
 
