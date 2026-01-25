@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Trainer } from './entities/trainer.entity';
 import { TrainersService } from './trainers.service';
 import { TrainersController } from './trainers.controller';
+import { TrainersPublicController } from './trainers-public.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -11,7 +12,7 @@ import { AuthModule } from '../auth/auth.module';
     TypeOrmModule.forFeature([Trainer]),
     AuthModule, // Add AuthModule to use guards
   ],
-  controllers: [TrainersController],
+  controllers: [TrainersController, TrainersPublicController],
   providers: [TrainersService],
   exports: [TrainersService],
 })

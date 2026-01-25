@@ -87,4 +87,75 @@ export class TrainersService {
     t.is_available = false;
     return this.repo.save(t);
   }
+
+  // Public: Get only available trainers with professional data only
+  async findAvailablePublic() {
+    const trainers = await this.repo.find({
+      where: { is_available: true },
+      order: { id: 'ASC' },
+    });
+
+    return trainers.map(t => this.mapToPublicResponse(t));
+  }
+
+  // Public: Get single trainer by ID with professional data only
+  async findOnePublic(id: number) {
+    const t = await this.repo.findOne({ where: { id, is_available: true } });
+    if (!t) throw new NotFoundException('Trainer not found or not available');
+    return this.mapToPublicResponse(t);
+  }
+
+  // Helper to map trainer to public response (exclude sensitive data)
+  private mapToPublicResponse(trainer: Trainer) {
+    // Parse JSON strings
+    let specializations: string[] = [];
+    if (trainer.specialization) {
+      try {
+        specializations = JSON.parse(trainer.specialization);
+      } catch {
+        specializations = trainer.specialization ? [trainer.specialization] : [];
+      }
+    }
+
+    let certifications: string[] = [];
+    if (trainer.certifications) {
+      try {
+        certifications = JSON.parse(trainer.certifications);
+      } catch {
+        certifications = trainer.certifications ? [trainer.certifications] : [];
+      }
+    }
+
+    let designations: string[] = [];
+    if (trainer.designations) {
+      try {
+        designations = JSON.parse(trainer.designations);
+      } catch {
+        designations = trainer.designations ? [trainer.designations] : [];
+      }
+    }
+
+    let social_media: { instagram?: string; youtube?: string; facebook?: string; twitter?: string; linkedin?: string } | undefined;
+    if (trainer.social_media) {
+      try {
+        social_media = JSON.parse(trainer.social_media);
+      } catch {
+        social_media = undefined;
+      }
+    }
+
+    return {
+      id: trainer.id,
+      full_name: trainer.full_name,
+      designations: designations.length > 0 ? designations : undefined,
+      bio: trainer.bio || undefined,
+      specializations: specializations.length > 0 ? specializations : undefined,
+      profile_image_url: trainer.profile_image_url || undefined,
+      certifications: certifications.length > 0 ? certifications : undefined,
+      experience_years: trainer.experience_years || undefined,
+      yoga_styles: trainer.yoga_styles || undefined,
+      social_media: social_media,
+      // Note: rating and total_reviews would come from reviews service if needed
+    };
+  }
 }
