@@ -20,8 +20,8 @@ export class TrainersService {
       { 
         email: dto.email, 
         password: dto.password,
-        name: dto.full_name || null,
-        phone: dto.phone || null
+        name: dto.full_name || undefined,
+        phone: dto.phone || undefined
       },
       UserRole.TRAINER,
     );

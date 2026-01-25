@@ -83,8 +83,8 @@ export class CustomersService {
         { 
           email, 
           password: dto.password!,
-          name: dto.full_name || null,
-          phone: dto.phone || null
+          name: dto.full_name || undefined,
+          phone: dto.phone || undefined
         },
         UserRole.CUSTOMER,
       );
@@ -180,8 +180,8 @@ export class CustomersService {
       { 
         email, 
         password: dto.password,
-        name: c.full_name || null,
-        phone: c.phone || null
+        name: c.full_name || undefined,
+        phone: c.phone || undefined
       },
       UserRole.CUSTOMER,
     );
