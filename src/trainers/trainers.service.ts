@@ -17,7 +17,12 @@ export class TrainersService {
 
   async create(dto: CreateTrainerDto) {
     const user = await this.authService.createUser(
-      { email: dto.email, password: dto.password },
+      { 
+        email: dto.email, 
+        password: dto.password,
+        name: dto.full_name || null,
+        phone: dto.phone || null
+      },
       UserRole.TRAINER,
     );
     const trainer = this.repo.create({

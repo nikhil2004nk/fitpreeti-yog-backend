@@ -13,7 +13,7 @@ export class UsersService {
 
   async findAll() {
     return this.userRepository.find({
-      select: ['id', 'email', 'role', 'is_active', 'last_login', 'created_at', 'updated_at'],
+      select: ['id', 'email', 'name', 'phone', 'role', 'is_active', 'last_login', 'created_at', 'updated_at'],
       order: { created_at: 'DESC' },
     });
   }
@@ -21,7 +21,7 @@ export class UsersService {
   async findOneById(id: number) {
     const user = await this.userRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'role', 'is_active', 'last_login', 'created_at', 'updated_at'],
+      select: ['id', 'email', 'name', 'phone', 'role', 'is_active', 'last_login', 'created_at', 'updated_at'],
     });
     if (!user) throw new NotFoundException('User not found');
     return user;

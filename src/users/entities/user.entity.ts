@@ -20,6 +20,13 @@ export class User {
   @Index('idx_email')
   email: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  name: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Index('idx_phone')
+  phone: string | null;
+
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   password_hash: string;
 

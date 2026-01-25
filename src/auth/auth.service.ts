@@ -199,6 +199,8 @@ export class AuthService {
     const hash = await bcrypt.hash(dto.password, this.saltRounds);
     const user = this.userRepository.create({
       email,
+      name: dto.name?.trim() || null,
+      phone: dto.phone?.trim() || null,
       password_hash: hash,
       role: dto.role ?? defaultRole,
     });

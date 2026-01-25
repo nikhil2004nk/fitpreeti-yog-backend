@@ -80,7 +80,12 @@ export class CustomersService {
       }
       
       const user = await this.authService.createUser(
-        { email, password: dto.password! },
+        { 
+          email, 
+          password: dto.password!,
+          name: dto.full_name || null,
+          phone: dto.phone || null
+        },
         UserRole.CUSTOMER,
       );
       
@@ -172,7 +177,12 @@ export class CustomersService {
       throw new BadRequestException('Email is required to create login credentials');
     }
     const user = await this.authService.createUser(
-      { email, password: dto.password },
+      { 
+        email, 
+        password: dto.password,
+        name: c.full_name || null,
+        phone: c.phone || null
+      },
       UserRole.CUSTOMER,
     );
     c.user_id = user.id;
