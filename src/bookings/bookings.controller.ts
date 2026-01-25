@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, HttpCode, HttpStatus, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, HttpCode, HttpStatus, ParseUUIDPipe, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiCookieAuth } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -36,6 +36,33 @@ export class BookingsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(@Req() req: Request & { user: RequestUser }) {
     return this.bookingsService.getUserBookings(req.user.phone);
+  }
+
+  @Get('available/:serviceId/:date')
+  @UseGuards(CookieJwtGuard)
+  @ApiCookieAuth('access_token')
+  @ApiOperation({ summary: 'Get available time slots for a service on a specific date' })
+  @ApiParam({ name: 'serviceId', type: Number, description: 'Service ID' })
+  @ApiParam({ name: 'date', type: String, description: 'Date in YYYY-MM-DD format' })
+  @ApiResponse({ status: 200, description: 'Returns available time slots' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getAvailableSlots(
+    @Param('serviceId', ParseIntPipe) serviceId: number,
+    @Param('date') date: string,
+  ) {
+    return this.bookingsService.getAvailableSlots(serviceId, date);
+  }
+
+  @Get('admin/all')
+  @UseGuards(CookieJwtGuard, RolesGuard)
+  @Roles('admin', 'trainer')
+  @ApiCookieAuth('access_token')
+  @ApiOperation({ summary: 'Get all bookings (Admin or Trainer)' })
+  @ApiResponse({ status: 200, description: 'Returns all bookings' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin or Trainer access required' })
+  findAllAdmin() {
+    return this.bookingsService.findAll();
   }
 
   @Get(':id')
@@ -76,32 +103,5 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found' })
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request & { user: RequestUser }) {
     return this.bookingsService.remove(id, req.user.phone);
-  }
-
-  @Get('available/:serviceId/:date')
-  @UseGuards(CookieJwtGuard)
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Get available time slots for a service on a specific date' })
-  @ApiParam({ name: 'serviceId', type: String, description: 'Service UUID' })
-  @ApiParam({ name: 'date', type: String, description: 'Date in YYYY-MM-DD format' })
-  @ApiResponse({ status: 200, description: 'Returns available time slots' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getAvailableSlots(
-    @Param('serviceId', ParseUUIDPipe) serviceId: string,
-    @Param('date') date: string,
-  ) {
-    return this.bookingsService.getAvailableSlots(serviceId, date);
-  }
-
-  @Get('admin/all')
-  @UseGuards(CookieJwtGuard, RolesGuard)
-  @Roles('admin', 'trainer')
-  @ApiCookieAuth('access_token')
-  @ApiOperation({ summary: 'Get all bookings (Admin or Trainer)' })
-  @ApiResponse({ status: 200, description: 'Returns all bookings' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin or Trainer access required' })
-  findAllAdmin() {
-    return this.bookingsService.findAll();
   }
 }

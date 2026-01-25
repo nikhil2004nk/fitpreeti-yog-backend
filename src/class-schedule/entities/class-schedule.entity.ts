@@ -47,18 +47,18 @@ export class ClassSchedule {
   current_participants: number;
 
   @ApiProperty({ description: 'ID of the trainer' })
-  @Column({ type: 'varchar', length: 36, name: 'trainer_id' })
-  trainer_id: string;
+  @Column({ type: 'int', name: 'trainer_id' })
+  trainer_id: number;
 
-  @ManyToOne(() => Trainer, trainer => trainer.class_schedules)
+  @ManyToOne(() => Trainer)
   @JoinColumn({ name: 'trainer_id' })
   trainer: Trainer;
 
   @ApiProperty({ description: 'ID of the service' })
-  @Column({ type: 'varchar', length: 36, name: 'service_id' })
-  service_id: string;
+  @Column({ type: 'int', name: 'service_id' })
+  service_id: number;
 
-  @ManyToOne(() => Service, service => service.class_schedules)
+  @ManyToOne(() => Service, (service) => service.class_schedules)
   @JoinColumn({ name: 'service_id' })
   service: Service;
 

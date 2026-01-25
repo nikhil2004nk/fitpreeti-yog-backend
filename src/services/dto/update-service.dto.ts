@@ -8,14 +8,9 @@ import {
   Min,
   MaxLength,
 } from 'class-validator';
-import { ServiceType, ServiceClassType } from '../../common/enums/service.enums';
-import { YogaStyle } from '../../common/enums/yoga-style.enum';
+import { ServiceMode, ServiceFrequency, ServiceAudience } from '../../common/enums/service.enums';
 
 export class UpdateServiceDto {
-  @IsInt()
-  @IsOptional()
-  category_id?: number;
-
   @IsString()
   @MaxLength(255)
   @IsOptional()
@@ -35,17 +30,32 @@ export class UpdateServiceDto {
   @IsOptional()
   short_description?: string;
 
-  @IsEnum(ServiceType)
+  @IsString()
+  @MaxLength(255)
   @IsOptional()
-  type?: ServiceType;
+  type?: string;
 
-  @IsEnum(ServiceClassType)
+  @IsString()
+  @MaxLength(255)
   @IsOptional()
-  class_type?: ServiceClassType;
+  service_format?: string;
 
-  @IsEnum(YogaStyle)
+  @IsEnum(ServiceMode)
   @IsOptional()
-  yoga_style?: YogaStyle;
+  mode?: ServiceMode;
+
+  @IsEnum(ServiceFrequency)
+  @IsOptional()
+  frequency?: ServiceFrequency;
+
+  @IsEnum(ServiceAudience)
+  @IsOptional()
+  audience?: ServiceAudience;
+
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  yoga_type?: string;
 
   @IsInt()
   @Min(1)

@@ -7,8 +7,8 @@ export enum BookingStatus {
 }
 
 export class CreateBookingDto {
-  @IsString()
-  service_id: string; // UUID
+  @IsNumber()
+  service_id: number;
 
   @IsDateString()
   booking_date: string;

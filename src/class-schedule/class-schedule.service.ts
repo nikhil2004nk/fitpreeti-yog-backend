@@ -24,8 +24,8 @@ import { sanitizeText } from '../common/utils/sanitize.util';
 export interface FindAllFilters {
   start_time?: string;
   end_time?: string;
-  trainer_id?: string;
-  service_id?: string;
+  trainer_id?: number;
+  service_id?: number;
 }
 
 @Injectable()
@@ -226,34 +226,22 @@ export class ClassScheduleService {
   }
 
   async checkTrainerAvailability(
-    trainer_id: string,
-    start_time: Date | string,
-    end_time: Date | string,
+    trainerId: number,
+    startTime: Date | string,
+    endTime: Date | string,
     excludeClassId?: string,
   ): Promise<{ available: boolean; message?: string }> {
     try {
-      const start = start_time instanceof Date ? start_time : new Date(start_time);
-      const end = end_time instanceof Date ? end_time : new Date(end_time);
+      const start = startTime instanceof Date ? startTime : new Date(startTime);
+      const end = endTime instanceof Date ? endTime : new Date(endTime);
 
-      const where: any = {
-        trainer_id,
-        status: Not(ClassStatus.CANCELLED),
-      };
-
-      if (excludeClassId) {
-        where.id = Not(excludeClassId);
-      }
-
-      const conflictingClasses = await this.classScheduleRepository
+      const qb = this.classScheduleRepository
         .createQueryBuilder('class')
-        .where('class.trainer_id = :trainer_id', { trainer_id })
+        .where('class.trainer_id = :trainerId', { trainerId })
         .andWhere('class.status != :status', { status: ClassStatus.CANCELLED })
-        .andWhere(
-          '(class.start_time < :end AND class.end_time > :start)',
-          { start, end }
-        )
-        .andWhere(excludeClassId ? 'class.id != :excludeId' : '1=1', { excludeId: excludeClassId })
-        .getMany();
+        .andWhere('(class.start_time < :end AND class.end_time > :start)', { start, end });
+      if (excludeClassId) qb.andWhere('class.id != :excludeId', { excludeId: excludeClassId });
+      const conflictingClasses = await qb.getMany();
 
       if (conflictingClasses.length > 0) {
         const conflict = conflictingClasses[0];

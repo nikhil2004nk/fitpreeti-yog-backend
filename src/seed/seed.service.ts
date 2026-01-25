@@ -3,14 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
-import { ServiceCategory } from '../service-categories/entities/service-category.entity';
 import { Service } from '../services/entities/service.entity';
+import { ServiceOption } from '../services/entities/service-option.entity';
 import { AppSetting } from '../app-settings/entities/app-setting.entity';
 import { InstituteInfo as InstituteInfoEntity } from '../institute-info/entities/institute-info.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { UserRole } from '../common/enums/user-role.enum';
-import { ServiceType, ServiceClassType } from '../common/enums/service.enums';
-import { YogaStyle } from '../common/enums/yoga-style.enum';
+import { ServiceMode, ServiceFrequency, ServiceAudience } from '../common/enums/service.enums';
 import { AppSettingType } from '../common/enums/app-settings.enums';
 
 @Injectable()
@@ -21,10 +20,10 @@ export class SeedService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-    @InjectRepository(ServiceCategory)
-    private readonly categoryRepo: Repository<ServiceCategory>,
     @InjectRepository(Service)
     private readonly serviceRepo: Repository<Service>,
+    @InjectRepository(ServiceOption)
+    private readonly optionRepo: Repository<ServiceOption>,
     @InjectRepository(AppSetting)
     private readonly settingRepo: Repository<AppSetting>,
     @InjectRepository(InstituteInfoEntity)
@@ -36,7 +35,8 @@ export class SeedService {
   async run() {
     if (process.env.NODE_ENV === 'production') return;
     await this.seedAdmin();
-    await this.seedCategoriesAndServices();
+    await this.seedServiceOptions();
+    await this.seedServices();
     await this.seedAppSettings();
     await this.seedInstituteInfo();
     await this.seedApprovedReviews();
@@ -56,78 +56,115 @@ export class SeedService {
     this.logger.log('Seeded default admin: admin@yogaplatform.com / Admin@1234');
   }
 
-  private async seedCategoriesAndServices() {
-    const count = await this.categoryRepo.count();
+  private async seedServiceOptions() {
+    const count = await this.optionRepo.count();
     if (count > 0) return;
-    const online = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Online Yoga', slug: 'online-yoga', parent_id: null, display_order: 1 }),
-    );
-    const offline = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Offline Yoga', slug: 'offline-yoga', parent_id: null, display_order: 2 }),
-    );
-    const corp = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Corporate Wellness', slug: 'corporate-wellness', parent_id: null, display_order: 3 }),
-    );
-    const hatha = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Hatha Yoga', slug: 'hatha-yoga', parent_id: online.id, display_order: 1 }),
-    );
-    const vinyasa = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Vinyasa Yoga', slug: 'vinyasa-yoga', parent_id: online.id, display_order: 2 }),
-    );
-    const power = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Power Yoga', slug: 'power-yoga', parent_id: offline.id, display_order: 1 }),
-    );
-    const therapeutic = await this.categoryRepo.save(
-      this.categoryRepo.create({ name: 'Therapeutic Yoga', slug: 'therapeutic-yoga', parent_id: offline.id, display_order: 2 }),
-    );
+
+    const categories = [
+      { value: 'online', display_order: 1 },
+      { value: 'offline', display_order: 2 },
+      { value: 'corporate', display_order: 3 },
+    ];
+    for (const c of categories) {
+      await this.optionRepo.save(this.optionRepo.create({ kind: 'category', value: c.value, parent: '', display_order: c.display_order }));
+    }
+
+    // 1️⃣ ONLINE · 2️⃣ OFFLINE · 3️⃣ CORPORATE — exact labels from spec; admin can add more via CRUD
+    const formats: { parent: string; value: string; order: number }[] = [
+      { parent: 'online', value: 'Private 1-to-1', order: 1 },
+      { parent: 'online', value: 'Group Live Batch', order: 2 },
+      { parent: 'online', value: 'Pre-recorded Program', order: 3 },
+      { parent: 'online', value: 'Hybrid (Live + Recordings)', order: 4 },
+      { parent: 'offline', value: 'Private at Studio', order: 1 },
+      { parent: 'offline', value: 'Private at Home', order: 2 },
+      { parent: 'offline', value: 'Group Studio Batch', order: 3 },
+      { parent: 'offline', value: 'Workshop / Retreat', order: 4 },
+      { parent: 'corporate', value: 'On-site Group Session', order: 1 },
+      { parent: 'corporate', value: 'Online Corporate Session', order: 2 },
+      { parent: 'corporate', value: 'Corporate Wellness Program (Monthly/Quarterly)', order: 3 },
+      { parent: 'corporate', value: 'Corporate Workshop / Event', order: 4 },
+    ];
+    for (const f of formats) {
+      await this.optionRepo.save(this.optionRepo.create({ kind: 'service_format', value: f.value, parent: f.parent, display_order: f.order }));
+    }
+
+    const yogaOnline = ['General Yoga', 'Hatha Yoga', 'Vinyasa Flow', 'Power Yoga', 'Ashtanga Yoga', 'Meditation & Pranayama', 'Prenatal Yoga', 'Postnatal Yoga', 'Weight Loss Yoga', 'Therapeutic / Healing Yoga', 'Beginner Yoga', 'Senior Yoga'];
+    const yogaOffline = ['Traditional Hatha Yoga', 'Power Yoga', 'Ashtanga Yoga', 'Iyengar Yoga', 'Weight Loss Yoga', 'Spine & Back Care', 'Knee / Joint Therapy', 'Prenatal / Postnatal Yoga', 'Kids Yoga', 'Senior Citizen Yoga', 'Meditation & Breathwork'];
+    const yogaCorporate = ['Stress Management Yoga', 'Desk Yoga', 'Posture Correction Yoga', 'Mental Wellness & Meditation', 'Breathwork for Productivity', 'Leadership Mindfulness Program', 'Burnout Recovery Program'];
+    let order = 0;
+    for (const v of yogaOnline) {
+      await this.optionRepo.save(this.optionRepo.create({ kind: 'yoga_type', value: v, parent: 'online', display_order: ++order }));
+    }
+    order = 0;
+    for (const v of yogaOffline) {
+      await this.optionRepo.save(this.optionRepo.create({ kind: 'yoga_type', value: v, parent: 'offline', display_order: ++order }));
+    }
+    order = 0;
+    for (const v of yogaCorporate) {
+      await this.optionRepo.save(this.optionRepo.create({ kind: 'yoga_type', value: v, parent: 'corporate', display_order: ++order }));
+    }
+    this.logger.log('Seeded service options (categories, formats, yoga types)');
+  }
+
+  private async seedServices() {
+    const count = await this.serviceRepo.count();
+    if (count > 0) return;
 
     await this.serviceRepo.save([
       this.serviceRepo.create({
-        category_id: hatha.id,
         name: 'Online Hatha Yoga - Private Session',
         slug: 'online-hatha-private',
-        type: ServiceType.ONLINE,
-        class_type: ServiceClassType.PRIVATE,
-        yoga_style: YogaStyle.HATHA,
+        type: 'online',
+        service_format: 'Private 1-to-1',
+        mode: ServiceMode.LIVE,
+        frequency: ServiceFrequency.SINGLE,
+        audience: ServiceAudience.INDIVIDUAL,
+        yoga_type: 'Hatha Yoga',
         duration_minutes: 60,
         price: 1500,
         max_capacity: 1,
       }),
       this.serviceRepo.create({
-        category_id: hatha.id,
         name: 'Online Hatha Yoga - Group Class',
         slug: 'online-hatha-group',
-        type: ServiceType.ONLINE,
-        class_type: ServiceClassType.GROUP,
-        yoga_style: YogaStyle.HATHA,
+        type: 'online',
+        service_format: 'Group Live Batch',
+        mode: ServiceMode.LIVE,
+        frequency: ServiceFrequency.SINGLE,
+        audience: ServiceAudience.GROUP,
+        yoga_type: 'Hatha Yoga',
         duration_minutes: 60,
         price: 500,
         max_capacity: 20,
       }),
       this.serviceRepo.create({
-        category_id: vinyasa.id,
         name: 'Online Vinyasa Flow - Private',
         slug: 'online-vinyasa-private',
-        type: ServiceType.ONLINE,
-        class_type: ServiceClassType.PRIVATE,
-        yoga_style: YogaStyle.VINYASA,
+        type: 'online',
+        service_format: 'Private 1-to-1',
+        mode: ServiceMode.LIVE,
+        frequency: ServiceFrequency.SINGLE,
+        audience: ServiceAudience.INDIVIDUAL,
+        yoga_type: 'Vinyasa Flow',
         duration_minutes: 75,
         price: 1800,
         max_capacity: 1,
       }),
       this.serviceRepo.create({
-        category_id: power.id,
         name: 'Offline Power Yoga - Group',
         slug: 'offline-power-group',
-        type: ServiceType.OFFLINE,
-        class_type: ServiceClassType.GROUP,
-        yoga_style: YogaStyle.POWER,
+        type: 'offline',
+        service_format: 'Group Studio Batch',
+        mode: ServiceMode.ONSITE,
+        frequency: ServiceFrequency.SINGLE,
+        audience: ServiceAudience.GROUP,
+        yoga_type: 'Power Yoga',
         duration_minutes: 90,
         price: 800,
         max_capacity: 15,
       }),
     ]);
-    this.logger.log('Seeded categories and sample services');
+    this.logger.log('Seeded sample services');
   }
 
   private async seedAppSettings() {

@@ -153,7 +153,7 @@ export class BookingsService {
     return this.findAll(userPhone);
   }
 
-  async getAvailableSlots(serviceId: string, date: string): Promise<string[]> {
+  async getAvailableSlots(serviceId: number, date: string): Promise<string[]> {
     // Normalize date format
     let normalizedDate = date.trim();
     let dateObj: Date;
@@ -174,7 +174,6 @@ export class BookingsService {
     
     normalizedDate = dateObj.toISOString().split('T')[0];
     
-    // Get class schedules for this service
     const allSchedules = await this.classScheduleService.findAll({
       service_id: serviceId,
     });

@@ -16,7 +16,6 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { DatabaseModule } from './database/database.module';
 import { LeadsModule } from './leads/leads.module';
-import { ServiceCategoriesModule } from './service-categories/service-categories.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { CustomersModule } from './customers/customers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -69,7 +68,6 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     ReviewsModule,
     AttendanceModule,
     LeadsModule,
-    ServiceCategoriesModule,
     SchedulesModule,
     CustomersModule,
     SubscriptionsModule,

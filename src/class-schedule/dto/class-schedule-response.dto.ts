@@ -28,10 +28,10 @@ export class ClassScheduleResponseDto {
   current_participants: number;
 
   @ApiProperty({ description: 'ID of the trainer' })
-  trainer_id: string;
+  trainer_id: number;
 
   @ApiProperty({ description: 'ID of the service' })
-  service_id: string;
+  service_id: number;
 
   @ApiProperty({ description: 'Whether this is a recurring class' })
   is_recurring: boolean;

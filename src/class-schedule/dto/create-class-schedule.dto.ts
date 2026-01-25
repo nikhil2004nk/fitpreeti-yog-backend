@@ -1,6 +1,6 @@
 // src/class-schedule/dto/create-class-schedule.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { ClassStatus } from '../entities/class-schedule.entity';
 
 export class CreateClassScheduleDto {
@@ -38,12 +38,12 @@ export class CreateClassScheduleDto {
   current_participants?: number = 0;
 
   @ApiProperty({ description: 'ID of the trainer' })
-  @IsUUID()
-  trainer_id: string;
+  @IsInt()
+  trainer_id: number;
 
   @ApiProperty({ description: 'ID of the service' })
-  @IsUUID()
-  service_id: string;
+  @IsInt()
+  service_id: number;
 
   @ApiProperty({ description: 'Whether this is a recurring class', default: false })
   @IsOptional()

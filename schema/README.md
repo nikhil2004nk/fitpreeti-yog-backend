@@ -17,8 +17,7 @@ mysql -u user -p database_name < schema/schema.sql
 On first run in development, the app seeds:
 
 - **Admin user**: `admin@yogaplatform.com` / `Admin@1234`
-- **Service categories**: Online Yoga, Offline Yoga, Corporate Wellness, plus subcategories
-- **Sample services**: e.g. Online Hatha Private/Group, Vinyasa Private, Offline Power Group
+- **Sample services**: e.g. Online Hatha Private/Group, Vinyasa Private, Offline Power Group (type, format, yoga_type on `services` only)
 - **App settings**: `site_name`, `max_leads_per_day`, `enable_online_payment`, `working_hours`
 
 Create additional admins via `POST /api/v1/auth/admin/create` (admin-only).

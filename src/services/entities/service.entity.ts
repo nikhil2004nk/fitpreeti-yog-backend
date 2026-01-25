@@ -4,28 +4,17 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
   Index,
   OneToMany,
 } from 'typeorm';
-import { ServiceCategory } from '../../service-categories/entities/service-category.entity';
-import { ServiceType, ServiceClassType } from '../../common/enums/service.enums';
-import { YogaStyle } from '../../common/enums/yoga-style.enum';
+import { ServiceMode, ServiceFrequency, ServiceAudience } from '../../common/enums/service.enums';
 import { Booking } from '../../bookings/entities/booking.entity';
+import { ClassSchedule } from '../../class-schedule/entities/class-schedule.entity';
 
 @Entity('services')
 export class Service {
   @PrimaryGeneratedColumn({ type: 'int' })
   id: number;
-
-  @Column({ type: 'int', name: 'category_id' })
-  @Index('idx_category_id')
-  category_id: number;
-
-  @ManyToOne(() => ServiceCategory, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'category_id' })
-  category: ServiceCategory;
 
   @Column({ type: 'varchar', length: 255 })
   name: string;
@@ -40,17 +29,29 @@ export class Service {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'short_description' })
   short_description: string | null;
 
-  @Column({ type: 'enum', enum: ServiceType })
+  @Column({ type: 'varchar', length: 255 })
   @Index('idx_type')
-  type: ServiceType;
+  type: string;
 
-  @Column({ type: 'enum', enum: ServiceClassType, name: 'class_type' })
-  @Index('idx_class_type')
-  class_type: ServiceClassType;
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'service_format' })
+  @Index('idx_service_format')
+  service_format: string | null;
 
-  @Column({ type: 'enum', enum: YogaStyle, nullable: true, name: 'yoga_style' })
-  @Index('idx_yoga_style')
-  yoga_style: YogaStyle | null;
+  @Column({ type: 'enum', enum: ServiceMode, nullable: true })
+  @Index('idx_mode')
+  mode: ServiceMode | null;
+
+  @Column({ type: 'enum', enum: ServiceFrequency, nullable: true })
+  @Index('idx_frequency')
+  frequency: ServiceFrequency | null;
+
+  @Column({ type: 'enum', enum: ServiceAudience, nullable: true })
+  @Index('idx_audience')
+  audience: ServiceAudience | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'yoga_type' })
+  @Index('idx_yoga_type')
+  yoga_type: string | null;
 
   @Column({ type: 'int', name: 'duration_minutes' })
   duration_minutes: number;
@@ -86,6 +87,9 @@ export class Service {
   @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
 
-  @OneToMany(() => Booking, booking => booking.service)
+  @OneToMany(() => Booking, (booking) => booking.service)
   bookings: Booking[];
+
+  @OneToMany(() => ClassSchedule, (cs) => cs.service)
+  class_schedules: ClassSchedule[];
 }

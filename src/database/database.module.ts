@@ -4,8 +4,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from '../users/entities/user.entity';
 import { Trainer } from '../trainers/entities/trainer.entity';
 import { TrainerAvailability } from '../trainers/entities/trainer-availability.entity';
-import { ServiceCategory } from '../service-categories/entities/service-category.entity';
 import { Service } from '../services/entities/service.entity';
+import { ServiceOption } from '../services/entities/service-option.entity';
 import { Lead } from '../leads/entities/lead.entity';
 import { LeadActivity } from '../leads/entities/lead-activity.entity';
 import { Customer } from '../customers/entities/customer.entity';
@@ -23,6 +23,7 @@ import { UserSession } from '../auth/entities/user-session.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { ClassSchedule } from '../class-schedule/entities/class-schedule.entity';
 
 @Module({
   imports: [
@@ -40,8 +41,9 @@ import { Review } from '../reviews/entities/review.entity';
           PasswordResetToken,
           Trainer,
           TrainerAvailability,
-          ServiceCategory,
           Service,
+          ServiceOption,
+          ClassSchedule,
           Booking,
           Review,
           Lead,

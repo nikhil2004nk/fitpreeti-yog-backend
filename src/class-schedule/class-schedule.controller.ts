@@ -1,19 +1,20 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Param, 
-  Put, 
-  Delete, 
-  UseGuards, 
-  Query, 
-  HttpCode, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Put,
+  Delete,
+  UseGuards,
+  Query,
+  HttpCode,
   HttpStatus,
   BadRequestException,
   NotFoundException,
   ConflictException,
-  ParseUUIDPipe
+  ParseUUIDPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -83,8 +84,8 @@ export class ClassScheduleController {
   @ApiOperation({ summary: 'Get all class schedules' })
   @ApiQuery({ name: 'start_time', required: false, type: String })
   @ApiQuery({ name: 'end_time', required: false, type: String })
-  @ApiQuery({ name: 'trainer_id', required: false, type: String })
-  @ApiQuery({ name: 'service_id', required: false, type: String })
+  @ApiQuery({ name: 'trainer_id', required: false, type: Number })
+  @ApiQuery({ name: 'service_id', required: false, type: Number })
   @ApiResponse({ 
     status: HttpStatus.OK, 
     description: 'Returns all class schedules', 
@@ -101,11 +102,13 @@ export class ClassScheduleController {
     @Query('service_id') service_id?: string,
   ): Promise<ClassScheduleResponseDto[]> {
     try {
+      const tid = trainer_id ? parseInt(trainer_id, 10) : NaN;
+      const sid = service_id ? parseInt(service_id, 10) : NaN;
       return await this.classScheduleService.findAll({
         start_time,
         end_time,
-        trainer_id,
-        service_id,
+        trainer_id: !isNaN(tid) ? tid : undefined,
+        service_id: !isNaN(sid) ? sid : undefined,
       });
     } catch (error) {
       throw new BadRequestException(error.message || 'Failed to fetch class schedules');
@@ -193,19 +196,19 @@ export class ClassScheduleController {
   @UseGuards(CookieJwtGuard)
   @ApiCookieAuth('access_token')
   @ApiOperation({ summary: 'Check trainer availability' })
-  @ApiParam({ name: 'trainerId', type: String, description: 'Trainer UUID' })
+  @ApiParam({ name: 'trainerId', type: Number, description: 'Trainer ID' })
   @ApiQuery({ name: 'date', required: true, type: String, description: 'Date in ISO format' })
   @ApiQuery({ name: 'duration', required: true, type: Number, description: 'Duration in minutes' })
   @ApiResponse({ status: 200, description: 'Returns available time slots for the trainer' })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid date or duration' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async checkTrainerAvailability(
-    @Param('trainerId', ParseUUIDPipe) trainerId: string,
+    @Param('trainerId', ParseIntPipe) trainerId: number,
     @Query('date') date: string,
     @Query('duration') duration: number,
   ) {
     const startTime = new Date(date);
-    const endTime = new Date(startTime.getTime() + duration * 60000); // Convert minutes to milliseconds
+    const endTime = new Date(startTime.getTime() + duration * 60000);
     return this.classScheduleService.checkTrainerAvailability(trainerId, startTime, endTime);
   }
 }
