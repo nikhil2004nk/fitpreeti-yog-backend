@@ -11,6 +11,7 @@ import { TransformInterceptor } from '../src/common/interceptors/transform.inter
 import { ConfigService } from '@nestjs/config';
 
 let cachedApp: express.Application;
+let cachedNestApp: any; // Store NestJS app instance for graceful shutdown
 
 async function createApp(): Promise<express.Application> {
   if (cachedApp) {
@@ -22,6 +23,9 @@ async function createApp(): Promise<express.Application> {
     AppModule,
     new ExpressAdapter(expressApp),
   );
+  
+  // Store NestJS app instance for graceful shutdown
+  cachedNestApp = app;
 
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get<string>('NODE_ENV', 'production');
@@ -124,12 +128,13 @@ async function createApp(): Promise<express.Application> {
   cachedApp = expressApp;
 
   const logger = new Logger('Bootstrap');
-  logger.log(`🚀 Application initialized for Vercel`);
+  logger.log(`🚀 Application initialized`);
   logger.log(`🌍 Environment: ${nodeEnv}`);
 
   return expressApp;
 }
 
+// Vercel serverless handler
 export default async function handler(req: express.Request, res: express.Response) {
   // Handle root path with helpful information
   const path = req.url?.split('?')[0] || req.path || '/';
@@ -149,5 +154,58 @@ export default async function handler(req: express.Request, res: express.Respons
 
   const app = await createApp();
   return app(req, res);
+}
+
+// Standalone server mode for Docker/production
+if (require.main === module) {
+  const logger = new Logger('Bootstrap');
+  
+  createApp()
+    .then(async (expressApp) => {
+      const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+      
+      // Start the server
+      const server = expressApp.listen(port, '0.0.0.0', () => {
+        logger.log(`🚀 Application is running on: http://0.0.0.0:${port}`);
+        logger.log(`📚 API Documentation available at: http://0.0.0.0:${port}/api`);
+        logger.log(`🔐 API endpoints: http://0.0.0.0:${port}/api/v1/*`);
+        logger.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
+      });
+
+      // Graceful shutdown
+      const shutdown = async (signal: string) => {
+        logger.log(`Received ${signal}, shutting down gracefully...`);
+        
+        // Close HTTP server
+        server.close(async () => {
+          logger.log('HTTP server closed');
+          
+          // Close NestJS app if available
+          if (cachedNestApp) {
+            try {
+              await cachedNestApp.close();
+              logger.log('NestJS application closed');
+            } catch (err) {
+              logger.error('Error closing NestJS app', err);
+            }
+          }
+          
+          process.exit(0);
+        });
+        
+        // Force close after 10 seconds
+        setTimeout(() => {
+          logger.error('Forced shutdown after timeout');
+          process.exit(1);
+        }, 10000);
+      };
+
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
+    })
+    .catch((err) => {
+      logger.error('Error during application startup', err instanceof Error ? err.stack : String(err));
+      process.exit(1);
+    });
 }
 
