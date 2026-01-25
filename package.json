@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build && npm run build:api",
-    "build:api": "mkdir -p dist/api && tsc api/index.ts --outDir dist --rootDir . --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck --resolvePackageJsonExports --target ES2023 --emitDecoratorMetadata --experimentalDecorators",
+    "build:api": "node -e \"require('fs').mkdirSync('dist/api', {recursive: true})\" && tsc api/index.ts --outDir dist --rootDir . --module nodenext --moduleResolution nodenext --esModuleInterop --skipLibCheck --resolvePackageJsonExports --target ES2023 --emitDecoratorMetadata --experimentalDecorators",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
