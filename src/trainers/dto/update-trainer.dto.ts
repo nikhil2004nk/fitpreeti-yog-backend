@@ -1,4 +1,32 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsBoolean, IsNumber, IsArray, IsObject, MaxLength, IsIn, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class SocialMediaDto {
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  instagram?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  youtube?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  facebook?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  twitter?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  linkedin?: string;
+}
 
 export class UpdateTrainerDto {
   @IsString()
@@ -12,9 +40,14 @@ export class UpdateTrainerDto {
   phone?: string;
 
   @IsString()
-  @MaxLength(255)
+  @IsIn(['male', 'female', 'other'])
   @IsOptional()
-  specialization?: string;
+  gender?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  specializations?: string[];
 
   @IsString()
   @MaxLength(500)
@@ -25,9 +58,21 @@ export class UpdateTrainerDto {
   @IsOptional()
   experience_years?: number;
 
-  @IsString()
+  @IsArray()
+  @IsString({ each: true })
   @IsOptional()
-  certifications?: string;
+  certifications?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  designations?: string[];
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SocialMediaDto)
+  social_media?: SocialMediaDto;
 
   @IsString()
   @IsOptional()

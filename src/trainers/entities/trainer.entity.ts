@@ -30,6 +30,9 @@ export class Trainer {
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone: string | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  gender: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   specialization: string | null;
 
@@ -41,6 +44,12 @@ export class Trainer {
 
   @Column({ type: 'text', nullable: true })
   certifications: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  designations: string | null;
+
+  @Column({ type: 'text', nullable: true, name: 'social_media' })
+  social_media: string | null;
 
   @Column({ type: 'text', nullable: true })
   bio: string | null;

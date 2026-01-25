@@ -24,10 +24,13 @@ export class TrainersService {
       user_id: user.id,
       full_name: dto.full_name,
       phone: dto.phone ?? null,
-      specialization: dto.specialization ?? null,
+      gender: dto.gender ?? null,
+      specialization: dto.specializations ? JSON.stringify(dto.specializations) : null,
       yoga_styles: dto.yoga_styles ?? null,
       experience_years: dto.experience_years ?? null,
-      certifications: dto.certifications ?? null,
+      certifications: dto.certifications ? JSON.stringify(dto.certifications) : null,
+      designations: dto.designations ? JSON.stringify(dto.designations) : null,
+      social_media: dto.social_media ? JSON.stringify(dto.social_media) : null,
       bio: dto.bio ?? null,
       profile_image_url: dto.profile_image_url ?? null,
       hourly_rate: dto.hourly_rate ?? null,
@@ -55,7 +58,27 @@ export class TrainersService {
 
   async update(id: number, dto: UpdateTrainerDto) {
     const t = await this.findOne(id);
-    Object.assign(t, dto);
+    if (dto.specializations !== undefined) {
+      t.specialization = dto.specializations ? JSON.stringify(dto.specializations) : null;
+    }
+    if (dto.certifications !== undefined) {
+      t.certifications = dto.certifications ? JSON.stringify(dto.certifications) : null;
+    }
+    if (dto.designations !== undefined) {
+      t.designations = dto.designations ? JSON.stringify(dto.designations) : null;
+    }
+    if (dto.social_media !== undefined) {
+      t.social_media = dto.social_media ? JSON.stringify(dto.social_media) : null;
+    }
+    if (dto.full_name !== undefined) t.full_name = dto.full_name;
+    if (dto.phone !== undefined) t.phone = dto.phone ?? null;
+    if (dto.gender !== undefined) t.gender = dto.gender ?? null;
+    if (dto.yoga_styles !== undefined) t.yoga_styles = dto.yoga_styles ?? null;
+    if (dto.experience_years !== undefined) t.experience_years = dto.experience_years ?? null;
+    if (dto.bio !== undefined) t.bio = dto.bio ?? null;
+    if (dto.profile_image_url !== undefined) t.profile_image_url = dto.profile_image_url ?? null;
+    if (dto.hourly_rate !== undefined) t.hourly_rate = dto.hourly_rate ?? null;
+    if (dto.is_available !== undefined) t.is_available = dto.is_available;
     return this.repo.save(t);
   }
 
