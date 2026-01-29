@@ -68,12 +68,13 @@ async function createApp(): Promise<express.Application> {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests)
+      // Allow requests with no origin (like mobile apps, curl, or when proxied)
       if (!origin) {
         return callback(null, true);
       }
-      // Allow production domain and www (Hostinger)
-      if (origin === 'https://fitpreetiyoginstitute.com' || origin === 'https://www.fitpreetiyoginstitute.com') {
+      // Allow production domain (with or without www, with or without trailing slash)
+      const normalized = origin.replace(/\/$/, '');
+      if (normalized === 'https://fitpreetiyoginstitute.com' || normalized === 'https://www.fitpreetiyoginstitute.com') {
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {
