@@ -68,11 +68,14 @@ async function createApp(): Promise<express.Application> {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or when proxied)
+      // Allow requests with no origin (same-origin, mobile apps, or when proxied)
       if (!origin) {
         return callback(null, true);
       }
-      // Allow production domain (with or without www, with or without trailing slash)
+      // Allow any origin that is our production domain (any variant)
+      if (origin.toLowerCase().includes('fitpreetiyoginstitute.com')) {
+        return callback(null, true);
+      }
       const normalized = origin.replace(/\/$/, '');
       if (normalized === 'https://fitpreetiyoginstitute.com' || normalized === 'https://www.fitpreetiyoginstitute.com') {
         return callback(null, true);
