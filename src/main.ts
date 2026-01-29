@@ -24,48 +24,50 @@ async function bootstrap() {
   // Middleware
   app.use(cookieParser());
   
-  // CORS configuration
+  // CORS configuration: support CORS_ORIGIN (comma-separated) and FRONTEND_URL
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-  const allowedOrigins = nodeEnv === 'production' 
-    ? [
-        frontendUrl,
-        'https://nikhil2004nk.github.io', // GitHub Pages frontend
-      ] 
-    : [
-        frontendUrl,
-        'https://nikhil2004nk.github.io', // GitHub Pages frontend
-        'http://localhost:3001',
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'http://localhost:5176',
-        'http://localhost:5177',
-        'http://localhost:5178'
-      ];
-  
+  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', '');
+  const corsOriginList = corsOriginEnv
+    ? corsOriginEnv.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+  const productionOrigins = [
+    frontendUrl,
+    ...corsOriginList,
+    'https://fitpreetiyoginstitute.com',
+    'https://www.fitpreetiyoginstitute.com',
+  ];
+  const devOrigins = [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:5177',
+    'http://localhost:5178',
+  ];
+  const allowedOrigins = nodeEnv === 'production'
+    ? [...new Set(productionOrigins)]
+    : [...new Set([...productionOrigins, ...devOrigins])];
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
         return callback(null, true);
       }
-      
-      // Allow GitHub Pages URLs
-      if (origin.includes('.github.io')) {
+      // Allow production domain and www (Hostinger)
+      if (origin === 'https://fitpreetiyoginstitute.com' || origin === 'https://www.fitpreetiyoginstitute.com') {
         return callback(null, true);
       }
-      
       // Check if origin is in allowed list
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      
       // In development, also allow any localhost origin (for flexibility)
       if (nodeEnv !== 'production' && origin.startsWith('http://localhost:')) {
         return callback(null, true);
       }
-      
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,

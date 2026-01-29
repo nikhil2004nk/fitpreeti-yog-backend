@@ -30,7 +30,11 @@ async function createApp(): Promise<express.Application> {
   const configService = app.get(ConfigService);
   const nodeEnv = configService.get<string>('NODE_ENV', 'production');
   const apiPrefix = configService.get<string>('API_PREFIX', '/api/v1');
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'https://your-frontend-url.vercel.app');
+  const frontendUrl = configService.get<string>('FRONTEND_URL', 'https://fitpreetiyoginstitute.com');
+  const corsOriginEnv = configService.get<string>('CORS_ORIGIN', '');
+  const corsOriginList = corsOriginEnv
+    ? corsOriginEnv.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
 
   // Security: Helmet for security headers
   app.use(helmet({
@@ -41,45 +45,40 @@ async function createApp(): Promise<express.Application> {
   // Middleware
   app.use(cookieParser());
 
-  // CORS configuration for Vercel
+  // CORS configuration: support CORS_ORIGIN (comma-separated) and production domain
+  const productionOrigins = [
+    frontendUrl,
+    ...corsOriginList,
+    'https://fitpreetiyoginstitute.com',
+    'https://www.fitpreetiyoginstitute.com',
+  ];
+  const devOrigins = [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:5175',
+    'http://localhost:5176',
+    'http://localhost:5177',
+    'http://localhost:5178',
+  ];
+  const allowedOrigins = nodeEnv === 'production'
+    ? [...new Set(productionOrigins)]
+    : [...new Set([...productionOrigins, ...devOrigins])];
+
   app.enableCors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) {
         return callback(null, true);
       }
-
-      // In production, allow frontend URL and Vercel preview URLs
-      const allowedOrigins = [
-        frontendUrl,
-        'https://nikhil2004nk.github.io', // GitHub Pages root
-        'https://nikhil2004nk.github.io/Fitpreeti-yog-institute/', // GitHub Pages with repo
-        ...(nodeEnv === 'production' ? [] : [
-          'http://localhost:3001',
-          'http://localhost:3000',
-          'http://localhost:5173',
-          'http://localhost:5174',
-          'http://localhost:5175',
-          'http://localhost:5176',
-          'http://localhost:5177',
-          'http://localhost:5178',
-        ]),
-      ];
-
-      // Allow Vercel preview URLs
-      if (origin.includes('.vercel.app') || origin.includes('.vercel.dev')) {
+      // Allow production domain and www (Hostinger)
+      if (origin === 'https://fitpreetiyoginstitute.com' || origin === 'https://www.fitpreetiyoginstitute.com') {
         return callback(null, true);
       }
-
-      // Allow GitHub Pages URLs
-      if (origin.includes('.github.io')) {
-        return callback(null, true);
-      }
-
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
@@ -134,7 +133,7 @@ async function createApp(): Promise<express.Application> {
   return expressApp;
 }
 
-// Vercel serverless handler
+// Serverless / standalone request handler
 export default async function handler(req: express.Request, res: express.Response) {
   // Handle root path with helpful information
   const path = req.url?.split('?')[0] || req.path || '/';

@@ -14,7 +14,7 @@ services:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
       - API_PREFIX=${API_PREFIX:-/api/v1}
-      - FRONTEND_URL=${FRONTEND_URL:-https://nikhil2004nk.github.io}
+      - FRONTEND_URL=${FRONTEND_URL:-https://fitpreetiyoginstitute.com}
       # Database configuration
       - DB_HOST=${DB_HOST:-localhost}
       - DB_PORT=${DB_PORT:-3306}
