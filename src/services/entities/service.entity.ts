@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { ServiceMode, ServiceFrequency, ServiceAudience } from '../../common/enums/service.enums';
 import { Booking } from '../../bookings/entities/booking.entity';
-import { ClassSchedule } from '../../class-schedule/entities/class-schedule.entity';
 
 @Entity('services')
 export class Service {
@@ -89,7 +88,4 @@ export class Service {
 
   @OneToMany(() => Booking, (booking) => booking.service)
   bookings: Booking[];
-
-  @OneToMany(() => ClassSchedule, (cs) => cs.service)
-  class_schedules: ClassSchedule[];
 }

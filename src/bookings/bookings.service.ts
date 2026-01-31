@@ -9,8 +9,6 @@ import { UpdateBookingDto } from './dto/update-booking.dto';
 import { normalizePhone } from '../common/utils/phone.util';
 import { sanitizeText } from '../common/utils/sanitize.util';
 import { ServicesService } from '../services/services.service';
-import { ClassScheduleService } from '../class-schedule/class-schedule.service';
-import { ClassStatus } from '../class-schedule/entities/class-schedule.entity';
 import { Not } from 'typeorm';
 import { BookingStatus } from './entities/booking.entity';
 
@@ -24,7 +22,6 @@ export class BookingsService {
     @InjectRepository(Service)
     private readonly serviceRepository: Repository<Service>,
     private servicesService: ServicesService,
-    private classScheduleService: ClassScheduleService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto, userPhone: string): Promise<Booking> {
@@ -157,7 +154,7 @@ export class BookingsService {
     // Normalize date format
     let normalizedDate = date.trim();
     let dateObj: Date;
-    
+
     if (/^\d{2}-\d{2}-\d{4}$/.test(normalizedDate)) {
       const [day, month, year] = normalizedDate.split('-');
       normalizedDate = `${year}-${month}-${day}`;
@@ -167,134 +164,49 @@ export class BookingsService {
     } else {
       dateObj = new Date(normalizedDate);
     }
-    
+
     if (isNaN(dateObj.getTime())) {
       throw new BadRequestException(`Invalid date format: ${date}. Expected YYYY-MM-DD or DD-MM-YYYY`);
     }
-    
+
     normalizedDate = dateObj.toISOString().split('T')[0];
-    
-    const allSchedules = await this.classScheduleService.findAll({
-      service_id: serviceId,
-    });
-    
-    // Filter schedules that fall on the requested date and are scheduled
-    const classSchedules = allSchedules.filter(schedule => {
-      if (schedule.status !== ClassStatus.SCHEDULED || schedule.current_participants >= schedule.max_participants) {
-        return false;
-      }
-      
-      const scheduleStart = new Date(schedule.start_time);
-      const scheduleDate = scheduleStart.toISOString().split('T')[0];
-      const requestedDate = new Date(normalizedDate + 'T00:00:00.000Z');
-      const startDate = new Date(schedule.start_time);
-      const startDateOnly = startDate.toISOString().split('T')[0];
-      
-      if (schedule.is_recurring && schedule.recurrence_pattern) {
-        if (schedule.recurrence_end_date) {
-          const endDate = new Date(schedule.recurrence_end_date);
-          const endDateOnly = endDate.toISOString().split('T')[0];
-          
-          if (normalizedDate < startDateOnly || normalizedDate > endDateOnly) {
-            return false;
-          }
-        } else {
-          if (normalizedDate < startDateOnly) {
-            return false;
-          }
+
+    // Use business hours to generate available slots
+    const service = await this.servicesService.findOne(serviceId);
+    const durationMinutes = service.duration_minutes || 60;
+
+    const startHour = 9;
+    const endHour = 18;
+    const slotInterval = durationMinutes;
+
+    const allSlots: string[] = [];
+    for (let hour = startHour; hour < endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += slotInterval) {
+        const endMinute = minute + slotInterval;
+        const endHourForSlot = hour + Math.floor(endMinute / 60);
+        const endMinuteForSlot = endMinute % 60;
+
+        if (endHourForSlot > endHour || (endHourForSlot === endHour && endMinuteForSlot > 0)) {
+          break;
         }
-        
-        if (schedule.recurrence_pattern.toLowerCase() === 'daily') {
-          return true;
-        } else if (schedule.recurrence_pattern.toLowerCase() === 'weekly') {
-          const startDayOfWeek = startDate.getUTCDay();
-          const requestedDayOfWeek = requestedDate.getUTCDay();
-          return startDayOfWeek === requestedDayOfWeek;
-        } else if (schedule.recurrence_pattern.toLowerCase() === 'monthly') {
-          return startDate.getUTCDate() === requestedDate.getUTCDate();
-        }
-      }
-      
-      return scheduleDate === normalizedDate;
-    });
-    
-    // Extract available time slots
-    const availableSlots: string[] = [];
-    
-    for (const schedule of classSchedules) {
-      const startTime = new Date(schedule.start_time);
-      const isoString = startTime.toISOString();
-      const timeMatch = isoString.match(/T(\d{2}):(\d{2})/);
-      
-      let hours: number;
-      let minutes: number;
-      
-      if (timeMatch) {
-        hours = parseInt(timeMatch[1], 10);
-        minutes = parseInt(timeMatch[2], 10);
-      } else {
-        hours = startTime.getUTCHours();
-        minutes = startTime.getUTCMinutes();
-      }
-      
-      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      
-      // Check if this slot is already booked
-      const isBooked = await this.bookingRepository.count({
-        where: {
-          service_id: serviceId,
-          booking_date: new Date(normalizedDate),
-          booking_time: timeString,
-          status: Not(BookingStatus.CANCELLED),
-        },
-      }) > 0;
-      
-      if (!isBooked && !availableSlots.includes(timeString)) {
-        availableSlots.push(timeString);
+
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        allSlots.push(timeString);
       }
     }
-    
-    // If no available slots found, fall back to business hours approach
-    if (availableSlots.length === 0) {
-      const service = await this.servicesService.findOne(serviceId);
-      const durationMinutes = service.duration_minutes || 60;
-      
-      const startHour = 9;
-      const endHour = 18;
-      const slotInterval = durationMinutes;
-      
-      const allSlots: string[] = [];
-      for (let hour = startHour; hour < endHour; hour++) {
-        for (let minute = 0; minute < 60; minute += slotInterval) {
-          const endMinute = minute + slotInterval;
-          const endHourForSlot = hour + Math.floor(endMinute / 60);
-          const endMinuteForSlot = endMinute % 60;
-          
-          if (endHourForSlot > endHour || (endHourForSlot === endHour && endMinuteForSlot > 0)) {
-            break;
-          }
-          
-          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          allSlots.push(timeString);
-        }
-      }
-      
-      // Get all booked slots
-      const bookedBookings = await this.bookingRepository.find({
-        where: {
-          service_id: serviceId,
-          booking_date: new Date(normalizedDate),
-          status: Not(BookingStatus.CANCELLED),
-        },
-        select: ['booking_time'],
-      });
-      
-      const bookedSlots = bookedBookings.map(b => b.booking_time);
-      
-      return allSlots.filter(slot => !bookedSlots.includes(slot));
-    }
-    
-    return availableSlots.sort();
+
+    // Filter out already booked slots
+    const bookedBookings = await this.bookingRepository.find({
+      where: {
+        service_id: serviceId,
+        booking_date: new Date(normalizedDate),
+        status: Not(BookingStatus.CANCELLED),
+      },
+      select: ['booking_time'],
+    });
+
+    const bookedSlots = bookedBookings.map((b) => b.booking_time);
+    return allSlots.filter((slot) => !bookedSlots.includes(slot)).sort();
   }
 
   private async findOneByUser(id: string, userPhone: string): Promise<Booking> {

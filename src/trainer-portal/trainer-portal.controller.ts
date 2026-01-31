@@ -1,16 +1,14 @@
 import {
   Controller,
   Get,
-  Post,
   Param,
   Query,
-  Body,
   UseGuards,
   Req,
   ParseIntPipe,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { SchedulesService } from '../schedules/schedules.service';
 import { AttendanceService } from '../attendance/attendance.service';
 import { TrainersService } from '../trainers/trainers.service';
@@ -19,7 +17,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
-import { MarkAttendanceDto, BulkMarkAttendanceDto } from '../attendance/dto/mark-attendance.dto';
 
 @ApiTags('Trainer Portal')
 @Controller('trainer')
@@ -54,17 +51,5 @@ export class TrainerPortalController {
     const schedule = await this.schedulesService.findOne(id);
     if (schedule.trainer_id !== trainer.id) return [];
     return this.attendanceService.getCustomersForAttendance(id, date);
-  }
-
-  @Post('attendance/mark')
-  @ApiOperation({ summary: 'Mark attendance (single)' })
-  async markAttendance(@Req() req: { user: RequestUser }, @Body() dto: MarkAttendanceDto) {
-    return this.attendanceService.mark(dto, Number(req.user.sub));
-  }
-
-  @Post('attendance/mark/bulk')
-  @ApiOperation({ summary: 'Mark attendance (bulk)' })
-  async bulkMarkAttendance(@Req() req: { user: RequestUser }, @Body() dto: BulkMarkAttendanceDto) {
-    return this.attendanceService.bulkMark(dto, Number(req.user.sub));
   }
 }

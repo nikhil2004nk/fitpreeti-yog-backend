@@ -23,7 +23,6 @@ import { UserSession } from '../auth/entities/user-session.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Review } from '../reviews/entities/review.entity';
-import { ClassSchedule } from '../class-schedule/entities/class-schedule.entity';
 
 @Module({
   imports: [
@@ -43,7 +42,6 @@ import { ClassSchedule } from '../class-schedule/entities/class-schedule.entity'
           TrainerAvailability,
           Service,
           ServiceOption,
-          ClassSchedule,
           Booking,
           Review,
           Lead,

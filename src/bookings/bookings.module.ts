@@ -7,14 +7,12 @@ import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 import { AuthModule } from '../auth/auth.module';
 import { ServicesModule } from '../services/services.module';
-import { ClassScheduleModule } from '../class-schedule/class-schedule.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, User, Service]),
     AuthModule,
     ServicesModule,
-    ClassScheduleModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService],
