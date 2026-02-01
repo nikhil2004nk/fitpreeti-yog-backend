@@ -284,17 +284,7 @@ Trainers can also use:
 
 ## Customer Endpoints
 
-### 1. My Schedules
-
-**`GET /api/v1/customer/schedules`**
-
-Returns schedules for the logged-in customer (from their active subscriptions).
-
-**Response:** `200` – Array of schedule objects.
-
----
-
-### 2. My Attendance History
+### 1. My Attendance History
 
 **`GET /api/v1/customer/attendance`**
 
@@ -345,7 +335,7 @@ type AttendanceStatus = 'present' | 'absent' | 'late' | 'cancelled' | 'holiday';
 | Trainer | GET | `admin/attendance/schedule/:scheduleId/date/:date` | Get customers for attendance |
 | Trainer | POST | `admin/attendance/mark` | Mark attendance |
 | Trainer | POST | `admin/attendance/mark/bulk` | Bulk mark attendance |
-| Customer | GET | `customer/schedules` | My schedules (from subscriptions) |
+| Customer | GET | `customer/subscriptions` | My subscriptions (each includes schedule + service) |
 | Customer | GET | `customer/attendance` | My attendance history |
 
 ---

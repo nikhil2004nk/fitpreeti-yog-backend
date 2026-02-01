@@ -81,6 +81,10 @@ export class Schedule {
   @Column({ type: 'date', nullable: true, name: 'effective_until' })
   effective_until: Date | null;
 
+  /** Computed list of dates (YYYY-MM-DD) when this schedule runs. Stored at create/update. */
+  @Column({ type: 'json', nullable: true, name: 'available_dates' })
+  available_dates: string[] | null;
+
   @Column({ type: 'int', name: 'max_participants' })
   max_participants: number;
 

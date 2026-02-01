@@ -49,9 +49,9 @@ This document describes the end-to-end flow from **onboarding a customer** throu
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  CUSTOMER / TRAINER see their schedules                                           │
-│  Customer: GET /customer/schedules  (schedules from their active subscriptions)   │
-│  Trainer:  GET /trainer/schedules   (schedules where they are assigned)           │
+│  TRAINER see their schedules                                                      │
+│  Trainer: GET /trainer/schedules  (schedules where they are assigned)             │
+│  Customer: schedules via GET /customer/subscriptions (each sub has schedule)       │
 └───────────────────────────────┬───────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -119,7 +119,7 @@ This document describes the end-to-end flow from **onboarding a customer** throu
 | **List** | `GET /admin/subscriptions?customer_id=&schedule_id=&status=`. |
 | **Update / cancel** | `PUT /admin/subscriptions/:id`, `POST /admin/subscriptions/:id/cancel` (optionally with reason). |
 
-**Flow:** Customer is enrolled in a **schedule**. They see that schedule in the customer portal (`GET /customer/schedules`). Sessions used are tracked via **attendance** (sessions_completed / sessions_remaining).
+**Flow:** Customer is enrolled in a **schedule**. They see that schedule via **`GET /customer/subscriptions`** (each subscription includes schedule + service). Sessions used are tracked via **attendance** (sessions_completed / sessions_remaining).
 
 ---
 
@@ -162,8 +162,7 @@ So you have **two** ways to “book”:
 |----------|-------------|
 | `GET /customer/profile` | My customer profile. |
 | `PUT /customer/profile` | Update my profile. |
-| `GET /customer/subscriptions` | My subscriptions (which schedules I’m in). |
-| `GET /customer/schedules` | Schedules derived from my subscriptions. |
+| `GET /customer/subscriptions` | My subscriptions (each includes schedule + service). |
 | `GET /customer/attendance?startDate=&endDate=` | My attendance history. |
 
 All require **CUSTOMER** role (JWT from login created at onboarding).

@@ -14,7 +14,7 @@ A **subscription** (entity: `CustomerSubscription`) is the link between:
 
 When you enroll a customer in a schedule, you create one subscription. That customer then:
 
-- Sees the schedule in the **customer portal** (`GET /customer/schedules`)
+- Sees the schedule in the **customer portal** via **`GET /customer/subscriptions`** (each subscription includes `schedule` and `service`)
 - Appears in **attendance** lists for that schedule on each class date
 - Has **sessions** tracked: `sessions_completed` and (optionally) `sessions_remaining` / `total_sessions`
 

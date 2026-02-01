@@ -1,0 +1,158 @@
+### ============================================
+### Schedules API (Admin) – Class / Trainer schedules
+### Base URL: http://localhost:3000/api/v1 (or 3001)
+### Auth: Cookie-based JWT. Login as ADMIN first so cookies are sent.
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first to set cookies)
+### --------------------------------------------
+# Backend expects email + password (min 8 chars). Cookies access_token + refresh_token are set.
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Create schedule – weekly (Mon, Wed, Fri)
+### --------------------------------------------
+# Replace service_id and trainer_id with real IDs from your DB
+# @name createSchedule
+POST {{baseUrl}}/admin/schedules
+Content-Type: {{contentType}}
+
+{
+  "service_id": 1,
+  "trainer_id": 1,
+  "name": "Evening Yoga",
+  "recurrence_type": "weekly",
+  "monday": 1,
+  "tuesday": 0,
+  "wednesday": 1,
+  "thursday": 0,
+  "friday": 1,
+  "saturday": 0,
+  "sunday": 0,
+  "start_time": "17:00:00",
+  "end_time": "18:00:00",
+  "effective_from": "2026-01-19",
+  "effective_until": "2026-02-28",
+  "max_participants": 20,
+  "location": "Main Hall",
+  "meeting_link": "https://meet.example.com/evening-yoga",
+  "is_active": true
+}
+
+### --------------------------------------------
+### 3. Create schedule – daily
+### --------------------------------------------
+POST {{baseUrl}}/admin/schedules
+Content-Type: {{contentType}}
+
+{
+  "service_id": 1,
+  "trainer_id": 1,
+  "name": "Morning Yoga Daily",
+  "recurrence_type": "daily",
+  "start_time": "09:00:00",
+  "end_time": "10:00:00",
+  "effective_from": "2026-02-01",
+  "effective_until": "2026-02-15",
+  "max_participants": 15,
+  "is_active": true
+}
+
+### --------------------------------------------
+### 4. Create schedule – monthly (e.g. 15th of each month)
+### --------------------------------------------
+POST {{baseUrl}}/admin/schedules
+Content-Type: {{contentType}}
+
+{
+  "service_id": 1,
+  "trainer_id": 1,
+  "name": "Monthly Workshop",
+  "recurrence_type": "monthly",
+  "day_of_month": 15,
+  "start_time": "10:00:00",
+  "end_time": "12:00:00",
+  "effective_from": "2026-01-01",
+  "effective_until": "2026-06-30",
+  "max_participants": 25,
+  "is_active": true
+}
+
+### --------------------------------------------
+### 5. Create schedule – custom dates
+### --------------------------------------------
+POST {{baseUrl}}/admin/schedules
+Content-Type: {{contentType}}
+
+{
+  "service_id": 1,
+  "trainer_id": 1,
+  "name": "Special Sessions",
+  "recurrence_type": "custom",
+  "custom_dates": ["2026-02-14", "2026-02-21", "2026-03-01"],
+  "start_time": "18:00:00",
+  "end_time": "19:00:00",
+  "effective_from": "2026-02-01",
+  "effective_until": "2026-03-31",
+  "max_participants": 10,
+  "is_active": true
+}
+
+### --------------------------------------------
+### 6. List all schedules
+### --------------------------------------------
+GET {{baseUrl}}/admin/schedules
+
+### List only active schedules
+GET {{baseUrl}}/admin/schedules?activeOnly=true
+
+### --------------------------------------------
+### 7. Get schedule by ID
+### --------------------------------------------
+# Replace :id with actual schedule id (e.g. from create response)
+GET {{baseUrl}}/admin/schedules/5
+
+### --------------------------------------------
+### 8. Update schedule
+### --------------------------------------------
+# Replace :id with actual schedule id
+PUT {{baseUrl}}/admin/schedules/3
+Content-Type: {{contentType}}
+
+{
+  "name": "Evening Yoga (Updated)",
+  "recurrence_type": "weekly",
+  "effective_until": "2026-10-31",
+  "max_participants": 15
+}
+
+### Update weekdays – recomputes available_dates
+PUT {{baseUrl}}/admin/schedules/1
+Content-Type: {{contentType}}
+
+{
+  "monday": 1,
+  "tuesday": 1,
+  "wednesday": 1,
+  "thursday": 0,
+  "friday": 1,
+  "saturday": 0,
+  "sunday": 0
+}
+
+### --------------------------------------------
+### 9. Deactivate schedule (soft delete)
+### --------------------------------------------
+# Replace :id with actual schedule id
+DELETE {{baseUrl}}/admin/schedules/1

@@ -9,7 +9,15 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { RecurrenceType } from '../../common/enums/schedule.enums';
+
+function toBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === 1 || value === '1') return true;
+  if (value === 0 || value === '0') return false;
+  return !!value;
+}
 
 export class UpdateScheduleDto {
   @IsInt()
@@ -29,32 +37,39 @@ export class UpdateScheduleDto {
   @IsOptional()
   recurrence_type?: RecurrenceType;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   monday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   tuesday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   wednesday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   thursday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   friday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   saturday?: boolean;
 
-  @IsBoolean()
   @IsOptional()
+  @Transform(({ value }) => toBoolean(value))
+  @IsBoolean()
   sunday?: boolean;
 
   @IsInt()

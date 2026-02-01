@@ -18,6 +18,7 @@ export class AttendanceService {
 
   async getCustomersForAttendance(scheduleId: number, date: string) {
     const d = new Date(date);
+    const dateStr = date; // YYYY-MM-DD for consistent DB lookup
     const subs = await this.subRepo.find({
       where: {
         schedule_id: scheduleId,
@@ -42,7 +43,7 @@ export class AttendanceService {
         where: {
           customer_id: sub.customer_id,
           schedule_id: scheduleId,
-          attendance_date: d,
+          attendance_date: dateStr as any,
         },
       });
       result.push({
@@ -60,12 +61,14 @@ export class AttendanceService {
   }
 
   async mark(dto: MarkAttendanceDto, markedByUserId: number) {
-    const d = new Date(dto.attendance_date);
+    // Use date string (YYYY-MM-DD) for lookup and create to avoid timezone mismatches
+    // that would make findOne miss an existing row and cause duplicate key on insert.
+    const dateStr = dto.attendance_date;
     const existing = await this.repo.findOne({
       where: {
         customer_id: dto.customer_id,
         schedule_id: dto.schedule_id,
-        attendance_date: d,
+        attendance_date: dateStr as any,
       },
     });
     let att: Attendance;
@@ -81,7 +84,7 @@ export class AttendanceService {
         customer_id: dto.customer_id,
         schedule_id: dto.schedule_id,
         subscription_id: dto.subscription_id,
-        attendance_date: d,
+        attendance_date: dateStr as any,
         status: dto.status,
         notes: dto.notes ?? null,
         marked_by: markedByUserId,

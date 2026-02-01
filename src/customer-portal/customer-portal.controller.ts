@@ -9,7 +9,6 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import type { RequestUser } from '../common/interfaces/request-user.interface';
 import { UpdateCustomerDto } from '../customers/dto/update-customer.dto';
-import type { Schedule } from '../schedules/entities/schedule.entity';
 
 @ApiTags('Customer Portal')
 @Controller('customer')
@@ -58,20 +57,5 @@ export class CustomerPortalController {
     const customer = await this.customersService.findByUserId(Number(req.user.sub));
     if (!customer) return [];
     return this.attendanceService.findByCustomer(customer.id, startDate, endDate);
-  }
-
-  @Get('schedules')
-  @ApiOperation({ summary: 'My class schedules' })
-  async schedules(@Req() req: { user: RequestUser }) {
-    const customer = await this.customersService.findByUserId(Number(req.user.sub));
-    if (!customer) return [];
-    const subs = await this.subscriptionsService.findByCustomer(customer.id);
-    const scheduleIds = [...new Set(subs.map((s) => s.schedule_id))];
-    const result: Schedule[] = [];
-    for (const sid of scheduleIds) {
-      const sub = subs.find((s) => s.schedule_id === sid);
-      if (sub?.schedule) result.push(sub.schedule);
-    }
-    return result;
   }
 }
