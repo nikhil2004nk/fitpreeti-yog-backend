@@ -7,5 +7,3 @@ export * from './schedule.enums';
 export * from './subscription.enums';
 export * from './attendance.enums';
 export * from './payment.enums';
-export * from './notification.enums';
-export * from './app-settings.enums';

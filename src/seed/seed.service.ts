@@ -5,12 +5,16 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 import { Service } from '../services/entities/service.entity';
 import { ServiceOption } from '../services/entities/service-option.entity';
-import { AppSetting } from '../app-settings/entities/app-setting.entity';
 import { InstituteInfo as InstituteInfoEntity } from '../institute-info/entities/institute-info.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { Trainer } from '../trainers/entities/trainer.entity';
+import { Customer } from '../customers/entities/customer.entity';
+import { Schedule } from '../schedules/entities/schedule.entity';
 import { UserRole } from '../common/enums/user-role.enum';
 import { ServiceMode, ServiceFrequency, ServiceAudience } from '../common/enums/service.enums';
-import { AppSettingType } from '../common/enums/app-settings.enums';
+import { RecurrenceType } from '../common/enums/schedule.enums';
+import { CustomerStatus, MembershipStatus, CustomerGender, YogaExperienceLevel } from '../common/enums/customer.enums';
+import { computeAvailableDates } from '../schedules/schedules.service';
 
 @Injectable()
 export class SeedService {
@@ -24,12 +28,16 @@ export class SeedService {
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(ServiceOption)
     private readonly optionRepo: Repository<ServiceOption>,
-    @InjectRepository(AppSetting)
-    private readonly settingRepo: Repository<AppSetting>,
     @InjectRepository(InstituteInfoEntity)
     private readonly instituteInfoRepo: Repository<InstituteInfoEntity>,
     @InjectRepository(Review)
     private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(Trainer)
+    private readonly trainerRepo: Repository<Trainer>,
+    @InjectRepository(Customer)
+    private readonly customerRepo: Repository<Customer>,
+    @InjectRepository(Schedule)
+    private readonly scheduleRepo: Repository<Schedule>,
   ) {}
 
   async run() {
@@ -46,7 +54,9 @@ export class SeedService {
     await this.seedAdmin();
     await this.seedServiceOptions();
     await this.seedServices();
-    await this.seedAppSettings();
+    await this.seedTrainer();
+    await this.seedCustomers();
+    await this.seedSchedules();
     await this.seedInstituteInfo();
     await this.seedApprovedReviews();
     
@@ -180,40 +190,295 @@ export class SeedService {
     this.logger.log('Seeded sample services');
   }
 
-  private async seedAppSettings() {
-    const existing = await this.settingRepo.findOne({ where: { setting_key: 'site_name' } });
-    if (existing) return;
-    await this.settingRepo.save([
-      this.settingRepo.create({
-        setting_key: 'site_name',
-        setting_value: 'Yoga Platform',
-        setting_type: AppSettingType.STRING,
-        description: 'Website name',
-        is_public: true,
+  private async seedTrainer() {
+    const count = await this.trainerRepo.count();
+    if (count > 0) return;
+
+    // Create a trainer user first
+    const hash = await bcrypt.hash('Trainer@1234', this.saltRounds);
+    const trainerUser = await this.userRepo.save(
+      this.userRepo.create({
+        email: 'trainer@yogaplatform.com',
+        name: 'Priya Sharma',
+        phone: '+91-9876543210',
+        password_hash: hash,
+        role: UserRole.TRAINER,
       }),
-      this.settingRepo.create({
-        setting_key: 'max_leads_per_day',
-        setting_value: '100',
-        setting_type: AppSettingType.NUMBER,
-        description: 'Maximum leads allowed per day',
-        is_public: false,
+    );
+
+    await this.trainerRepo.save(
+      this.trainerRepo.create({
+        user_id: trainerUser.id,
+        full_name: 'Priya Sharma',
+        phone: '+91-9876543210',
+        gender: 'female',
+        specialization: 'Hatha Yoga, Vinyasa Flow',
+        yoga_styles: 'Hatha Yoga, Vinyasa Flow, Power Yoga, Meditation',
+        experience_years: 8,
+        certifications: 'RYT-500, Yoga Alliance Certified',
+        designations: 'Senior Yoga Instructor',
+        bio: 'Priya is a certified yoga instructor with 8+ years of experience in Hatha and Vinyasa yoga. She specializes in mindfulness and meditation practices.',
+        is_available: true,
       }),
-      this.settingRepo.create({
-        setting_key: 'enable_online_payment',
-        setting_value: 'true',
-        setting_type: AppSettingType.BOOLEAN,
-        description: 'Enable online payment gateway',
-        is_public: false,
-      }),
-      this.settingRepo.create({
-        setting_key: 'working_hours',
-        setting_value: '{"start": "06:00", "end": "21:00"}',
-        setting_type: AppSettingType.JSON,
-        description: 'Platform working hours',
-        is_public: true,
-      }),
-    ]);
-    this.logger.log('Seeded app settings');
+    );
+    this.logger.log('Seeded trainer: trainer@yogaplatform.com / Trainer@1234');
+  }
+
+  private async seedCustomers() {
+    const count = await this.customerRepo.count();
+    if (count > 0) return;
+
+    const customers = [
+      {
+        email: 'rahul.kumar@example.com',
+        full_name: 'Rahul Kumar',
+        phone: '+91-9811111111',
+        gender: CustomerGender.MALE,
+        date_of_birth: new Date('1990-05-15'),
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        yoga_experience_level: YogaExperienceLevel.BEGINNER,
+        fitness_goals: 'Improve flexibility and reduce stress',
+      },
+      {
+        email: 'sneha.patel@example.com',
+        full_name: 'Sneha Patel',
+        phone: '+91-9822222222',
+        gender: CustomerGender.FEMALE,
+        date_of_birth: new Date('1985-08-22'),
+        city: 'Delhi',
+        state: 'Delhi',
+        yoga_experience_level: YogaExperienceLevel.INTERMEDIATE,
+        fitness_goals: 'Weight loss and better posture',
+      },
+      {
+        email: 'amit.singh@example.com',
+        full_name: 'Amit Singh',
+        phone: '+91-9833333333',
+        gender: CustomerGender.MALE,
+        date_of_birth: new Date('1995-12-10'),
+        city: 'Bangalore',
+        state: 'Karnataka',
+        yoga_experience_level: YogaExperienceLevel.BEGINNER,
+        fitness_goals: 'Build strength and improve mental clarity',
+      },
+      {
+        email: 'priyanka.gupta@example.com',
+        full_name: 'Priyanka Gupta',
+        phone: '+91-9844444444',
+        gender: CustomerGender.FEMALE,
+        date_of_birth: new Date('1992-03-28'),
+        city: 'Chennai',
+        state: 'Tamil Nadu',
+        yoga_experience_level: YogaExperienceLevel.ADVANCED,
+        fitness_goals: 'Deepen yoga practice and become a teacher',
+      },
+    ];
+
+    for (const c of customers) {
+      // Create user for each customer
+      const hash = await bcrypt.hash(`${c.full_name.split(' ')[0]}@123`, this.saltRounds);
+      const user = await this.userRepo.save(
+        this.userRepo.create({
+          email: c.email,
+          name: c.full_name,
+          phone: c.phone,
+          password_hash: hash,
+          role: UserRole.CUSTOMER,
+        }),
+      );
+
+      await this.customerRepo.save(
+        this.customerRepo.create({
+          user_id: user.id,
+          email: c.email,
+          full_name: c.full_name,
+          phone: c.phone,
+          gender: c.gender,
+          date_of_birth: c.date_of_birth,
+          city: c.city,
+          state: c.state,
+          yoga_experience_level: c.yoga_experience_level,
+          fitness_goals: c.fitness_goals,
+          status: CustomerStatus.ACTIVE,
+          membership_status: MembershipStatus.INACTIVE,
+          onboarded_at: new Date(),
+        }),
+      );
+    }
+    this.logger.log('Seeded 4 customers (passwords: FirstName@123)');
+  }
+
+  private async seedSchedules() {
+    const count = await this.scheduleRepo.count();
+    if (count > 0) return;
+
+    const trainer = await this.trainerRepo.findOne({ where: { is_available: true } });
+    if (!trainer) {
+      this.logger.warn('No trainer found, skipping schedule seeding');
+      return;
+    }
+
+    const services = await this.serviceRepo.find({ take: 4 });
+    if (services.length === 0) {
+      this.logger.warn('No services found, skipping schedule seeding');
+      return;
+    }
+
+    const today = new Date();
+    const effectiveFrom = new Date(today.getFullYear(), today.getMonth(), 1); // Start of current month
+    const effectiveUntil = new Date(today.getFullYear(), today.getMonth() + 3, 0); // End of 3 months from now
+
+    // Helper to format dates
+    const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
+
+    // 1. DAILY schedule
+    const dailySchedule = {
+      service_id: services[0].id,
+      trainer_id: trainer.id,
+      name: 'Morning Hatha Yoga (Daily)',
+      recurrence_type: RecurrenceType.DAILY,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false,
+      day_of_month: null,
+      custom_dates: null,
+      start_time: '06:00:00',
+      end_time: '07:00:00',
+      effective_from: effectiveFrom,
+      effective_until: effectiveUntil,
+      max_participants: 20,
+      location: 'Main Studio Hall',
+      is_active: true,
+    };
+    dailySchedule['available_dates'] = computeAvailableDates({
+      ...dailySchedule,
+    });
+    await this.scheduleRepo.save(this.scheduleRepo.create(dailySchedule));
+
+    // 2. WEEKLY schedule (Mon, Wed, Fri)
+    const weeklySchedule = {
+      service_id: services[1]?.id || services[0].id,
+      trainer_id: trainer.id,
+      name: 'Evening Power Yoga (Mon/Wed/Fri)',
+      recurrence_type: RecurrenceType.WEEKLY,
+      monday: true,
+      tuesday: false,
+      wednesday: true,
+      thursday: false,
+      friday: true,
+      saturday: false,
+      sunday: false,
+      day_of_month: null,
+      custom_dates: null,
+      start_time: '18:00:00',
+      end_time: '19:30:00',
+      effective_from: effectiveFrom,
+      effective_until: effectiveUntil,
+      max_participants: 15,
+      location: 'Main Studio Hall',
+      is_active: true,
+    };
+    weeklySchedule['available_dates'] = computeAvailableDates({
+      ...weeklySchedule,
+    });
+    await this.scheduleRepo.save(this.scheduleRepo.create(weeklySchedule));
+
+    // 3. WEEKLY schedule (Sat/Sun)
+    const weekendSchedule = {
+      service_id: services[2]?.id || services[0].id,
+      trainer_id: trainer.id,
+      name: 'Weekend Vinyasa Flow (Sat/Sun)',
+      recurrence_type: RecurrenceType.WEEKLY,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: true,
+      sunday: true,
+      day_of_month: null,
+      custom_dates: null,
+      start_time: '08:00:00',
+      end_time: '09:30:00',
+      effective_from: effectiveFrom,
+      effective_until: effectiveUntil,
+      max_participants: 25,
+      location: 'Outdoor Yoga Deck',
+      is_active: true,
+    };
+    weekendSchedule['available_dates'] = computeAvailableDates({
+      ...weekendSchedule,
+    });
+    await this.scheduleRepo.save(this.scheduleRepo.create(weekendSchedule));
+
+    // 4. MONTHLY schedule (15th of each month)
+    const monthlySchedule = {
+      service_id: services[3]?.id || services[0].id,
+      trainer_id: trainer.id,
+      name: 'Monthly Full Moon Meditation',
+      recurrence_type: RecurrenceType.MONTHLY,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false,
+      day_of_month: 15,
+      custom_dates: null,
+      start_time: '20:00:00',
+      end_time: '21:30:00',
+      effective_from: effectiveFrom,
+      effective_until: effectiveUntil,
+      max_participants: 30,
+      location: 'Meditation Room',
+      is_active: true,
+    };
+    monthlySchedule['available_dates'] = computeAvailableDates({
+      ...monthlySchedule,
+    });
+    await this.scheduleRepo.save(this.scheduleRepo.create(monthlySchedule));
+
+    // 5. CUSTOM schedule (specific workshop dates)
+    const customDates = [
+      toDateStr(new Date(today.getFullYear(), today.getMonth(), 10)),
+      toDateStr(new Date(today.getFullYear(), today.getMonth(), 20)),
+      toDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 5)),
+      toDateStr(new Date(today.getFullYear(), today.getMonth() + 1, 15)),
+    ];
+    const customSchedule = {
+      service_id: services[0].id,
+      trainer_id: trainer.id,
+      name: 'Special Yoga Workshop (Custom Dates)',
+      recurrence_type: RecurrenceType.CUSTOM,
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false,
+      day_of_month: null,
+      custom_dates: customDates,
+      start_time: '10:00:00',
+      end_time: '13:00:00',
+      effective_from: effectiveFrom,
+      effective_until: effectiveUntil,
+      max_participants: 10,
+      location: 'Workshop Room',
+      is_active: true,
+    };
+    customSchedule['available_dates'] = computeAvailableDates({
+      ...customSchedule,
+    });
+    await this.scheduleRepo.save(this.scheduleRepo.create(customSchedule));
+
+    this.logger.log('Seeded 5 schedules (daily, weekly MWF, weekend, monthly, custom)');
   }
 
   private async seedInstituteInfo() {
