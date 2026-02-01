@@ -21,8 +21,8 @@ import { InstituteInfo } from '../institute-info/entities/institute-info.entity'
 import { ContentSection } from '../content-sections/entities/content-section.entity';
 import { UserSession } from '../auth/entities/user-session.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
-import { Booking } from '../bookings/entities/booking.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { ClassBooking } from '../class-bookings/entities/class-booking.entity';
 
 @Module({
   imports: [
@@ -42,8 +42,8 @@ import { Review } from '../reviews/entities/review.entity';
           TrainerAvailability,
           Service,
           ServiceOption,
-          Booking,
           Review,
+          ClassBooking,
           Lead,
           LeadActivity,
           Customer,

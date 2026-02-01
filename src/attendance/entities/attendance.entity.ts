@@ -11,13 +11,14 @@ import {
 } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
-import { CustomerSubscription } from '../../subscriptions/entities/customer-subscription.entity';
+import { ClassBooking } from '../../class-bookings/entities/class-booking.entity';
 import { User } from '../../users/entities/user.entity';
 import { AttendanceStatus } from '../../common/enums/attendance.enums';
 
 @Entity('attendance')
 @Unique('unique_attendance', ['customer_id', 'schedule_id', 'attendance_date'])
 @Index('idx_customer_schedule', ['customer_id', 'schedule_id'])
+@Index('idx_class_booking_id', ['class_booking_id'])
 export class Attendance {
   @PrimaryGeneratedColumn({ type: 'int' })
   id: number;
@@ -36,12 +37,12 @@ export class Attendance {
   @JoinColumn({ name: 'schedule_id' })
   schedule: Schedule;
 
-  @Column({ type: 'int', name: 'subscription_id' })
-  subscription_id: number;
+  @Column({ type: 'int', name: 'class_booking_id' })
+  class_booking_id: number;
 
-  @ManyToOne(() => CustomerSubscription, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'subscription_id' })
-  subscription: CustomerSubscription;
+  @ManyToOne(() => ClassBooking, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'class_booking_id' })
+  class_booking: ClassBooking;
 
   @Column({ type: 'date', name: 'attendance_date' })
   @Index('idx_attendance_date')

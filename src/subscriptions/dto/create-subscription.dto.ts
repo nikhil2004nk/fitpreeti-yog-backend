@@ -1,32 +1,42 @@
-import { IsInt, IsOptional, IsNumber, IsDateString, IsEnum } from 'class-validator';
-import { SubscriptionPaymentStatus } from '../../common/enums/subscription.enums';
+import { IsInt, IsOptional, IsNumber, IsEnum, Min, IsString, MaxLength } from 'class-validator';
+import { SubscriptionPaymentType } from '../../common/enums/subscription.enums';
+import { PaymentMethod } from '../../common/enums/payment.enums';
 
 export class CreateSubscriptionDto {
+  /** Class booking this subscription is for (1:1). Required. */
   @IsInt()
-  customer_id: number;
-
-  @IsInt()
-  schedule_id: number;
-
-  @IsInt()
-  service_id: number;
-
-  @IsDateString()
-  starts_on: string;
-
-  @IsDateString()
-  @IsOptional()
-  ends_on?: string;
-
-  @IsInt()
-  @IsOptional()
-  total_sessions?: number;
+  class_booking_id: number;
 
   @IsNumber()
-  @IsOptional()
-  amount_paid?: number;
+  @Min(0)
+  total_fees: number;
 
-  @IsEnum(SubscriptionPaymentStatus)
+  @IsEnum(SubscriptionPaymentType)
   @IsOptional()
-  payment_status?: SubscriptionPaymentStatus;
+  payment_type?: SubscriptionPaymentType;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  number_of_installments?: number;
+
+  /** First payment: amount (when provided, a payment row is created automatically). */
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  first_payment_amount?: number;
+
+  /** First payment: method (cash, upi, card, etc.). Required if first_payment_amount is set. */
+  @IsEnum(PaymentMethod)
+  @IsOptional()
+  first_payment_method?: PaymentMethod;
+
+  @IsString()
+  @MaxLength(255)
+  @IsOptional()
+  first_payment_transaction_id?: string;
+
+  @IsString()
+  @IsOptional()
+  first_payment_notes?: string;
 }

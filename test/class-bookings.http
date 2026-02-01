@@ -1,0 +1,70 @@
+### ============================================
+### Class Bookings (Admin) – Book customer to schedule
+### Flow: Onboard customer → then book to class schedule with start/end date
+### booking_dates = schedule.available_dates ∩ [starts_on, ends_on] (stored in class_bookings)
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### 1. Login as Admin (run first)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Create class booking (after onboarding customer)
+### Use real IDs: customer_id and schedule_id must exist (GET /admin/customers, GET /admin/schedules).
+### service_id must match the schedule's service_id. If customer_id doesn't exist → 404 Customer not found.
+### booking_dates = schedule.available_dates ∩ [starts_on, ends_on]
+# @name createClassBooking
+POST {{baseUrl}}/admin/class-bookings
+Content-Type: {{contentType}}
+
+{
+  "customer_id": 1,
+  "schedule_id": 4,
+  "service_id": 1,
+  "starts_on": "2026-01-26",
+  "ends_on": "2026-02-15"
+}
+
+### --------------------------------------------
+### 3. List all class bookings
+GET {{baseUrl}}/admin/class-bookings
+
+### List by customer
+GET {{baseUrl}}/admin/class-bookings?customer_id=2
+
+### List by schedule
+GET {{baseUrl}}/admin/class-bookings?schedule_id=1
+
+### List active only
+GET {{baseUrl}}/admin/class-bookings?status=active
+
+### --------------------------------------------
+### 4. Get class bookings for a customer
+GET {{baseUrl}}/admin/class-bookings/customer/1
+
+### --------------------------------------------
+### 5. Get class booking by ID
+GET {{baseUrl}}/admin/class-bookings/1
+
+### --------------------------------------------
+### 6. Update class booking (start/end) – recomputes booking_dates
+PUT {{baseUrl}}/admin/class-bookings/1
+Content-Type: {{contentType}}
+
+{
+  "starts_on": "2026-02-01",
+  "ends_on": "2026-02-28"
+}
+
+### --------------------------------------------
+### 7. Cancel class booking
+POST {{baseUrl}}/admin/class-bookings/1/cancel

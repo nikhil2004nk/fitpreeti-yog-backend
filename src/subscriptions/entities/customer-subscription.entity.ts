@@ -9,62 +9,59 @@ import {
   Unique,
   Index,
 } from 'typeorm';
-import { Customer } from '../../customers/entities/customer.entity';
-import { Schedule } from '../../schedules/entities/schedule.entity';
-import { Service } from '../../services/entities/service.entity';
+import { ClassBooking } from '../../class-bookings/entities/class-booking.entity';
 import {
   SubscriptionPaymentStatus,
   SubscriptionStatus,
+  SubscriptionPaymentType,
 } from '../../common/enums/subscription.enums';
 
+/**
+ * CustomerSubscription: fees and payment for a single ClassBooking (1:1).
+ * No attendance/session fields; attendance is tracked per ClassBooking.
+ * Customer, schedule, service, dates come from the linked ClassBooking.
+ */
 @Entity('customer_subscriptions')
-@Unique('unique_customer_schedule', ['customer_id', 'schedule_id'])
-@Index('idx_dates', ['starts_on', 'ends_on'])
+@Unique('unique_class_booking_subscription', ['class_booking_id'])
+@Index('idx_class_booking_id', ['class_booking_id'])
 export class CustomerSubscription {
   @PrimaryGeneratedColumn({ type: 'int' })
   id: number;
 
-  @Column({ type: 'int', name: 'customer_id' })
-  @Index('idx_customer_id')
-  customer_id: number;
+  @Column({ type: 'int', name: 'class_booking_id' })
+  class_booking_id: number;
 
-  @ManyToOne(() => Customer, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'customer_id' })
-  customer: Customer;
+  @ManyToOne(() => ClassBooking, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'class_booking_id' })
+  class_booking: ClassBooking;
 
-  @Column({ type: 'int', name: 'schedule_id' })
-  @Index('idx_schedule_id')
-  schedule_id: number;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'total_fees' })
+  total_fees: number | null;
 
-  @ManyToOne(() => Schedule, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'schedule_id' })
-  schedule: Schedule;
+  @Column({
+    type: 'enum',
+    enum: SubscriptionPaymentType,
+    nullable: true,
+    name: 'payment_type',
+  })
+  payment_type: SubscriptionPaymentType | null;
 
-  @Column({ type: 'int', name: 'service_id' })
-  @Index('idx_service_id')
-  service_id: number;
+  @Column({ type: 'int', nullable: true, name: 'number_of_installments' })
+  number_of_installments: number | null;
 
-  @ManyToOne(() => Service, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'service_id' })
-  service: Service;
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'amount_paid' })
+  amount_paid: number;
 
-  @Column({ type: 'date', name: 'starts_on' })
-  starts_on: Date;
-
-  @Column({ type: 'date', nullable: true, name: 'ends_on' })
-  ends_on: Date | null;
-
-  @Column({ type: 'int', nullable: true, name: 'total_sessions' })
-  total_sessions: number | null;
-
-  @Column({ type: 'int', default: 0, name: 'sessions_completed' })
-  sessions_completed: number;
-
-  @Column({ type: 'int', nullable: true, name: 'sessions_remaining' })
-  sessions_remaining: number | null;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'amount_paid' })
-  amount_paid: number | null;
+  /** How much the customer still owes (total_fees - amount_paid). Stored in DB so admins can see it directly. */
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    generatedType: 'STORED',
+    asExpression: 'GREATEST(0, COALESCE(total_fees, 0) - COALESCE(amount_paid, 0))',
+    name: 'remaining_amount',
+  })
+  remaining_amount: number;
 
   @Column({
     type: 'enum',

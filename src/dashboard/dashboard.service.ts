@@ -7,7 +7,7 @@ import { Trainer } from '../trainers/entities/trainer.entity';
 import { Schedule } from '../schedules/entities/schedule.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { LeadStatus } from '../common/enums/lead.enums';
-import { MembershipStatus } from '../common/enums/customer.enums';
+import { CustomerStatus } from '../common/enums/customer.enums';
 import { PaymentStatus } from '../common/enums/payment.enums';
 
 @Injectable()
@@ -29,7 +29,7 @@ export class DashboardService {
     const [newLeads, convertedLeads, activeCustomers, activeTrainers, activeSchedules] = await Promise.all([
       this.leadRepo.count({ where: { status: LeadStatus.NEW } }),
       this.leadRepo.count({ where: { status: LeadStatus.CONVERTED } }),
-      this.customerRepo.count({ where: { membership_status: MembershipStatus.ACTIVE } }),
+      this.customerRepo.count({ where: { status: CustomerStatus.ACTIVE } }),
       this.trainerRepo.count({ where: { is_available: true } }),
       this.scheduleRepo.count({ where: { is_active: true } }),
     ]);

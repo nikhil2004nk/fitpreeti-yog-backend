@@ -13,7 +13,7 @@ This document describes how to integrate **attendance** (mark present/absent per
 | Mark many customers (bulk) | `POST /admin/attendance/mark/bulk` | Admin, Trainer |
 | Customer attendance history | `GET /admin/attendance/customer/:customerId` | Admin, Trainer, Customer |
 
-**Effect of marking present:** The subscription’s `sessions_completed` is incremented (and `sessions_remaining` is updated if `total_sessions` is set). Changing from present → non-present decrements; non-present → present increments.
+**Effect of marking present or absent:** Attendance is stored per **class booking** (no subscription dependency). **Both present and absent** count as session completed. Sessions completed = count of dates marked present or absent; sessions_remaining = total booking_dates − sessions_completed.
 
 **Who can mark attendance?**  
 Attendance (list and mark) can be done by:
@@ -39,9 +39,9 @@ Use these exact strings when sending `status`:
 
 | Value | Description |
 |-------|-------------|
-| `present` | Attended – increments subscription `sessions_completed` |
-| `absent` | Did not attend |
-| `late` | Attended but late |
+| `present` | Attended – counts as session completed |
+| `absent` | Did not attend – also counts as session completed (slot used) |
+| `late` | Attended but late (does not count as session completed) |
 | `cancelled` | Class/slot cancelled for this customer |
 | `holiday` | Holiday / no class |
 
@@ -70,8 +70,7 @@ GET /api/v1/admin/attendance/schedule/5/date/2026-02-01
 
 ### Who is included
 
-- Only customers with an **ACTIVE** subscription for this schedule.
-- Subscription must be valid on the given date: `starts_on <= date` and (`ends_on` is null or `ends_on >= date`).
+- Only customers who have an **ACTIVE class booking** for this schedule with this date in their `booking_dates`.
 - Sorted by customer `full_name`.
 
 ### Response: 200 OK
@@ -83,7 +82,7 @@ Array of objects:
   customer_id: number;
   full_name: string;
   phone: string | null;
-  subscription_id: number;
+  class_booking_id: number;
   sessions_completed: number;
   sessions_remaining: number | null;
   attendance_status: string;   // 'present' | 'absent' | 'late' | 'cancelled' | 'holiday' | 'not_marked'
@@ -96,9 +95,9 @@ Array of objects:
 | `customer_id` | Customer ID. |
 | `full_name` | Display name. |
 | `phone` | Customer phone (optional). |
-| `subscription_id` | **Required for mark/bulk** – use this in mark requests. |
-| `sessions_completed` | Sessions used so far (from subscription). |
-| `sessions_remaining` | Remaining sessions (if subscription has `total_sessions`). |
+| `class_booking_id` | **Required for mark/bulk** – use this in mark requests. |
+| `sessions_completed` | Sessions used so far (dates marked present or absent). |
+| `sessions_remaining` | Remaining sessions (total booking_dates − sessions_completed). |
 | `attendance_status` | Current status for this date; `not_marked` if no record yet. |
 | `attendance_id` | Existing attendance record ID (null if not marked yet). |
 
@@ -125,7 +124,7 @@ Mark one customer as present/absent/late/cancelled/holiday for a given schedule 
 {
   "customer_id": 10,
   "schedule_id": 5,
-  "subscription_id": 7,
+  "class_booking_id": 7,
   "attendance_date": "2026-02-01",
   "status": "present",
   "notes": "Optional note"
@@ -136,19 +135,19 @@ Mark one customer as present/absent/late/cancelled/holiday for a given schedule 
 |-------|------|----------|-------------|
 | `customer_id` | number | ✅ | Customer ID (from list response). |
 | `schedule_id` | number | ✅ | Schedule ID. |
-| `subscription_id` | number | ✅ | Subscription ID (from list response). |
+| `class_booking_id` | number | ✅ | Class booking ID (from list response). |
 | `attendance_date` | string | ✅ | Date **YYYY-MM-DD**. |
 | `status` | enum | ✅ | `present` \| `absent` \| `late` \| `cancelled` \| `holiday`. |
 | `notes` | string | No | Optional note. |
 
 ### Response
 
-- **200 OK** – Single attendance entity (e.g. `id`, `customer_id`, `schedule_id`, `subscription_id`, `attendance_date`, `status`, `notes`, `marked_by`, `marked_at`, `updated_at`).
+- **200 OK** – Single attendance entity (e.g. `id`, `customer_id`, `schedule_id`, `class_booking_id`, `attendance_date`, `status`, `notes`, `marked_by`, `marked_at`, `updated_at`).
 
 ### Backend behavior
 
-- If no record exists for (customer, schedule, date): creates one. If `status === 'present'`, increments subscription `sessions_completed` (and updates `sessions_remaining` if applicable).
-- If a record exists: updates status (and optional notes). If status changes from present → non-present, decrements `sessions_completed`; from non-present → present, increments it.
+- If no record exists for (customer, schedule, date): creates one. Both present and absent count as session completed.
+- If a record exists: updates status (and optional notes). Session counts are derived from how many dates are marked present or absent.
 
 ### Errors
 
@@ -173,9 +172,9 @@ Mark multiple customers for the **same** schedule and date in one request.
   "schedule_id": 5,
   "attendance_date": "2026-02-01",
   "marks": [
-    { "customer_id": 10, "subscription_id": 7, "status": "present" },
-    { "customer_id": 11, "subscription_id": 8, "status": "absent" },
-    { "customer_id": 12, "subscription_id": 9, "status": "present", "notes": "On time" }
+    { "customer_id": 10, "class_booking_id": 7, "status": "present" },
+    { "customer_id": 11, "class_booking_id": 8, "status": "absent" },
+    { "customer_id": 12, "class_booking_id": 9, "status": "present", "notes": "On time" }
   ]
 }
 ```
@@ -186,7 +185,7 @@ Mark multiple customers for the **same** schedule and date in one request.
 | `attendance_date` | string | ✅ | Date **YYYY-MM-DD** (same for all). |
 | `marks` | array | ✅ | At least one item. |
 | `marks[].customer_id` | number | ✅ | Customer ID. |
-| `marks[].subscription_id` | number | ✅ | Subscription ID for that customer. |
+| `marks[].class_booking_id` | number | ✅ | Class booking ID for that customer. |
 | `marks[].status` | enum | ✅ | `present` \| `absent` \| `late` \| `cancelled` \| `holiday`. |
 | `marks[].notes` | string | No | Optional note for that row. |
 
@@ -196,7 +195,7 @@ Mark multiple customers for the **same** schedule and date in one request.
 
 ### Backend behavior
 
-- Processes each item in `marks` like a single mark (create or update, and adjust `sessions_completed` when status is or was `present`).
+- Processes each item in `marks` like a single mark (create or update). Sessions completed = count of dates marked present or absent.
 
 ### Errors
 
@@ -237,7 +236,7 @@ GET /api/v1/admin/attendance/customer/10?startDate=2026-01-01&endDate=2026-01-31
 
 Array of **attendance** entities with relations, e.g.:
 
-- `id`, `customer_id`, `schedule_id`, `subscription_id`, `attendance_date`, `status`, `notes`, `check_in_time`, `check_out_time`, `marked_by`, `marked_at`, `updated_at`
+- `id`, `customer_id`, `schedule_id`, `class_booking_id`, `attendance_date`, `status`, `notes`, `check_in_time`, `check_out_time`, `marked_by`, `marked_at`, `updated_at`
 - `schedule` (and possibly `schedule.service`)
 - `markedByUser` (user who marked)
 
@@ -265,7 +264,7 @@ Ordered by `attendance_date` DESC.
 
 2. **Load list**  
    - `GET /admin/attendance/schedule/:scheduleId/date/:date`  
-   - Store `customer_id`, `subscription_id`, `attendance_status`, `attendance_id` for each row.
+   - Store `customer_id`, `class_booking_id`, `attendance_status`, `attendance_id` for each row.
 
 3. **Render table**  
    - One row per customer: name, phone, sessions_completed, sessions_remaining, current status.  
@@ -282,12 +281,10 @@ Ordered by `attendance_date` DESC.
 
 ## Session count rules (for UI)
 
-- **Mark as present:** Subscription `sessions_completed` +1; `sessions_remaining` = `total_sessions - sessions_completed` (if subscription has `total_sessions`).
-- **Change present → absent/late/cancelled/holiday:** `sessions_completed` -1 (and `sessions_remaining` updated accordingly).
-- **Change absent/late/etc. → present:** Same as “mark as present”.
-- **Not present ↔ not present:** No change to session counts.
+- **Mark as present or absent:** Both count as session completed. sessions_completed = count of dates marked present or absent; sessions_remaining = booking_dates length − sessions_completed.
+- **Mark as late/cancelled/holiday:** Does not count as session completed (only present and absent do).
 
-You can refetch the list after mark/bulk to show updated counts, or derive from the returned attendance payload if your API returns subscription data.
+You can refetch the list after mark/bulk to show updated counts, or derive from the returned attendance payload if your API returns class_booking data.
 
 ---
 
@@ -302,7 +299,7 @@ interface CustomerForAttendance {
   customer_id: number;
   full_name: string;
   phone: string | null;
-  subscription_id: number;
+  class_booking_id: number;
   sessions_completed: number;
   sessions_remaining: number | null;
   attendance_status: AttendanceStatus | 'not_marked';
@@ -313,7 +310,7 @@ interface CustomerForAttendance {
 interface MarkAttendanceBody {
   customer_id: number;
   schedule_id: number;
-  subscription_id: number;
+  class_booking_id: number;
   attendance_date: string; // YYYY-MM-DD
   status: AttendanceStatus;
   notes?: string;
@@ -325,7 +322,7 @@ interface BulkMarkAttendanceBody {
   attendance_date: string; // YYYY-MM-DD
   marks: {
     customer_id: number;
-    subscription_id: number;
+    class_booking_id: number;
     status: AttendanceStatus;
     notes?: string;
   }[];

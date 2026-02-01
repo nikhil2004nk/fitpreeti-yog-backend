@@ -8,7 +8,6 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ServiceMode, ServiceFrequency, ServiceAudience } from '../../common/enums/service.enums';
-import { Booking } from '../../bookings/entities/booking.entity';
 
 @Entity('services')
 export class Service {
@@ -85,7 +84,4 @@ export class Service {
 
   @UpdateDateColumn({ type: 'timestamp', name: 'updated_at' })
   updated_at: Date;
-
-  @OneToMany(() => Booking, (booking) => booking.service)
-  bookings: Booking[];
 }

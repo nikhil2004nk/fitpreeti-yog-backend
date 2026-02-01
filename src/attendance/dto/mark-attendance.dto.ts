@@ -19,7 +19,7 @@ export class MarkAttendanceDto {
   schedule_id: number;
 
   @IsInt()
-  subscription_id: number;
+  class_booking_id: number;
 
   @IsDateString()
   attendance_date: string;
@@ -37,7 +37,7 @@ export class MarkAttendanceItemDto {
   customer_id: number;
 
   @IsInt()
-  subscription_id: number;
+  class_booking_id: number;
 
   @IsEnum(AttendanceStatus)
   status: AttendanceStatus;

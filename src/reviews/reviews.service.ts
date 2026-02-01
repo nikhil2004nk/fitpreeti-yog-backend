@@ -8,8 +8,6 @@ import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewWithUser } from './interfaces/review.interface';
 import { sanitizeText } from '../common/utils/sanitize.util';
 import { TrainersService } from '../trainers/trainers.service';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Service } from '../services/entities/service.entity';
 
 @Injectable()
 export class ReviewsService implements OnModuleInit {
@@ -20,8 +18,6 @@ export class ReviewsService implements OnModuleInit {
     private readonly reviewRepository: Repository<Review>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
     @Inject(forwardRef(() => TrainersService))
@@ -199,23 +195,6 @@ export class ReviewsService implements OnModuleInit {
       });
 
       const savedReview = await this.reviewRepository.save(existingReview);
-
-      if (shouldUpdateTrainerRating && existingReview.booking_id) {
-        try {
-          const booking = await this.bookingRepository.findOne({
-            where: { id: existingReview.booking_id },
-            relations: ['service'],
-          });
-          
-          // TODO: Implement trainer rating update when trainer_id is added to Service entity
-          // if (booking?.service?.trainer_id) {
-          //   await this.trainersService.updateTrainerRating(booking.service.trainer_id);
-          // }
-        } catch (error) {
-          this.logger.warn('Failed to update trainer rating after review update:', error);
-        }
-      }
-      
       return this.toReviewWithUser(savedReview, savedReview.user);
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
@@ -241,26 +220,7 @@ export class ReviewsService implements OnModuleInit {
         throw new BadRequestException('You can only delete your own reviews');
       }
       
-      const wasApproved = existingReview.is_approved;
-      const bookingId = existingReview.booking_id;
-
       await this.reviewRepository.remove(existingReview);
-      
-      if (wasApproved && bookingId) {
-        try {
-          const booking = await this.bookingRepository.findOne({
-            where: { id: bookingId },
-            relations: ['service'],
-          });
-          
-          // TODO: Implement trainer rating update when trainer_id is added to Service entity
-          // if (booking?.service?.trainer_id) {
-          //   await this.trainersService.updateTrainerRating(booking.service.trainer_id);
-          // }
-        } catch (error) {
-          this.logger.warn('Failed to update trainer rating after review deletion:', error);
-        }
-      }
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof BadRequestException) {
         throw error;

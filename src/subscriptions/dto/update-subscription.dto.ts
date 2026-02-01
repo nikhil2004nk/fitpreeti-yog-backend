@@ -1,22 +1,20 @@
-import { IsOptional, IsDateString, IsEnum, IsString, IsInt, IsNumber } from 'class-validator';
-import { SubscriptionStatus, SubscriptionPaymentStatus } from '../../common/enums/subscription.enums';
+import { IsOptional, IsDateString, IsEnum, IsString, IsInt, IsNumber, Min } from 'class-validator';
+import { SubscriptionStatus, SubscriptionPaymentType } from '../../common/enums/subscription.enums';
 
 export class UpdateSubscriptionDto {
-  @IsDateString()
-  @IsOptional()
-  ends_on?: string;
-
-  @IsInt()
-  @IsOptional()
-  total_sessions?: number;
-
   @IsOptional()
   @IsNumber()
-  amount_paid?: number;
+  @Min(0)
+  total_fees?: number;
 
-  @IsEnum(SubscriptionPaymentStatus)
+  @IsEnum(SubscriptionPaymentType)
   @IsOptional()
-  payment_status?: SubscriptionPaymentStatus;
+  payment_type?: SubscriptionPaymentType;
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  number_of_installments?: number;
 
   @IsEnum(SubscriptionStatus)
   @IsOptional()

@@ -1,0 +1,111 @@
+### ============================================
+### Mark Customer Attendance (Admin / Trainer)
+### Flow: Get customers for schedule+date → Mark single or bulk attendance → View history
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first)
+### --------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Get customers for attendance (schedule + date)
+### Replace scheduleId and date with real values (from GET /admin/schedules, date in YYYY-MM-DD)
+### Returns list of customers enrolled in this schedule with their class_booking_id and attendance status
+### --------------------------------------------
+# @name getCustomersForAttendance
+GET {{baseUrl}}/admin/attendance/schedule/4/date/2026-02-14
+
+### --------------------------------------------
+### 3. Mark single attendance
+### Replace customer_id, schedule_id, class_booking_id with real IDs
+### status: present | absent | late | cancelled | holiday
+### --------------------------------------------
+# @name markAttendance
+POST {{baseUrl}}/admin/attendance/mark
+Content-Type: {{contentType}}
+
+{
+  "customer_id": 1,
+  "schedule_id": 4,
+  "class_booking_id": 1,
+  "attendance_date": "2026-02-14",
+  "status": "present",
+  "notes": "On time"
+}
+
+### Mark absent
+# POST {{baseUrl}}/admin/attendance/mark
+# Content-Type: {{contentType}}
+#
+# {
+#   "customer_id": 1,
+#   "schedule_id": 1,
+#   "class_booking_id": 1,
+#   "attendance_date": "2026-02-01",
+#   "status": "absent",
+#   "notes": "Informed in advance"
+# }
+
+### Mark late
+# POST {{baseUrl}}/admin/attendance/mark
+# Content-Type: {{contentType}}
+#
+# {
+#   "customer_id": 1,
+#   "schedule_id": 1,
+#   "class_booking_id": 1,
+#   "attendance_date": "2026-02-01",
+#   "status": "late",
+#   "notes": "Arrived 10 min late"
+# }
+
+### --------------------------------------------
+### 4. Mark bulk attendance (multiple customers for same schedule + date)
+### --------------------------------------------
+# @name bulkMarkAttendance
+POST {{baseUrl}}/admin/attendance/mark/bulk
+Content-Type: {{contentType}}
+
+{
+  "schedule_id": 1,
+  "attendance_date": "2026-02-01",
+  "marks": [
+    {
+      "customer_id": 1,
+      "class_booking_id": 1,
+      "status": "present"
+    },
+    {
+      "customer_id": 2,
+      "class_booking_id": 2,
+      "status": "present"
+    },
+    {
+      "customer_id": 3,
+      "class_booking_id": 3,
+      "status": "absent",
+      "notes": "Sick"
+    }
+  ]
+}
+
+### --------------------------------------------
+### 5. Get customer attendance history
+### Replace customerId with real ID. Optional: startDate, endDate (YYYY-MM-DD)
+### --------------------------------------------
+# @name getCustomerAttendance
+GET {{baseUrl}}/admin/attendance/customer/1
+
+### With date range
+# GET {{baseUrl}}/admin/attendance/customer/1?startDate=2026-01-01&endDate=2026-02-28

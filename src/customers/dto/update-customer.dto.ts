@@ -115,12 +115,4 @@ export class UpdateCustomerDto {
   @IsEnum(MembershipStatus)
   @IsOptional()
   membership_status?: MembershipStatus;
-
-  @IsDateString()
-  @IsOptional()
-  membership_start_date?: string;
-
-  @IsDateString()
-  @IsOptional()
-  membership_end_date?: string;
 }

@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { Review } from '../../reviews/entities/review.entity';
-import { Booking } from '../../bookings/entities/booking.entity';
 
 @Entity('users')
 export class User {
@@ -49,7 +48,4 @@ export class User {
 
   @OneToMany(() => Review, review => review.user)
   reviews: Review[];
-
-  @OneToMany(() => Booking, booking => booking.user)
-  bookings: Booking[];
 }

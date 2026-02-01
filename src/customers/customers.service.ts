@@ -14,6 +14,14 @@ import { Lead } from '../leads/entities/lead.entity';
 import { AuthService } from '../auth/auth.service';
 import { UserRole } from '../common/enums/user-role.enum';
 
+/** Generate password from full name: FirstName@123 (first word, first letter capital, then @123). */
+function generatePasswordFromFullName(fullName: string): string {
+  const firstWord = (fullName ?? '').trim().split(/\s+/)[0] || 'Customer';
+  const firstLetter = firstWord[0].toUpperCase();
+  const rest = firstWord.slice(1).toLowerCase();
+  return `${firstLetter}${rest}@123`;
+}
+
 @Injectable()
 export class CustomersService {
   constructor(
@@ -31,103 +39,61 @@ export class CustomersService {
       country: dto.country ?? 'India',
     });
     if (dto.date_of_birth) c.date_of_birth = new Date(dto.date_of_birth);
-    if (dto.membership_start_date) c.membership_start_date = new Date(dto.membership_start_date);
-    if (dto.membership_end_date) c.membership_end_date = new Date(dto.membership_end_date);
     return this.repo.save(c);
   }
 
   private async createDirect(dto: CreateCustomerDto): Promise<Customer> {
-    // Check if password is provided - if yes, create with active status and credentials
-    const shouldCompleteOnboarding = dto.password && dto.password.length >= 8 && dto.email;
-    
-    if (shouldCompleteOnboarding) {
-      // Create customer with onboarding status first
-      const c = this.repo.create({
-        full_name: dto.full_name,
-        email: dto.email ?? null,
-        phone: dto.phone ?? null,
-        date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
-        gender: dto.gender ?? null,
-        yoga_experience_level: dto.yoga_experience_level ?? null,
-        preferred_class_type: dto.preferred_class_type ?? null,
-        membership_status: dto.membership_status ?? MembershipStatus.ACTIVE,
-        membership_start_date: dto.membership_start_date ? new Date(dto.membership_start_date) : null,
-        membership_end_date: dto.membership_end_date ? new Date(dto.membership_end_date) : null,
-        address_line1: dto.address_line1 ?? null,
-        address_line2: dto.address_line2 ?? null,
-        city: dto.city ?? null,
-        state: dto.state ?? null,
-        postal_code: dto.postal_code ?? null,
-        country: dto.country ?? 'India',
-        emergency_contact_name: dto.emergency_contact_name ?? null,
-        emergency_contact_phone: dto.emergency_contact_phone ?? null,
-        emergency_contact_relation: dto.emergency_contact_relation ?? null,
-        medical_conditions: dto.medical_conditions ?? null,
-        allergies: dto.allergies ?? null,
-        current_medications: dto.current_medications ?? null,
-        fitness_goals: dto.fitness_goals ?? null,
-        previous_injuries: dto.previous_injuries ?? null,
-        profile_image_url: dto.profile_image_url ?? null,
-        status: CustomerStatus.ONBOARDING,
-        onboarded_at: null,
-      });
-      const savedCustomer = await this.repo.save(c);
-      
-      // Immediately complete onboarding to create credentials and set status to active
-      const email = (dto.email ?? '').trim().toLowerCase();
-      if (!email) {
-        throw new BadRequestException('Email is required when providing password');
-      }
-      
+    const customerData = {
+      full_name: dto.full_name,
+      email: dto.email ?? null,
+      phone: dto.phone ?? null,
+      date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
+      gender: dto.gender ?? null,
+      yoga_experience_level: dto.yoga_experience_level ?? null,
+      preferred_class_type: dto.preferred_class_type ?? null,
+      address_line1: dto.address_line1 ?? null,
+      address_line2: dto.address_line2 ?? null,
+      city: dto.city ?? null,
+      state: dto.state ?? null,
+      postal_code: dto.postal_code ?? null,
+      country: dto.country ?? 'India',
+      emergency_contact_name: dto.emergency_contact_name ?? null,
+      emergency_contact_phone: dto.emergency_contact_phone ?? null,
+      emergency_contact_relation: dto.emergency_contact_relation ?? null,
+      medical_conditions: dto.medical_conditions ?? null,
+      allergies: dto.allergies ?? null,
+      current_medications: dto.current_medications ?? null,
+      fitness_goals: dto.fitness_goals ?? null,
+      previous_injuries: dto.previous_injuries ?? null,
+      profile_image_url: dto.profile_image_url ?? null,
+      status: CustomerStatus.ONBOARDING,
+      membership_status: MembershipStatus.INACTIVE,
+      onboarded_at: null,
+    };
+    const c = this.repo.create(customerData);
+    const saved = await this.repo.save(c);
+
+    // If email provided: complete onboarding in one go (auto-generate password from first name, create login, set active)
+    const email = (dto.email ?? '').trim().toLowerCase();
+    if (email) {
+      const password = generatePasswordFromFullName(dto.full_name);
       const user = await this.authService.createUser(
-        { 
-          email, 
-          password: dto.password!,
+        {
+          email,
+          password,
           name: dto.full_name || undefined,
-          phone: dto.phone || undefined
+          phone: dto.phone || undefined,
         },
         UserRole.CUSTOMER,
       );
-      
-      savedCustomer.user_id = user.id;
-      savedCustomer.email = email;
-      savedCustomer.status = CustomerStatus.ACTIVE;
-      savedCustomer.onboarded_at = new Date();
-      
-      return this.repo.save(savedCustomer);
-    } else {
-      // Create customer as draft/onboarding (no password provided)
-      const c = this.repo.create({
-        full_name: dto.full_name,
-        email: dto.email ?? null,
-        phone: dto.phone ?? null,
-        date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
-        gender: dto.gender ?? null,
-        yoga_experience_level: dto.yoga_experience_level ?? null,
-        preferred_class_type: dto.preferred_class_type ?? null,
-        membership_status: dto.membership_status ?? MembershipStatus.ACTIVE,
-        membership_start_date: dto.membership_start_date ? new Date(dto.membership_start_date) : null,
-        membership_end_date: dto.membership_end_date ? new Date(dto.membership_end_date) : null,
-        address_line1: dto.address_line1 ?? null,
-        address_line2: dto.address_line2 ?? null,
-        city: dto.city ?? null,
-        state: dto.state ?? null,
-        postal_code: dto.postal_code ?? null,
-        country: dto.country ?? 'India',
-        emergency_contact_name: dto.emergency_contact_name ?? null,
-        emergency_contact_phone: dto.emergency_contact_phone ?? null,
-        emergency_contact_relation: dto.emergency_contact_relation ?? null,
-        medical_conditions: dto.medical_conditions ?? null,
-        allergies: dto.allergies ?? null,
-        current_medications: dto.current_medications ?? null,
-        fitness_goals: dto.fitness_goals ?? null,
-        previous_injuries: dto.previous_injuries ?? null,
-        profile_image_url: dto.profile_image_url ?? null,
-        status: CustomerStatus.ONBOARDING,
-        onboarded_at: null,
-      });
-      return this.repo.save(c);
+      saved.user_id = user.id;
+      saved.email = email;
+      saved.status = CustomerStatus.ACTIVE;
+      saved.onboarded_at = new Date();
+      return this.repo.save(saved);
     }
+
+    return saved;
   }
 
   async createFromLead(lead: Lead): Promise<Customer> {
@@ -155,6 +121,7 @@ export class CustomersService {
       preferred_class_type: lead.preferred_class_type ?? null,
       country: 'India',
       status: CustomerStatus.ONBOARDING,
+      membership_status: MembershipStatus.INACTIVE,
       onboarded_at: null,
     });
     return this.repo.save(c);
@@ -176,12 +143,13 @@ export class CustomersService {
     if (!email) {
       throw new BadRequestException('Email is required to create login credentials');
     }
+    const password = generatePasswordFromFullName(c.full_name);
     const user = await this.authService.createUser(
-      { 
-        email, 
-        password: dto.password,
+      {
+        email,
+        password,
         name: c.full_name || undefined,
-        phone: c.phone || undefined
+        phone: c.phone || undefined,
       },
       UserRole.CUSTOMER,
     );
@@ -192,15 +160,20 @@ export class CustomersService {
     return this.repo.save(c);
   }
 
-  async findAll(filters: { membership_status?: string; status?: string } = {}) {
+  async findAll(filters: { status?: string; membership_status?: string } = {}) {
     const where: Record<string, unknown> = {};
-    if (filters.membership_status) where.membership_status = filters.membership_status;
     if (filters.status) where.status = filters.status;
+    if (filters.membership_status) where.membership_status = filters.membership_status;
     return this.repo.find({
       where,
       relations: ['user', 'lead'],
       order: { id: 'ASC' },
     });
+  }
+
+  /** Set customer membership_status (e.g. ACTIVE when a subscription is created). */
+  async setMembershipStatus(customerId: number, membership_status: MembershipStatus): Promise<void> {
+    await this.repo.update(customerId, { membership_status });
   }
 
   async findOne(id: number) {
@@ -226,8 +199,7 @@ export class CustomersService {
     ) as Partial<UpdateCustomerDto>;
     Object.assign(c, updates);
     if (updates.date_of_birth) c.date_of_birth = new Date(updates.date_of_birth);
-    if (updates.membership_start_date) c.membership_start_date = new Date(updates.membership_start_date);
-    if (updates.membership_end_date) c.membership_end_date = new Date(updates.membership_end_date);
+    if (updates.membership_status !== undefined) c.membership_status = updates.membership_status;
     return this.repo.save(c);
   }
 

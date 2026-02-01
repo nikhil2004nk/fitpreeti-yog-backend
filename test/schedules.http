@@ -121,7 +121,7 @@ GET {{baseUrl}}/admin/schedules?activeOnly=true
 ### 7. Get schedule by ID
 ### --------------------------------------------
 # Replace :id with actual schedule id (e.g. from create response)
-GET {{baseUrl}}/admin/schedules/5
+GET {{baseUrl}}/admin/schedules/1
 
 ### --------------------------------------------
 ### 8. Update schedule

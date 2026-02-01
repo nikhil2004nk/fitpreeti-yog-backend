@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Attendance } from './entities/attendance.entity';
-import { CustomerSubscription } from '../subscriptions/entities/customer-subscription.entity';
+import { ClassBooking } from '../class-bookings/entities/class-booking.entity';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Attendance, CustomerSubscription]),
+    TypeOrmModule.forFeature([Attendance, ClassBooking]),
     AuthModule,
   ],
   providers: [AttendanceService],

@@ -1,0 +1,95 @@
+### ============================================
+### Services (Admin + Public)
+### Admin: CRUD and deactivate. Public: list active, flow options.
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first for admin endpoints)
+### --------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Admin – List all services
+### --------------------------------------------
+GET {{baseUrl}}/admin/services
+
+### List active only
+GET {{baseUrl}}/admin/services?activeOnly=true
+
+### --------------------------------------------
+### 3. Admin – Get service by ID
+### --------------------------------------------
+GET {{baseUrl}}/admin/services/1
+
+### --------------------------------------------
+### 4. Admin – Create service
+### mode: live | recorded | hybrid | onsite
+### frequency: single | weekly | monthly
+### audience: individual | group | company
+### --------------------------------------------
+# @name createService
+POST {{baseUrl}}/admin/services
+Content-Type: {{contentType}}
+
+{
+  "name": "Morning Yoga",
+  "slug": "morning-yoga",
+  "type": "yoga",
+  "duration_minutes": 60,
+  "price": 500,
+  "description": "Energizing morning flow",
+  "short_description": "60 min morning class",
+  "service_format": "group_class",
+  "mode": "live",
+  "frequency": "weekly",
+  "audience": "group",
+  "yoga_type": "hatha",
+  "max_capacity": 20,
+  "is_active": true
+}
+
+### --------------------------------------------
+### 5. Admin – Update service
+### --------------------------------------------
+PUT {{baseUrl}}/admin/services/1
+Content-Type: {{contentType}}
+
+{
+  "name": "Morning Yoga (Updated)",
+  "duration_minutes": 75,
+  "price": 600,
+  "is_active": true
+}
+
+### --------------------------------------------
+### 6. Admin – Deactivate service
+### --------------------------------------------
+DELETE {{baseUrl}}/admin/services/1
+
+### --------------------------------------------
+### 7. Public – Flow options (no auth)
+### Returns type, service_format_by_type, yoga_types_by_type, mode, frequency, audience
+### --------------------------------------------
+GET {{baseUrl}}/services/public/options
+
+### --------------------------------------------
+### 8. Public – List active services (no auth)
+### Optional filters: type, service_format, yoga_type, mode, frequency, duration_minutes
+### --------------------------------------------
+GET {{baseUrl}}/services/public
+
+### With filters
+GET {{baseUrl}}/services/public?type=yoga
+GET {{baseUrl}}/services/public?type=yoga&service_format=group_class
+GET {{baseUrl}}/services/public?yoga_type=hatha&duration_minutes=60
+GET {{baseUrl}}/services/public?mode=live&frequency=weekly

@@ -19,6 +19,7 @@ import { LeadsModule } from './leads/leads.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { CustomersModule } from './customers/customers.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { ClassBookingsModule } from './class-bookings/class-bookings.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TrainerPortalModule } from './trainer-portal/trainer-portal.module';
@@ -71,6 +72,7 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
     SchedulesModule,
     CustomersModule,
     SubscriptionsModule,
+    ClassBookingsModule,
     PaymentsModule,
     DashboardModule,
     TrainerPortalModule,

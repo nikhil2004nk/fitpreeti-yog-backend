@@ -1,0 +1,157 @@
+### ============================================
+### Customer Onboarding (Admin)
+### Create: only full_name required. Save partial info → status = onboarding. With email → complete in one go (password FirstName@123, status = active). Without email → onboarding; later PUT update + step 6 (complete-onboarding) to finish.
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first for admin endpoints)
+### --------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2a. Admin – Create customer (complete in one go: include email)
+### Password auto-generated: FirstName@123 (e.g. Riya Sharma → Riya@123). Status = active.
+### --------------------------------------------
+# @name createCustomerComplete
+POST {{baseUrl}}/admin/customers
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Riya Sharma",
+  "email": "riya@example.com",
+  "phone": "+919876543210",
+  "date_of_birth": "1990-05-15",
+  "gender": "female",
+  "yoga_experience_level": "beginner",
+  "preferred_class_type": "group",
+  "address_line1": "123 Main St",
+  "city": "Mumbai",
+  "state": "Maharashtra",
+  "postal_code": "400001",
+  "country": "India",
+  "emergency_contact_name": "Raj Sharma",
+  "emergency_contact_phone": "+919876543211",
+  "emergency_contact_relation": "spouse",
+  "medical_conditions": "None",
+  "allergies": "None",
+  "fitness_goals": "Flexibility and stress relief",
+  "previous_injuries": "None",
+  "profile_image_url": "https://example.com/riya.jpg"
+}
+
+### --------------------------------------------
+### 2b. Admin – Create customer (partial / save and leave) – status = onboarding
+### Only full_name required. Omit email (and any other fields) to save half-filled; status = onboarding. Later: PUT update (step 5) to add more data, then step 6 (complete-onboarding) to create login.
+### --------------------------------------------
+# @name createCustomerDraft
+POST {{baseUrl}}/admin/customers
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Amit Patel",
+  "phone": "+919876543212",
+  "address_line1": "456 Park Ave",
+  "city": "Mumbai"
+}
+
+### --------------------------------------------
+### 3. Admin – List customers
+### --------------------------------------------
+GET {{baseUrl}}/admin/customers
+
+### Filter by status (onboarding | active)
+GET {{baseUrl}}/admin/customers?status=onboarding
+GET {{baseUrl}}/admin/customers?status=active
+
+### Filter by membership_status (default inactive; set to active when subscription is created)
+GET {{baseUrl}}/admin/customers?membership_status=active
+GET {{baseUrl}}/admin/customers?membership_status=inactive
+
+### --------------------------------------------
+### 4. Admin – Get customer by ID
+### --------------------------------------------
+GET {{baseUrl}}/admin/customers/1
+
+### --------------------------------------------
+### 5. Admin – Update customer (onboarding or active)
+### --------------------------------------------
+PUT {{baseUrl}}/admin/customers/1
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Riya Sharma (Updated)",
+  "phone": "+919876543219",
+  "address_line2": "Apt 4B",
+  "fitness_goals": "Flexibility, strength and stress relief"
+}
+
+### --------------------------------------------
+### 6. Admin – Complete onboarding (creates user login)
+### For draft customers (or converted from lead): optional email; password auto-generated as FirstName@123 (e.g. Riya Sharma → Riya@123).
+### --------------------------------------------
+# @name completeOnboarding
+POST {{baseUrl}}/admin/customers/1/complete-onboarding
+Content-Type: {{contentType}}
+
+{
+  "email": "riya@example.com"
+}
+
+### --------------------------------------------
+### 7. Admin – Delete customer
+### --------------------------------------------
+DELETE {{baseUrl}}/admin/customers/1
+
+### --------------------------------------------
+### 8. Customer login (use email + auto-generated password from step 2 or step 6)
+### Password = FirstName@123 (e.g. Riya Sharma → Riya@123)
+### After login, use cookies for customer portal endpoints.
+### --------------------------------------------
+# @name loginCustomer
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "riya@example.com",
+  "password": "Riya@123"
+}
+
+### --------------------------------------------
+### 9. Customer portal – My profile (requires customer auth)
+### Run step 8 first, then send this request (cookies included).
+### --------------------------------------------
+GET {{baseUrl}}/customer/profile
+
+### --------------------------------------------
+### 10. Customer portal – Update my profile
+### --------------------------------------------
+PUT {{baseUrl}}/customer/profile
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Riya Sharma",
+  "phone": "+919876543210",
+  "fitness_goals": "Flexibility, strength and meditation"
+}
+
+### --------------------------------------------
+### 11. Customer portal – My subscriptions
+### --------------------------------------------
+GET {{baseUrl}}/customer/subscriptions
+
+### --------------------------------------------
+### 12. Customer portal – My attendance history
+### Optional: startDate, endDate (YYYY-MM-DD)
+### --------------------------------------------
+GET {{baseUrl}}/customer/attendance
+GET {{baseUrl}}/customer/attendance?startDate=2026-01-01&endDate=2026-02-28

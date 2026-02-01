@@ -32,7 +32,7 @@ export class CustomersController {
   @Post()
   @ApiOperation({
     summary: 'Create customer',
-    description: 'Omit user_id → direct onboarding. If password is provided with email, creates customer with active status and credentials immediately. If password is omitted, creates with onboarding status (draft). Include user_id → link existing user.',
+    description: 'Only full_name is required. Admin can save partial info (half-filled form) → status = onboarding. If email is provided → complete in one go (password FirstName@123, login created, status = active). If email omitted → status = onboarding; admin can later PUT update to add more data, then POST :id/complete-onboarding to create login and set active. Same for customers created from lead or with user_id.',
   })
   @ApiResponse({ status: 201, description: 'Customer created' })
   create(@Body() dto: CreateCustomerDto) {
@@ -41,15 +41,15 @@ export class CustomersController {
 
   @Get()
   @ApiOperation({ summary: 'List customers' })
-  @ApiQuery({ name: 'membership_status', required: false })
   @ApiQuery({ name: 'status', required: false, description: 'onboarding | active' })
+  @ApiQuery({ name: 'membership_status', required: false, description: 'active | inactive | suspended | cancelled' })
   list(
-    @Query('membership_status') membership_status?: string,
     @Query('status') status?: string,
+    @Query('membership_status') membership_status?: string,
   ) {
-    const filters: { membership_status?: string; status?: string } = {};
-    if (membership_status) filters.membership_status = membership_status;
+    const filters: { status?: string; membership_status?: string } = {};
     if (status) filters.status = status;
+    if (membership_status) filters.membership_status = membership_status;
     return this.service.findAll(filters);
   }
 

@@ -8,7 +8,7 @@ export interface AttendanceRecord {
   id: number;
   customer_id: number;
   schedule_id: number;
-  subscription_id: number;
+  class_booking_id: number;
   attendance_date: string;
   status: AttendanceStatus;
   marked_by?: number | null;

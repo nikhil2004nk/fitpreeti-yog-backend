@@ -1,0 +1,173 @@
+### ============================================
+### Subscription & Payment Flow (Admin)
+### Flow: Class booking → Subscription (total_fees, payment_type) → Payments (cash/UPI etc.)
+### One subscription per class booking; many payments per subscription.
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first)
+### --------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Prerequisite: Create class booking (if not already)
+### Replace customer_id, schedule_id, service_id with real IDs from GET /admin/customers, GET /admin/schedules
+### --------------------------------------------
+# @name createClassBooking
+POST {{baseUrl}}/admin/class-bookings
+Content-Type: {{contentType}}
+
+{
+  "customer_id": 2,
+  "schedule_id": 1,
+  "service_id": 1,
+  "starts_on": "2026-01-26",
+  "ends_on": "2026-02-15"
+}
+
+### --------------------------------------------
+### 3. Create subscription from class booking (total_fees + payment config)
+### Optional: first_payment_amount + first_payment_method → creates first payment row automatically
+### Replace class_booking_id with ID from step 2 (or GET /admin/class-bookings)
+### --------------------------------------------
+# @name createSubscription
+POST {{baseUrl}}/admin/subscriptions
+Content-Type: {{contentType}}
+
+{
+  "class_booking_id": 1,
+  "total_fees": 5000,
+  "payment_type": "installment",
+  "number_of_installments": 3,
+  "first_payment_amount": 2000,
+  "first_payment_method": "upi",
+  "first_payment_transaction_id": "TXN-001",
+  "first_payment_notes": "First installment"
+}
+
+### Create subscription – one-time payment
+# POST {{baseUrl}}/admin/subscriptions
+# Content-Type: {{contentType}}
+#
+# {
+#   "class_booking_id": 1,
+#   "total_fees": 3000,
+#   "payment_type": "one_time"
+# }
+
+### --------------------------------------------
+### 4. List subscriptions
+### --------------------------------------------
+GET {{baseUrl}}/admin/subscriptions
+
+### List by customer
+GET {{baseUrl}}/admin/subscriptions?customer_id=2
+
+### List by class booking
+GET {{baseUrl}}/admin/subscriptions?class_booking_id=1
+
+### List by schedule
+GET {{baseUrl}}/admin/subscriptions?schedule_id=1
+
+### List active only
+GET {{baseUrl}}/admin/subscriptions?status=active
+
+### --------------------------------------------
+### 5. Get subscription by ID
+### --------------------------------------------
+GET {{baseUrl}}/admin/subscriptions/2
+
+### --------------------------------------------
+### 6. Record payment (linked to subscription)
+### Replace subscription_id and customer_id with real IDs. payment_method: cash | upi | card | bank_transfer | online
+### Subscription amount_paid and payment_status are updated automatically.
+### --------------------------------------------
+# @name createPayment1
+POST {{baseUrl}}/admin/payments
+Content-Type: {{contentType}}
+
+{
+  "customer_id": 1,
+  "subscription_id": 2,
+  "amount": 2000,
+  "payment_method": "upi",
+  "transaction_id": "TXN-001-2001",
+  "notes": "First installment"
+}
+
+### Record second payment (installment)
+# @name createPayment2
+POST {{baseUrl}}/admin/payments
+Content-Type: {{contentType}}
+
+{
+  "customer_id": 1,
+  "subscription_id": 1,
+  "amount": 1500,
+  "payment_method": "cash",
+  "notes": "Second installment"
+}
+
+### Record third payment (completes 5000)
+# POST {{baseUrl}}/admin/payments
+# Content-Type: {{contentType}}
+#
+# {
+#   "customer_id": 1,
+#   "subscription_id": 1,
+#   "amount": 1500,
+#   "payment_method": "upi",
+#   "notes": "Third installment"
+# }
+
+### --------------------------------------------
+### 7. List payments
+### --------------------------------------------
+GET {{baseUrl}}/admin/payments
+
+### List by subscription (all payments for one subscription)
+GET {{baseUrl}}/admin/payments?subscription_id=1
+
+### List by customer
+GET {{baseUrl}}/admin/payments?customer_id=1
+
+### --------------------------------------------
+### 8. Get payment by ID
+### --------------------------------------------
+GET {{baseUrl}}/admin/payments/1
+
+### --------------------------------------------
+### 9. Get subscription again (see amount_paid and payment_status updated)
+### --------------------------------------------
+GET {{baseUrl}}/admin/subscriptions/2
+
+### --------------------------------------------
+### 10. Update subscription (total_fees, payment_type, etc.)
+### --------------------------------------------
+PUT {{baseUrl}}/admin/subscriptions/1
+Content-Type: {{contentType}}
+
+{
+  "total_fees": 5500,
+  "number_of_installments": 4
+}
+
+### --------------------------------------------
+### 11. Cancel subscription
+### --------------------------------------------
+POST {{baseUrl}}/admin/subscriptions/1/cancel
+Content-Type: {{contentType}}
+
+{
+  "reason": "Customer requested cancellation"
+}

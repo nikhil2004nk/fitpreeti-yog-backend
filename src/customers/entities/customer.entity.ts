@@ -108,19 +108,13 @@ export class Customer {
   @Column({ type: 'varchar', length: 500, nullable: true, name: 'profile_image_url' })
   profile_image_url: string | null;
 
-  @Column({ type: 'enum', enum: MembershipStatus, default: MembershipStatus.ACTIVE, name: 'membership_status' })
-  @Index('idx_membership_status')
-  membership_status: MembershipStatus;
-
-  @Column({ type: 'enum', enum: CustomerStatus, default: CustomerStatus.ACTIVE, name: 'status' })
+  @Column({ type: 'enum', enum: CustomerStatus, default: CustomerStatus.ONBOARDING, name: 'status' })
   @Index('idx_customer_status')
   status: CustomerStatus;
 
-  @Column({ type: 'date', nullable: true, name: 'membership_start_date' })
-  membership_start_date: Date | null;
-
-  @Column({ type: 'date', nullable: true, name: 'membership_end_date' })
-  membership_end_date: Date | null;
+  @Column({ type: 'enum', enum: MembershipStatus, default: MembershipStatus.INACTIVE, name: 'membership_status' })
+  @Index('idx_membership_status')
+  membership_status: MembershipStatus;
 
   @Column({ type: 'timestamp', nullable: true, name: 'onboarded_at' })
   onboarded_at: Date | null;

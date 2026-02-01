@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -27,10 +28,10 @@ export class SubscriptionsController {
   constructor(private readonly service: SubscriptionsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Enroll customer in schedule' })
+  @ApiOperation({ summary: 'Create subscription (from class_booking_id with total_fees + payment config; optional first payment creates a payment row)' })
   @ApiResponse({ status: 201, description: 'Subscription created' })
-  create(@Body() dto: CreateSubscriptionDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateSubscriptionDto, @Req() req: { user?: { sub: string } }) {
+    return this.service.create(dto, req.user ? Number(req.user.sub) : undefined);
   }
 
   @Get()
@@ -38,22 +39,25 @@ export class SubscriptionsController {
   @ApiQuery({ name: 'customer_id', required: false })
   @ApiQuery({ name: 'schedule_id', required: false })
   @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'class_booking_id', required: false })
   list(
     @Query('customer_id') customer_id?: string,
     @Query('schedule_id') schedule_id?: string,
     @Query('status') status?: string,
+    @Query('class_booking_id') class_booking_id?: string,
   ) {
     const filters: any = {};
     if (customer_id) filters.customer_id = parseInt(customer_id, 10);
     if (schedule_id) filters.schedule_id = parseInt(schedule_id, 10);
     if (status) filters.status = status as SubscriptionStatus;
+    if (class_booking_id) filters.class_booking_id = parseInt(class_booking_id, 10);
     return this.service.findAll(filters);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get subscription by ID' })
+  @ApiOperation({ summary: 'Get subscription by ID (includes available_dates and remaining_amount)' })
   getOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+    return this.service.findOneWithExtras(id);
   }
 
   @Put(':id')

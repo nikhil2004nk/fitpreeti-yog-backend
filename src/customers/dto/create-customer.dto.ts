@@ -5,18 +5,24 @@ import {
   IsEnum,
   IsEmail,
   IsDateString,
+  IsNotEmpty,
   MaxLength,
-  MinLength,
 } from 'class-validator';
-import { CustomerGender, MembershipStatus, YogaExperienceLevel } from '../../common/enums/customer.enums';
+import { CustomerGender, YogaExperienceLevel } from '../../common/enums/customer.enums';
 import { LeadPreferredClassType } from '../../common/enums/lead.enums';
 
+/**
+ * Create customer: only full_name is required so admin can save partial info (status = onboarding).
+ * If email is provided → complete onboarding in one go (create login, status = active).
+ * If email omitted → status = onboarding; admin can later PUT update and POST :id/complete-onboarding.
+ */
 export class CreateCustomerDto {
   @IsInt()
   @IsOptional()
   user_id?: number;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(255)
   full_name: string;
 
@@ -45,18 +51,6 @@ export class CreateCustomerDto {
   @IsEnum(LeadPreferredClassType)
   @IsOptional()
   preferred_class_type?: LeadPreferredClassType;
-
-  @IsEnum(MembershipStatus)
-  @IsOptional()
-  membership_status?: MembershipStatus;
-
-  @IsDateString()
-  @IsOptional()
-  membership_start_date?: string;
-
-  @IsDateString()
-  @IsOptional()
-  membership_end_date?: string;
 
   @IsString()
   @MaxLength(255)
@@ -127,10 +121,4 @@ export class CreateCustomerDto {
   @MaxLength(500)
   @IsOptional()
   profile_image_url?: string;
-
-  // Optional fields for complete onboarding during creation
-  @IsString()
-  @IsOptional()
-  @MinLength(8, { message: 'Password must be at least 8 characters' })
-  password?: string; // If provided, creates customer with active status and credentials
 }

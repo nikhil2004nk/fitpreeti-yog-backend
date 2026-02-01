@@ -1,0 +1,124 @@
+### ============================================
+### Trainer Onboarding (Admin)
+### Admin creates trainer (user + trainer profile). Trainer then logs in and uses trainer portal.
+### ============================================
+
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### --------------------------------------------
+### 1. Login as Admin (run first for admin endpoints)
+### --------------------------------------------
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@yogaplatform.com",
+  "password": "Admin@1234"
+}
+
+### --------------------------------------------
+### 2. Admin – Create trainer (onboarding)
+### Creates user (email/password) + trainer profile. gender: male | female | other
+### --------------------------------------------
+# @name createTrainer
+POST {{baseUrl}}/admin/trainers
+Content-Type: {{contentType}}
+
+{
+  "email": "trainer@yogaplatform.com",
+  "password": "Trainer@1234",
+  "full_name": "Jane Yoga",
+  "phone": "+919876543210",
+  "gender": "female",
+  "specializations": ["hatha", "vinyasa"],
+  "yoga_styles": "Hatha, Vinyasa Flow",
+  "experience_years": 5,
+  "certifications": ["RYT-200", "RYT-500"],
+  "designations": ["Senior Instructor"],
+  "bio": "Certified yoga instructor with 5+ years of experience.",
+  "profile_image_url": "https://example.com/jane.jpg",
+  "hourly_rate": 800,
+  "is_available": true,
+  "social_media": {
+    "instagram": "https://instagram.com/janeyoga",
+    "youtube": "https://youtube.com/@janeyoga",
+    "linkedin": "https://linkedin.com/in/janeyoga"
+  }
+}
+
+### Minimal create (required: email, password, full_name)
+# POST {{baseUrl}}/admin/trainers
+# Content-Type: {{contentType}}
+#
+# {
+#   "email": "trainer2@yogaplatform.com",
+#   "password": "Trainer@1234",
+#   "full_name": "John Yoga"
+# }
+
+### --------------------------------------------
+### 3. Admin – List all trainers
+### --------------------------------------------
+GET {{baseUrl}}/admin/trainers
+
+### --------------------------------------------
+### 4. Admin – Get trainer by ID
+### --------------------------------------------
+GET {{baseUrl}}/admin/trainers/1
+
+### --------------------------------------------
+### 5. Admin – Update trainer
+### --------------------------------------------
+PUT {{baseUrl}}/admin/trainers/1
+Content-Type: {{contentType}}
+
+{
+  "full_name": "Jane Yoga (Updated)",
+  "phone": "+919876543211",
+  "experience_years": 6,
+  "hourly_rate": 900,
+  "is_available": true,
+  "bio": "Updated bio with 6+ years experience."
+}
+
+### --------------------------------------------
+### 6. Admin – Deactivate trainer
+### --------------------------------------------
+DELETE {{baseUrl}}/admin/trainers/1
+
+### --------------------------------------------
+### 7. Trainer login (use credentials from step 2)
+### After login, use cookies for trainer portal endpoints.
+### --------------------------------------------
+# @name loginTrainer
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "trainer@yogaplatform.com",
+  "password": "Trainer@1234"
+}
+
+### --------------------------------------------
+### 8. Trainer portal – My schedules (requires trainer auth)
+### Run step 7 first, then send this request (cookies included).
+### --------------------------------------------
+GET {{baseUrl}}/trainer/schedules
+
+### --------------------------------------------
+### 9. Trainer portal – Customers in my class (for a date)
+### scheduleId = schedule id from step 8. date = YYYY-MM-DD
+### --------------------------------------------
+GET {{baseUrl}}/trainer/schedules/1/customers?date=2026-02-01
+
+### --------------------------------------------
+### 10. Public – List all available trainers (no auth)
+### --------------------------------------------
+GET {{baseUrl}}/trainers/public
+
+### --------------------------------------------
+### 11. Public – Get trainer by ID (no auth)
+### --------------------------------------------
+GET {{baseUrl}}/trainers/public/1
